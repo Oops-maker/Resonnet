@@ -1,0 +1,25 @@
+# Resonnet Technical Documentation
+
+This directory contains technical implementation details and design docs for Resonnet.
+
+## Document Index
+
+| Doc | Description |
+|-----|-------------|
+| [architecture.md](architecture.md) | Overall architecture: API layer, agent layer, workspace layout, data flow |
+| [config.md](config.md) | Environment variables; SCENARIO_PRESET, SKILLS_BASE; ANTHROPIC_* vs AI_GENERATION_* |
+| [testing.md](testing.md) | Test layers (unit/integration), .env setup, CI notes |
+| [api-reference.md](api-reference.md) | API endpoint list and brief descriptions |
+| [skills-generalization.md](skills-generalization.md) | Skills scenario design; experts/moderator under `skills/scenarios/topic-lab/` |
+| [../app/prompts/README.md](../app/prompts/README.md) | AI prompt management (expert/moderator generation, round discussion, expert reply) |
+| [../skills/README.md](../skills/README.md) | Skills directory structure; adding new scenarios |
+
+## Quick Navigation
+
+- **Getting started**: Read [config.md](config.md) for env setup, then [testing.md](testing.md) to run tests
+- **Architecture**: [architecture.md](architecture.md)
+- **API development**: [api-reference.md](api-reference.md)
+
+## Important Notes
+
+- AgentSDK availability must be validated with a real `.env`; `ANTHROPIC_API_KEY=test` is not acceptable for acceptance.

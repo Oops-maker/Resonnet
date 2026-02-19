@@ -1,0 +1,155 @@
+name: tests-ci
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - "feature/**"
+      - "fix/**"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  detect-changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      run_api: ${{ steps.diff.outputs.run_api }}
+      run_agent_sdk: ${{ steps.diff.outputs.run_agent_sdk }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Diff and set outputs
+        id: diff
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "run_api=true" >> "$GITHUB_OUTPUT"
+            echo "run_agent_sdk=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="HEAD~1"
+          fi
+          if ! git rev-parse "$BASE" &>/dev/null; then
+            echo "run_api=true" >> "$GITHUB_OUTPUT"
+            echo "run_agent_sdk=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "$BASE" HEAD 2>/dev/null || echo "")
+          if echo "$CHANGED" | grep -qE '^(app/api/|app/models/|app/core/|main\.py|tests/test_api\.py|tests/conftest\.py)'; then
+            echo "run_api=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_api=false" >> "$GITHUB_OUTPUT"
+          fi
+          if echo "$CHANGED" | grep -qE '^(app/agent/|app/prompts/|skills/|tests/test_agent_sdk\.py|tests/conftest\.py)'; then
+            echo "run_agent_sdk=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_agent_sdk=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  unit-tests-api:
+    name: Unit (API)
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.run_api == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run API unit tests
+        run: |
+          echo "=== Unit tests: API (topics, posts, experts) ==="
+          uv run \
+            --with fastapi --with uvicorn --with pydantic --with pydantic-settings \
+            --with python-dotenv --with claude-agent-sdk --with anthropic --with openai \
+            --with pytest --with pytest-asyncio --with httpx \
+            pytest tests/test_api.py -v --tb=short
+
+  unit-tests-agent-sdk:
+    name: Unit (Agent SDK)
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.run_agent_sdk == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run Agent SDK unit tests
+        run: |
+          echo "=== Unit tests: Agent SDK (mocked) ==="
+          uv run \
+            --with fastapi --with uvicorn --with pydantic --with pydantic-settings \
+            --with python-dotenv --with claude-agent-sdk --with anthropic --with openai \
+            --with pytest --with pytest-asyncio --with httpx \
+            pytest tests/test_agent_sdk.py -m "not integration" -v --tb=short
+
+  integration-tests-agent-sdk:
+    name: Integration (Agent SDK)
+    needs: [detect-changes, unit-tests-agent-sdk]
+    if: needs.detect-changes.outputs.run_agent_sdk == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check ANTHROPIC_API_KEY
+        id: check_key
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [[ -z "${ANTHROPIC_API_KEY:-}" || "${ANTHROPIC_API_KEY}" == "test" ]]; then
+            echo "::notice title=Integration skipped::ANTHROPIC_API_KEY not configured; job skipped (success)"
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.check_key.outputs.has_key == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        if: steps.check_key.outputs.has_key == 'true'
+        uses: astral-sh/setup-uv@v5
+
+      - name: Setup Python
+        if: steps.check_key.outputs.has_key == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run Agent SDK integration tests
+        if: steps.check_key.outputs.has_key == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          uv run \
+            --with fastapi --with uvicorn --with pydantic --with pydantic-settings \
+            --with python-dotenv --with claude-agent-sdk --with anthropic --with openai \
+            --with pytest --with pytest-asyncio --with httpx \
+            pytest tests/test_agent_sdk.py -m integration -v --tb=short

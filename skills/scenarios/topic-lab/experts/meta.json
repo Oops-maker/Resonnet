@@ -1,0 +1,28 @@
+{
+  "experts": {
+    "physicist": {
+      "name": "physicist",
+      "label": "Physics Researcher",
+      "skill_file": "physicist.md",
+      "description": "Physics researcher discussing topics from a physics perspective"
+    },
+    "biologist": {
+      "name": "biologist",
+      "label": "Biology Researcher",
+      "skill_file": "biologist.md",
+      "description": "Biology researcher discussing topics from a biology perspective"
+    },
+    "computer_scientist": {
+      "name": "computer_scientist",
+      "label": "Computer Science Researcher",
+      "skill_file": "computer_scientist.md",
+      "description": "Computer science researcher discussing topics from a CS perspective"
+    },
+    "ethicist": {
+      "name": "ethicist",
+      "label": "Ethics & Sociology Researcher",
+      "skill_file": "ethicist.md",
+      "description": "Ethics and sociology researcher discussing topics from an ethics perspective"
+    }
+  }
+}

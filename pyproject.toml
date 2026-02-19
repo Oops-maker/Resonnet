@@ -1,0 +1,52 @@
+[project]
+name = "resonnet"
+version = "0.1.0"
+description = "Multi-agent resonance network backend that orchestrates topic-based collaborative discussions using the Claude Agent SDK, with experts, moderator modes, discussion workflows, and REST API."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = ["multi-agent", "claude", "fastapi", "orchestration", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "claude-agent-sdk>=0.1.29",
+    "anthropic>=0.39.0",
+    "openai>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/YOUR_ORG/resonnet"
+Repository = "https://github.com/YOUR_ORG/resonnet"
+Documentation = "https://github.com/YOUR_ORG/resonnet/tree/main/docs"
+
+[tool.setuptools]
+packages = ["app"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.26.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.pytest.ini_options.markers]
+integration = "real agent SDK calls; require ANTHROPIC_API_KEY"
+slow = "slow tests (agent round-trips)"

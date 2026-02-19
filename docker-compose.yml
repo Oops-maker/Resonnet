@@ -1,0 +1,15 @@
+# Resonnet 单服务部署
+# 用法: docker compose up --build
+
+services:
+  resonnet:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - WORKSPACE_BASE=/app/workspace
+    volumes:
+      - ${WORKSPACE_HOST_DIR:-./workspace}:/app/workspace
+    restart: unless-stopped
