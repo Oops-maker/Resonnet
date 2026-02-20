@@ -8,6 +8,8 @@ from pathlib import Path
 
 from app.core.config import get_skills_dir
 
+from .workspace import build_output_language_instruction
+
 logger = logging.getLogger(__name__)
 
 # Skill files directory for moderator mode prompts (from scenario preset)
@@ -147,12 +149,14 @@ def prepare_moderator_skill(ws_path: Path, topic: str, expert_names: list[str], 
     num_rounds = num_rounds if num_rounds is not None else config.get("num_rounds", 5)
     custom_prompt = config.get("custom_prompt")
 
+    output_lang = build_output_language_instruction(ws_path)
     params = dict(
         topic=topic,
         ws_abs=str(ws_path.resolve()),
         expert_names_str="、".join(expert_names),
         num_experts=len(expert_names),
         num_rounds=num_rounds,
+        output_language_instruction=output_lang,
     )
 
     if mode_id == "custom" and custom_prompt:

@@ -11,6 +11,8 @@ from claude_agent_sdk import AgentDefinition
 from app.core.config import get_skills_dir
 from app.models.schemas import DEFAULT_ALLOWED_TOOLS
 
+from .workspace import FALLBACK_LANGUAGE_INSTRUCTION, build_output_language_instruction
+
 logger = logging.getLogger(__name__)
 
 # 专家默认工具：与主持人一致但排除 Task（Task 仅主持人用于调用子 agent）
@@ -105,12 +107,20 @@ def _load_common_content(skills_dir: Path) -> str:
 
 
 def _build_expert_prompt_from_global(
-    skills_dir: Path, name: str, spec: dict
+    skills_dir: Path,
+    name: str,
+    spec: dict,
+    output_language_instruction: str | None = None,
 ) -> str:
     """Build prompt from role skill + common sections (with placeholder replacement)."""
+    lang_instruction = output_language_instruction or FALLBACK_LANGUAGE_INSTRUCTION
     role_path = skills_dir / spec["skill_file"]
     role_content = role_path.read_text(encoding="utf-8") if role_path.exists() else ""
     common_content = _load_common_content(skills_dir)
+    if common_content:
+        common_content = common_content.replace(
+            "{output_language_instruction}", lang_instruction
+        )
     combined = role_content
     if common_content:
         combined = f"{role_content}\n\n{common_content}" if role_content else common_content
@@ -176,10 +186,15 @@ def build_experts_from_workspace(
 
         # Priority 1: workspace role.md (role-only; common sections appended)
         workspace_role = workspace_dir / "agents" / name / "role.md"
+        output_lang = build_output_language_instruction(workspace_dir)
         if workspace_role.exists():
             logger.info(f"Using workspace role for {name}: {workspace_role}")
             role_content = workspace_role.read_text(encoding="utf-8")
             common_content = _load_common_content(skills_dir)
+            if common_content:
+                common_content = common_content.replace(
+                    "{output_language_instruction}", output_lang
+                )
             prompt_text = (
                 f"{role_content}\n\n{common_content}" if common_content else role_content
             )
@@ -191,7 +206,9 @@ def build_experts_from_workspace(
             global_skill = skills_dir / spec["skill_file"]
             if global_skill.exists():
                 logger.info(f"Fallback to global skill for {name}: {global_skill}")
-                prompt_text = _build_expert_prompt_from_global(skills_dir, name, spec)
+                prompt_text = _build_expert_prompt_from_global(
+                    skills_dir, name, spec, output_language_instruction=output_lang
+                )
             else:
                 logger.error(f"No role found for {name}, using description as fallback")
                 prompt_text = spec["description"]

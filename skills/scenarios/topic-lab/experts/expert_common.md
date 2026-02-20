@@ -28,6 +28,6 @@ All experts share this space:
 5. **Build on history**: If previous turns exist, respond, extend, or deepen
 6. **Write turn**: Write your final turn (view only, no reasoning) to the specified shared/turns/ file
 
-## Language
+## Output Language (Must Follow)
 
-- If no other language is specified, prefer the language of the request context for discussion and replies
+- {output_language_instruction}

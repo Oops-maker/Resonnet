@@ -10,6 +10,98 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# --- Workspace config (config/workspace.json) ---
+
+WORKSPACE_CONFIG_FILE = "config/workspace.json"
+DEFAULT_OUTPUT_LANGUAGE = "auto"
+LANGUAGE_NAMES = {"zh": "中文", "en": "English", "auto": "auto"}
+
+
+def _detect_language_from_text(text: str) -> str:
+    """Detect output language from text. Returns 'zh' if Chinese chars dominate, else 'en'."""
+    if not text or not text.strip():
+        return "en"
+    # Count CJK-ish characters (Chinese, Japanese, Korean)
+    cjk = sum(1 for c in text if "\u4e00" <= c <= "\u9fff" or "\u3000" <= c <= "\u303f")
+    total_alpha = sum(1 for c in text if c.isalpha())
+    if total_alpha == 0:
+        return "en"
+    if cjk / total_alpha >= 0.3:
+        return "zh"
+    return "en"
+
+
+def load_workspace_config(ws_path: Path) -> dict:
+    """Load workspace config from config/workspace.json.
+
+    Returns:
+        dict with output_language, output_language_name, etc.
+    """
+    config_file = ws_path / WORKSPACE_CONFIG_FILE
+    if not config_file.exists():
+        return {"output_language": DEFAULT_OUTPUT_LANGUAGE, "output_language_name": LANGUAGE_NAMES[DEFAULT_OUTPUT_LANGUAGE]}
+
+    try:
+        data = json.loads(config_file.read_text(encoding="utf-8"))
+        lang = data.get("output_language", DEFAULT_OUTPUT_LANGUAGE)
+        return {
+            "output_language": lang,
+            "output_language_name": data.get("output_language_name") or LANGUAGE_NAMES.get(lang, "auto"),
+        }
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning(f"Failed to load workspace config: {e}")
+        return {"output_language": DEFAULT_OUTPUT_LANGUAGE, "output_language_name": LANGUAGE_NAMES[DEFAULT_OUTPUT_LANGUAGE]}
+
+
+def save_workspace_config(ws_path: Path, config: dict) -> None:
+    """Save workspace config to config/workspace.json."""
+    config_file = ws_path / WORKSPACE_CONFIG_FILE
+    config_file.parent.mkdir(parents=True, exist_ok=True)
+    content = json.dumps(config, indent=2, ensure_ascii=False)
+    config_file.write_text(content, encoding="utf-8")
+    logger.info(f"Saved workspace config to {config_file}")
+
+
+def init_workspace_language_from_topic(ws_path: Path, topic_title: str, topic_body: str) -> None:
+    """Initialize or update output_language in workspace config from topic content.
+
+    If config already has explicit output_language (zh/en), do not overwrite.
+    If output_language is 'auto' or missing, detect from topic_title + topic_body.
+    """
+    config = load_workspace_config(ws_path)
+    if config.get("output_language") in ("zh", "en"):
+        return  # Already explicitly set
+    combined = f"{topic_title}\n{topic_body}"
+    detected = _detect_language_from_text(combined)
+    config["output_language"] = detected
+    config["output_language_name"] = LANGUAGE_NAMES[detected]
+    save_workspace_config(ws_path, config)
+    logger.info(f"Initialized workspace output_language from topic: {detected}")
+
+
+FALLBACK_LANGUAGE_INSTRUCTION = (
+    "If no other language is specified, prefer the language of the topic and user context "
+    "for all output and communication."
+)
+
+
+def build_output_language_instruction(ws_path: Path) -> str:
+    """Build the Output Language skill section for prompts.
+
+    Returns a strict instruction when output_language is zh/en; otherwise
+    a fallback 'prefer request context' instruction.
+    """
+    config = load_workspace_config(ws_path)
+    lang = config.get("output_language", DEFAULT_OUTPUT_LANGUAGE)
+    name = config.get("output_language_name") or LANGUAGE_NAMES.get(lang, "auto")
+
+    if lang in ("zh", "en"):
+        return (
+            f"**MUST** use {name} for all output: discussion turns, summaries, replies, and any text you produce. "
+            f"Do not switch to another language unless the user explicitly requests it."
+        )
+    return FALLBACK_LANGUAGE_INSTRUCTION
+
 
 def validate_topic_id(topic_id: str) -> str:
     """Validate topic_id to prevent path traversal attacks.
@@ -60,6 +152,8 @@ def init_discussion_history(ws_path: Path, topic_title: str, topic_body: str) ->
 
     shared/topic.md is the canonical source for experts to understand the discussion topic,
     including any URLs or links in the body. The moderator also gets topic via config/moderator_skill.md.
+
+    Also initializes config/workspace.json output_language from topic content when set to 'auto'.
     """
     shared_dir = ws_path / "shared"
     turns_dir = shared_dir / "turns"
@@ -69,6 +163,8 @@ def init_discussion_history(ws_path: Path, topic_title: str, topic_body: str) ->
     topic_file = shared_dir / "topic.md"
     topic_file.write_text(topic_content, encoding="utf-8")
     logger.info("Wrote shared/topic.md for experts to read")
+
+    init_workspace_language_from_topic(ws_path, topic_title, topic_body)
 
     return turns_dir
 

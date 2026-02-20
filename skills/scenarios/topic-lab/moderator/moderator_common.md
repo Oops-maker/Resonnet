@@ -12,6 +12,6 @@ Rounds: **{num_rounds}** (strict; do not exceed)
 - Rounds start at 1; end strictly at round {num_rounds}
 - After discussion: Write shared/discussion_summary.md ({summary_scope})
 
-## Language
+## Output Language (Must Follow)
 
-- If no other language is specified, prefer the language of the request context for moderation, summaries, and all output
+- {output_language_instruction}
