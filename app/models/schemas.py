@@ -71,6 +71,9 @@ class Topic(BaseModel):
     discussion_status: DiscussionStatus = DiscussionStatus.PENDING
     created_at: str
     updated_at: str
+    # Populated by API from config/moderator_mode.json (not in topic.json)
+    moderator_mode_id: Optional[str] = None
+    moderator_mode_name: Optional[str] = None
 
 
 # --- Comment models ---
