@@ -88,6 +88,14 @@
 | PUT | `/topics/{topic_id}/moderator-mode` | Set moderator mode |
 | POST | `/topics/{topic_id}/moderator-mode/generate` | AI-generate moderator prompt |
 
+**GET/PUT moderator-mode** response/body fields:
+- `mode_id`, `num_rounds`, `custom_prompt` (required for PUT)
+- `skill_list` (optional): Selected skill ids for discussion; persisted per topic
+- `mcp_server_ids` (optional): Selected MCP server ids for discussion; persisted per topic
+- `model` (optional): Preferred model for discussion
+
+When loading, if `skill_list`/`mcp_server_ids` are missing in config, they are derived from `config/skills/` and `config/mcp.json` (workspace fallback).
+
 Modes are loaded from `libs/moderator_modes/` (same structure as assignable_skills, mcps).
 
 ## Global Experts

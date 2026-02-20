@@ -76,28 +76,86 @@ def load_moderator_mode_config(ws_path: Path) -> dict:
     """Load moderator mode configuration from config/moderator_mode.json.
 
     Returns:
-        dict with structure: {"mode_id": "standard", "num_rounds": 5, "custom_prompt": null}
+        dict with structure: {"mode_id": "standard", "num_rounds": 5, "custom_prompt": null,
+        "skill_list": [], "mcp_server_ids": [], "model": null}
         If file doesn't exist, returns default standard mode config.
+        Falls back to workspace config/skills/ and config/mcp.json when those fields are missing.
     """
     config_file = ws_path / "config" / "moderator_mode.json"
+    default = {
+        "mode_id": "standard",
+        "num_rounds": 5,
+        "custom_prompt": None,
+        "skill_list": [],
+        "mcp_server_ids": [],
+        "model": None,
+    }
 
     if not config_file.exists():
-        return {
-            "mode_id": "standard",
-            "num_rounds": 5,
-            "custom_prompt": None,
-        }
+        return _enrich_config_from_workspace(default, ws_path)
 
     try:
         content = config_file.read_text(encoding="utf-8")
-        return json.loads(content)
+        data = json.loads(content)
+        # Ensure extended fields exist
+        for key in ("skill_list", "mcp_server_ids", "model"):
+            if key not in data:
+                data[key] = default[key]
+        return _enrich_config_from_workspace(data, ws_path)
     except (json.JSONDecodeError, OSError) as e:
         logger.error(f"Failed to load moderator mode config: {e}")
-        return {
-            "mode_id": "standard",
-            "num_rounds": 5,
-            "custom_prompt": None,
-        }
+        return _enrich_config_from_workspace(default, ws_path)
+
+
+def _enrich_config_from_workspace(config: dict, ws_path: Path) -> dict:
+    """Fill skill_list and mcp_server_ids from workspace when missing in config."""
+    result = dict(config)
+    skills_dir = ws_path / "config" / "skills"
+    mcp_file = ws_path / "config" / "mcp.json"
+
+    if not result.get("skill_list") and skills_dir.exists():
+        result["skill_list"] = _skill_ids_from_workspace(skills_dir)
+
+    if not result.get("mcp_server_ids") and mcp_file.exists():
+        try:
+            data = json.loads(mcp_file.read_text(encoding="utf-8"))
+            servers = data.get("mcpServers") or {}
+            result["mcp_server_ids"] = list(servers.keys())
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    return result
+
+
+def _skill_ids_from_workspace(skills_dir: Path) -> list[str]:
+    """Derive skill ids from config/skills/ filenames (reverse of _skill_dest_filename).
+
+    Filename is either slug.md or source_slug.md (colon replaced with underscore).
+    Resolve against assignable skills meta to pick the correct id when ambiguous.
+    """
+    ids: list[str] = []
+    try:
+        from app.core.config import get_assignable_skills_dir
+        from app.core.skills_meta import load_aggregated_meta
+
+        base_dir = get_assignable_skills_dir()
+        _, skills_meta = load_aggregated_meta(base_dir)
+    except Exception:
+        skills_meta = {}
+
+    for p in skills_dir.glob("*.md"):
+        stem = p.stem
+        if stem in (skills_meta or {}):
+            ids.append(stem)
+        elif "_" in stem:
+            candidate = stem.replace("_", ":", 1)
+            if candidate in (skills_meta or {}):
+                ids.append(candidate)
+            else:
+                ids.append(stem)
+        else:
+            ids.append(stem)
+    return ids
 
 
 def save_moderator_mode_config(ws_path: Path, config: dict):
@@ -105,8 +163,18 @@ def save_moderator_mode_config(ws_path: Path, config: dict):
     config_file = ws_path / "config" / "moderator_mode.json"
     config_file.parent.mkdir(parents=True, exist_ok=True)
 
+    # Only persist known fields
+    to_save = {
+        "mode_id": config.get("mode_id", "standard"),
+        "num_rounds": config.get("num_rounds", 5),
+        "custom_prompt": config.get("custom_prompt"),
+        "skill_list": config.get("skill_list", []),
+        "mcp_server_ids": config.get("mcp_server_ids", []),
+        "model": config.get("model"),
+    }
+
     try:
-        content = json.dumps(config, indent=2, ensure_ascii=False)
+        content = json.dumps(to_save, indent=2, ensure_ascii=False)
         config_file.write_text(content, encoding="utf-8")
         logger.info(f"Saved moderator mode config to {config_file}")
     except OSError as e:

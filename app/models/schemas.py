@@ -206,6 +206,9 @@ class ModeratorModeConfig(BaseModel):
     mode_id: str
     num_rounds: int = Field(default=5, ge=1, le=10)
     custom_prompt: Optional[str] = None
+    skill_list: list[str] = Field(default_factory=list, description="Selected skill ids for discussion")
+    mcp_server_ids: list[str] = Field(default_factory=list, description="Selected MCP server ids for discussion")
+    model: Optional[str] = Field(default=None, description="Preferred model for discussion")
 
 
 class SetModeratorModeRequest(BaseModel):
@@ -213,6 +216,9 @@ class SetModeratorModeRequest(BaseModel):
     mode_id: str
     num_rounds: int = Field(default=5, ge=1, le=10)
     custom_prompt: Optional[str] = None
+    skill_list: Optional[list[str]] = None
+    mcp_server_ids: Optional[list[str]] = None
+    model: Optional[str] = None
 
 
 # --- Post models ---

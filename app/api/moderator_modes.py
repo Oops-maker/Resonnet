@@ -150,10 +150,14 @@ def set_topic_moderator_mode(topic_id: str, req: SetModeratorModeRequest):
     ws_base = get_workspace_base()
     ws_path = ws_base / "topics" / topic_id
 
+    existing = load_moderator_mode_config(ws_path)
     config = {
         "mode_id": req.mode_id,
         "num_rounds": req.num_rounds,
         "custom_prompt": req.custom_prompt,
+        "skill_list": req.skill_list if req.skill_list is not None else existing.get("skill_list", []),
+        "mcp_server_ids": req.mcp_server_ids if req.mcp_server_ids is not None else existing.get("mcp_server_ids", []),
+        "model": req.model if req.model is not None else existing.get("model"),
     }
 
     save_moderator_mode_config(ws_path, config)
@@ -173,14 +177,18 @@ async def generate_moderator_mode_endpoint(topic_id: str, req: GenerateModerator
     except ValueError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    # Automatically save as custom mode
+    # Automatically save as custom mode, preserve skill_list/mcp_server_ids/model
     ws_base = get_workspace_base()
     ws_path = ws_base / "topics" / topic_id
+    existing = load_moderator_mode_config(ws_path)
 
     config = {
         "mode_id": "custom",
         "num_rounds": 5,  # Default, user can adjust
         "custom_prompt": custom_prompt,
+        "skill_list": existing.get("skill_list", []),
+        "mcp_server_ids": existing.get("mcp_server_ids", []),
+        "model": existing.get("model"),
     }
 
     save_moderator_mode_config(ws_path, config)
