@@ -26,6 +26,7 @@ def _build_expert_info(name: str) -> ExpertInfo:
         description=spec["description"],
         skill_file=skill_file,
         skill_content=skill_content,
+        perspective=spec.get("perspective", name),
     )
 
 

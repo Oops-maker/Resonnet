@@ -135,6 +135,7 @@ class ExpertInfo(BaseModel):
     description: str
     skill_file: str
     skill_content: str
+    perspective: str = ""  # 用于前端分组展示，如 physics, biology
 
 
 class ExpertUpdateRequest(BaseModel):
