@@ -36,7 +36,7 @@ Other requirements:
 - When **citing prior discussion**, note the source (e.g. "In round X...")
 - Be concise and focused
 - You may raise new questions or angles for further thought
-- **Language**: If no other language is specified, prefer the language of the request context
+- **Language**: Reply in the same language as the user's question
 
 ## Strict Constraints (Must Follow)
 
