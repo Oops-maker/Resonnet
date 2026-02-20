@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 PROMPTS_DIR = get_prompts_dir()
 EXPERT_GENERATION_PROMPT = PROMPTS_DIR / "expert_generation.md"
 EXPERT_USER_MESSAGE = PROMPTS_DIR / "expert_user_message.md"
-EXPERT_STANDARD_SECTIONS_FILE = PROMPTS_DIR / "expert_standard_sections.md"
 MODERATOR_GENERATION_PROMPT = PROMPTS_DIR / "moderator_generation.md"
 MODERATOR_USER_MESSAGE = PROMPTS_DIR / "moderator_user_message.md"
 
@@ -101,8 +100,8 @@ async def generate_expert(
     main_content = re.sub(r'\n?```\s*$', '', main_content, flags=re.MULTILINE)
     main_content = re.sub(r'```', '', main_content).strip()
 
-    standard_sections = load_prompt(EXPERT_STANDARD_SECTIONS_FILE).format(expert_name=expert_name)
-    role_content = main_content + standard_sections
+    # Role-only content; Workspace, Discussion Rules, Language are appended from expert_common.md at load time
+    role_content = main_content
 
     logger.info(f"Generated expert: {expert_name} ({expert_label})")
     return expert_name, expert_label, role_content

@@ -11,6 +11,7 @@ from typing import Any
 from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 
 from app.core.config import get_prompts_dir, get_skills_dir
+from app.models.schemas import DEFAULT_ALLOWED_TOOLS
 from app.core.model_pricing import calculate_cost_from_usage
 from .config import get_agent_config
 from .experts import EXPERT_SPECS, build_experts, build_experts_from_workspace, build_workspace_boundary
@@ -37,6 +38,11 @@ def _load_system_prompt(ws_abs: str) -> str:
     return template.replace("{ws_abs}", ws_abs)
 
 
+def _expert_tools_from_moderator_tools(moderator_tools: list[str]) -> list[str]:
+    """专家不使用 Task（仅主持人用于调用子 agent），其余工具与主持人一致"""
+    return [t for t in moderator_tools if t != "Task"]
+
+
 async def run_discussion(
     workspace_dir: Path,
     config: dict[str, str],
@@ -45,6 +51,7 @@ async def run_discussion(
     expert_names: list[str] | None = None,
     max_turns: int = 60,
     max_budget_usd: float = 5.0,
+    allowed_tools: list[str] | None = None,
 ) -> dict[str, Any]:
     """Run discussion and return num_turns, total_cost_usd."""
     logger.info(f"Starting run_discussion for topic, model={config.get('model')}, experts={expert_names}")
@@ -62,13 +69,16 @@ async def run_discussion(
 
     # Build AgentDefinitions from workspace role files (fallback to global skills)
     # Pass ws_abs so each expert's prompt includes the topic sandbox boundary.
+    tools = allowed_tools if allowed_tools else DEFAULT_ALLOWED_TOOLS
+    expert_tools = _expert_tools_from_moderator_tools(tools)
+
     if expert_names:
         experts = build_experts_from_workspace(
-            workspace_dir, skills_dir, expert_names, model=model, ws_abs=ws_abs
+            workspace_dir, skills_dir, expert_names, model=model, ws_abs=ws_abs, tools=expert_tools
         )
     else:
         logger.warning("No expert_names specified, using all default experts")
-        experts = build_experts(skills_dir, model=model)
+        experts = build_experts(skills_dir, model=model, tools=expert_tools)
 
     logger.info(f"Built {len(experts)} experts: {list(experts.keys())}")
 
@@ -85,7 +95,7 @@ async def run_discussion(
     prompt = get_moderator_prompt(workspace_dir)
 
     options = ClaudeAgentOptions(
-        allowed_tools=["Read", "Write", "Glob", "Task"],
+        allowed_tools=tools,
         permission_mode="bypassPermissions",
         system_prompt=system_prompt,
         cwd=ws_abs,
@@ -124,6 +134,7 @@ async def run_discussion_for_topic(
     max_turns: int = 60,
     max_budget_usd: float = 5.0,
     model: str | None = None,
+    allowed_tools: list[str] | None = None,
 ) -> dict[str, Any]:
     """Run discussion for a topic; return discussion_history, summary, cost, etc."""
     from app.core.config import get_workspace_base
@@ -149,6 +160,7 @@ async def run_discussion_for_topic(
             expert_names=expert_names,
             max_turns=max_turns,
             max_budget_usd=max_budget_usd,
+            allowed_tools=allowed_tools,
         )
 
     return {

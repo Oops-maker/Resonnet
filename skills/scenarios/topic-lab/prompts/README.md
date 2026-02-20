@@ -12,10 +12,9 @@ AI prompts that drive **feature behavior**: expert/moderator generation, round d
 
 | File | Function | Trigger |
 |------|----------|---------|
-| `expert_generation.md` | System prompt for AI expert generation | User clicks "AI generate" when creating expert |
+| `expert_generation.md` | System prompt for AI expert generation (role-only output) | User clicks "AI generate" when creating expert |
 | `expert_user_message.md` | User message template | Same |
-| `expert_standard_sections.md` | Sections appended to generated roles | Same |
-| `moderator_generation.md` | System prompt for AI moderator generation | User clicks "AI generate" in moderator dialog |
+| `moderator_generation.md` | System prompt for AI moderator generation (role-only output) | User clicks "AI generate" in moderator dialog |
 | `moderator_user_message.md` | User message template | Same |
 | `moderator_system.md` | Moderator system prompt for round discussion | POST .../discussion |
 | `expert_reply_skill.md` | Skill for @mention expert reply | POST .../posts/mention |

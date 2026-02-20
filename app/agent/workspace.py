@@ -56,9 +56,20 @@ def ensure_topic_workspace(workspace_base: Path | str, topic_id: str) -> Path:
 
 
 def init_discussion_history(ws_path: Path, topic_title: str, topic_body: str) -> Path:
-    """Ensure shared/turns/ directory exists. History is built dynamically from turn files."""
-    turns_dir = ws_path / "shared" / "turns"
+    """Ensure shared/turns/ exists and write shared/topic.md so experts can read the full topic (title + body).
+
+    shared/topic.md is the canonical source for experts to understand the discussion topic,
+    including any URLs or links in the body. The moderator also gets topic via config/moderator_skill.md.
+    """
+    shared_dir = ws_path / "shared"
+    turns_dir = shared_dir / "turns"
     turns_dir.mkdir(parents=True, exist_ok=True)
+
+    topic_content = f"# {topic_title}\n\n{topic_body}".strip()
+    topic_file = shared_dir / "topic.md"
+    topic_file.write_text(topic_content, encoding="utf-8")
+    logger.info("Wrote shared/topic.md for experts to read")
+
     return turns_dir
 
 

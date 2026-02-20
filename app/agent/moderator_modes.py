@@ -15,60 +15,68 @@ _MODERATOR_SKILLS_DIR = get_skills_dir() / "moderator"
 _META_FILE = _MODERATOR_SKILLS_DIR / "meta.json"
 
 
-def _load_preset_modes() -> dict:
-    """Load preset moderator modes from skills/moderator/meta.json."""
+def _load_meta() -> tuple[dict, str]:
+    """Load moderator meta. Returns (modes dict, common_sections filename)."""
     if not _META_FILE.exists():
         logger.error(f"Moderator modes meta file not found: {_META_FILE}")
-        return {}
-    
+        return {}, "moderator_common.md"
+
     try:
         content = _META_FILE.read_text(encoding="utf-8")
         data = json.loads(content)
-        modes = data.get("modes", {})
-        
-        # Validate and clean up the modes data
-        valid_modes = {}
-        for mode_id, mode_data in modes.items():
-            if all(key in mode_data for key in ["id", "name", "description", "num_rounds", "convergence_strategy"]):
-                valid_modes[mode_id] = {
-                    "id": mode_data["id"],
-                    "name": mode_data["name"],
-                    "description": mode_data["description"],
-                    "num_rounds": mode_data["num_rounds"],
-                    "convergence_strategy": mode_data["convergence_strategy"],
-                }
-            else:
-                logger.warning(f"Skipping invalid mode '{mode_id}': missing required fields")
-        
-        return valid_modes
+        return data.get("modes", {}), data.get("common_sections", "moderator_common.md")
     except (json.JSONDecodeError, OSError, KeyError) as e:
-        logger.error(f"Failed to load moderator modes from meta file: {e}")
-        return {}
+        logger.error(f"Failed to load moderator meta: {e}")
+        return {}, "moderator_common.md"
+
+
+def _load_preset_modes() -> dict:
+    """Load preset moderator modes from skills/moderator/meta.json."""
+    raw_modes, _ = _load_meta()
+    valid_modes = {}
+    for mode_id, mode_data in raw_modes.items():
+        if all(key in mode_data for key in ["id", "name", "description", "num_rounds", "convergence_strategy"]):
+            valid_modes[mode_id] = {
+                "id": mode_data["id"],
+                "name": mode_data["name"],
+                "description": mode_data["description"],
+                "num_rounds": mode_data["num_rounds"],
+                "convergence_strategy": mode_data["convergence_strategy"],
+                "prompt_file": mode_data.get("prompt_file", f"{mode_id}.md"),
+                "summary_scope": mode_data.get("summary_scope", "key findings, consensus, disagreements"),
+            }
+        else:
+            logger.warning(f"Skipping invalid mode '{mode_id}': missing required fields")
+    return valid_modes
+
+
+def _load_common_content() -> str:
+    """Load common moderator sections (Workspace, Rules, Language)."""
+    _, common_file = _load_meta()
+    common_path = _MODERATOR_SKILLS_DIR / common_file
+    if common_path.exists():
+        return common_path.read_text(encoding="utf-8")
+    return ""
 
 
 def _load_mode_prompt(mode_id: str) -> str:
-    """Load moderator prompt template from skills/moderator/ directory.
-    
-    First checks meta.json for the prompt_file, then falls back to <mode_id>.md.
-    """
-    # Try to get prompt file from meta first
-    try:
-        if _META_FILE.exists():
-            content = _META_FILE.read_text(encoding="utf-8")
-            data = json.loads(content)
-            modes = data.get("modes", {})
-            if mode_id in modes and "prompt_file" in modes[mode_id]:
-                skill_file = _MODERATOR_SKILLS_DIR / modes[mode_id]["prompt_file"]
-                if skill_file.exists():
-                    return skill_file.read_text(encoding="utf-8")
-    except Exception as e:
-        logger.debug(f"Could not load prompt from meta for mode {mode_id}: {e}")
-    
-    # Fall back to default naming
-    skill_file = _MODERATOR_SKILLS_DIR / f"{mode_id}.md"
+    """Load moderator mode prompt (role-specific part only)."""
+    spec = PRESET_MODES.get(mode_id, {})
+    prompt_file = spec.get("prompt_file", f"{mode_id}.md")
+    skill_file = _MODERATOR_SKILLS_DIR / prompt_file
     if not skill_file.exists():
         raise FileNotFoundError(f"Moderator skill file not found: {skill_file}")
     return skill_file.read_text(encoding="utf-8")
+
+
+def _build_moderator_prompt_from_preset(mode_id: str, params: dict) -> str:
+    """Build full moderator prompt from mode (role) + common sections."""
+    mode_content = _load_mode_prompt(mode_id)
+    common_content = _load_common_content()
+    spec = PRESET_MODES.get(mode_id, {})
+    params = dict(params, summary_scope=spec.get("summary_scope", "key findings, consensus, disagreements"))
+    combined = f"{mode_content}\n\n{common_content}" if common_content else mode_content
+    return _fill_skill_template(combined, **params)
 
 
 # Preset moderator modes (loaded from skills/moderator/meta.json)
@@ -148,13 +156,16 @@ def prepare_moderator_skill(ws_path: Path, topic: str, expert_names: list[str], 
     )
 
     if mode_id == "custom" and custom_prompt:
-        skill_content = _fill_skill_template(custom_prompt, **params)
+        # Custom: role-only content + common sections (with default summary_scope)
+        common_content = _load_common_content()
+        params_with_scope = dict(params, summary_scope="key findings, consensus, disagreements, and recommendations")
+        combined = f"{custom_prompt}\n\n{common_content}" if common_content else custom_prompt
+        skill_content = _fill_skill_template(combined, **params_with_scope)
     else:
         if mode_id not in PRESET_MODES:
             logger.warning(f"Unknown mode_id: {mode_id}, falling back to standard")
             mode_id = "standard"
-        template = _load_mode_prompt(mode_id)
-        skill_content = _fill_skill_template(template, **params)
+        skill_content = _build_moderator_prompt_from_preset(mode_id, params)
 
     skill_file = ws_path / "config" / "moderator_skill.md"
     skill_file.parent.mkdir(parents=True, exist_ok=True)

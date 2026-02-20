@@ -34,6 +34,10 @@
 | POST | `/topics/{topic_id}/discussion` | Start round discussion (async) |
 | GET | `/topics/{topic_id}/discussion/status` | Get discussion status |
 
+**POST /topics/{topic_id}/discussion** 请求体：
+- `num_rounds`, `max_turns`, `max_budget_usd`, `model`（可选）
+- `allowed_tools`（可选）：启用的工具列表，如 `["Read","Write","Edit","Glob","Grep","Task","WebFetch","WebSearch"]`。不传则使用默认全量
+
 ## Topic Experts
 
 | Method | Path | Description |

@@ -93,11 +93,21 @@ class Comment(BaseModel):
 
 # --- Discussion API models ---
 
+# 默认启用的全量工具（Bash 因安全未包含）。API 可通过 allowed_tools 覆盖
+DEFAULT_ALLOWED_TOOLS = [
+    "Read", "Write", "Edit", "Glob", "Grep", "Task", "WebFetch", "WebSearch",
+]
+
+
 class StartDiscussionRequest(BaseModel):
     num_rounds: int = Field(default=5, ge=1, le=10)
     max_turns: int = Field(default=60, ge=10, le=200)
     max_budget_usd: float = Field(default=5.0, ge=0.1, le=50.0)
     model: str | None = None
+    allowed_tools: list[str] | None = Field(
+        default=None,
+        description="启用的工具列表，如 Read, Write, Edit, Glob, Grep, Task, WebFetch, WebSearch。不传则使用默认全量",
+    )
 
 
 class DiscussionProgress(BaseModel):

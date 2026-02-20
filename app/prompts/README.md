@@ -7,9 +7,8 @@ This directory contains system prompts used for AI generation and agent invocati
 ```
 prompts/
 ├── README.md                 # This file
-├── expert_generation.md      # Expert role generation (system prompt)
+├── expert_generation.md      # Expert role generation (system prompt, role-only output)
 ├── expert_user_message.md   # Expert generation user message template
-├── expert_standard_sections.md # Expert standard section template
 ├── moderator_generation.md   # Moderator mode generation (system prompt)
 ├── moderator_user_message.md # Moderator generation user message template
 ├── moderator_system.md       # Round discussion moderator system prompt
@@ -23,24 +22,23 @@ prompts/
 
 | File | Purpose |
 |------|---------|
-| `expert_generation.md` | System prompt for generating expert role definitions |
+| `expert_generation.md` | System prompt for generating expert role definitions (role-only) |
 | `expert_user_message.md` | User message template with `{expert_name}`, `{expert_label}`, `{expert_bio}` |
-| `expert_standard_sections.md` | Expert standard section template with `{expert_name}` |
 
 **Trigger**: User enters name, label, and bio when creating a new expert, then clicks "AI generate role definition".
 
-**Output**: Full expert role definition (Markdown), including EXPERT_NAME, EXPERT_LABEL, identity, expertise, thinking style, discussion style, etc.
+**Output**: Role-specific content (Identity, Expertise, Thinking Style, Discussion Style). Workspace, Discussion Rules, Language are appended from expert_common.md at load time.
 
 ### Moderator Mode Generation (generation.py)
 
 | File | Purpose |
 |------|---------|
-| `moderator_generation.md` | System prompt for generating moderator mode prompts |
+| `moderator_generation.md` | System prompt for generating moderator mode prompts (role-only) |
 | `moderator_user_message.md` | User message template with `{user_prompt}` |
 
 **Trigger**: User enters a description in the "Edit custom moderator prompt" dialog, then clicks "AI generate prompt".
 
-**Output**: Full moderator prompt template, including role, per-round focus, convergence strategy, placeholders (`{topic}`, `{ws_abs}`, `{expert_names_str}`, etc.).
+**Output**: Role-specific content (role, Goal, Phases). Workspace, Rules, Language are appended from moderator_common.md at load time.
 
 ### Round Discussion (discussion.py)
 

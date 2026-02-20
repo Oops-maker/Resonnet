@@ -26,7 +26,8 @@ skills/
 │       │   └── *.md
 │       ├── moderator/
 │       │   ├── meta.json
-│       │   └── *.md
+│       │   ├── moderator_common.md   # Shared: Workspace, Rules, Language
+│       │   └── *.md                  # Mode-specific: role, Goal, Phases
 │       └── prompts/        # AI prompts (generation, discussion, expert reply)
 │           └── *.md
 └── README.md
@@ -43,7 +44,7 @@ skills/
 ## Meta Format
 
 - **experts/meta.json**: `{"experts": {"<name>": {"name", "label", "skill_file", "description"}}}`
-- **moderator/meta.json**: `{"modes": {"<id>": {"id", "name", "description", "num_rounds", "convergence_strategy", "prompt_file"}}}`
+- **moderator/meta.json**: `{"common_sections": "moderator_common.md", "modes": {"<id>": {"id", "name", "description", "num_rounds", "convergence_strategy", "prompt_file", "summary_scope"}}}`
 
 See `scenarios/topic-lab/` for reference.
 
@@ -53,10 +54,9 @@ See `scenarios/topic-lab/` for reference.
 
 | File | Function | Used By |
 |------|----------|---------|
-| `expert_generation.md` | AI generates expert role from name/label/bio | POST .../experts/generate |
+| `expert_generation.md` | AI generates expert role (role-only) from name/label/bio | POST .../experts/generate |
 | `expert_user_message.md` | User message template for expert generation | generation.py |
-| `expert_standard_sections.md` | Sections appended to generated expert roles | generation.py |
-| `moderator_generation.md` | AI generates moderator prompt from user description | POST .../moderator-mode/generate |
+| `moderator_generation.md` | AI generates moderator prompt (role-only) from user description | POST .../moderator-mode/generate |
 | `moderator_user_message.md` | User message template for moderator generation | generation.py |
 | `moderator_system.md` | Moderator system prompt for round discussion | discussion.py |
 | `expert_reply_skill.md` | Skill definition for @mention expert reply | expert_reply.py |

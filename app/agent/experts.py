@@ -9,26 +9,34 @@ from pathlib import Path
 from claude_agent_sdk import AgentDefinition
 
 from app.core.config import get_skills_dir
+from app.models.schemas import DEFAULT_ALLOWED_TOOLS
 
 logger = logging.getLogger(__name__)
+
+# 专家默认工具：与主持人一致但排除 Task（Task 仅主持人用于调用子 agent）
+DEFAULT_EXPERT_TOOLS = [t for t in DEFAULT_ALLOWED_TOOLS if t != "Task"]
 
 # Skills directory for expert configs (from scenario preset)
 _EXPERTS_SKILLS_DIR = get_skills_dir() / "experts"
 _EXPERTS_META_FILE = _EXPERTS_SKILLS_DIR / "meta.json"
 
 
-def _load_expert_specs() -> dict:
-    """Load expert specifications from skills/experts/meta.json."""
+def _load_expert_specs() -> tuple[dict, str]:
+    """Load expert specifications from skills/experts/meta.json.
+
+    Returns:
+        (valid_experts dict, common_sections_filename)
+    """
     if not _EXPERTS_META_FILE.exists():
         logger.error(f"Experts meta file not found: {_EXPERTS_META_FILE}")
-        return {}
-    
+        return {}, "expert_common.md"
+
     try:
         content = _EXPERTS_META_FILE.read_text(encoding="utf-8")
         data = json.loads(content)
         experts = data.get("experts", {})
-        
-        # Validate and format the expert data
+        common_sections = data.get("common_sections", "expert_common.md")
+
         valid_experts = {}
         for name, expert_data in experts.items():
             if all(key in expert_data for key in ["name", "skill_file", "description"]):
@@ -36,18 +44,21 @@ def _load_expert_specs() -> dict:
                     "skill_file": f"experts/{expert_data['skill_file']}",
                     "description": expert_data["description"],
                     "label": expert_data.get("label", name),
+                    "perspective": expert_data.get("perspective", name),
                 }
             else:
                 logger.warning(f"Skipping invalid expert '{name}': missing required fields")
-        
-        return valid_experts
+
+        return valid_experts, common_sections
     except (json.JSONDecodeError, OSError, KeyError) as e:
         logger.error(f"Failed to load expert specs from meta file: {e}")
-        return {}
+        return {}, "expert_common.md"
 
 
 # Load expert specifications from meta file
-EXPERT_SPECS = _load_expert_specs()
+_EXPERT_SPECS_RAW = _load_expert_specs()
+EXPERT_SPECS = _EXPERT_SPECS_RAW[0]
+COMMON_SECTIONS_FILE = _EXPERT_SPECS_RAW[1]
 
 EXPERT_SECURITY_SUFFIX = """
 
@@ -85,17 +96,44 @@ def build_workspace_boundary(ws_abs: str) -> str:
     )
 
 
-def build_experts(skills_dir: Path, model: str | None = None) -> dict[str, AgentDefinition]:
-    """Read skill files and build 4 AgentDefinitions."""
+def _load_common_content(skills_dir: Path) -> str:
+    """Load common expert sections (Workspace, Discussion Rules, Language)."""
+    common_path = skills_dir / "experts" / COMMON_SECTIONS_FILE
+    if common_path.exists():
+        return common_path.read_text(encoding="utf-8")
+    return ""
+
+
+def _build_expert_prompt_from_global(
+    skills_dir: Path, name: str, spec: dict
+) -> str:
+    """Build prompt from role skill + common sections (with placeholder replacement)."""
+    role_path = skills_dir / spec["skill_file"]
+    role_content = role_path.read_text(encoding="utf-8") if role_path.exists() else ""
+    common_content = _load_common_content(skills_dir)
+    combined = role_content
+    if common_content:
+        combined = f"{role_content}\n\n{common_content}" if role_content else common_content
+    return combined.replace("{expert_name}", name).replace("{perspective}", spec["perspective"])
+
+
+def build_experts(
+    skills_dir: Path,
+    model: str | None = None,
+    tools: list[str] | None = None,
+) -> dict[str, AgentDefinition]:
+    """Read skill files and build AgentDefinitions."""
+    expert_tools = tools if tools else DEFAULT_EXPERT_TOOLS
     experts: dict[str, AgentDefinition] = {}
     for name, spec in EXPERT_SPECS.items():
-        path = skills_dir / spec["skill_file"]
-        prompt_text = path.read_text(encoding="utf-8") if path.exists() else spec["description"]
+        prompt_text = _build_expert_prompt_from_global(skills_dir, name, spec)
+        if not prompt_text:
+            prompt_text = spec["description"]
         prompt_text += EXPERT_SECURITY_SUFFIX
         experts[name] = AgentDefinition(
             description=spec["description"],
             prompt=prompt_text,
-            tools=["Read", "Write"],
+            tools=expert_tools,
             model=model,
         )
     return experts
@@ -107,6 +145,7 @@ def build_experts_from_workspace(
     expert_names: list[str],
     model: str | None = None,
     ws_abs: str | None = None,
+    tools: list[str] | None = None,
 ) -> dict[str, AgentDefinition]:
     """Build expert AgentDefinitions from workspace, with fallback to global skills.
 
@@ -135,17 +174,24 @@ def build_experts_from_workspace(
 
         spec = EXPERT_SPECS[name]
 
-        # Priority 1: workspace role.md
+        # Priority 1: workspace role.md (role-only; common sections appended)
         workspace_role = workspace_dir / "agents" / name / "role.md"
         if workspace_role.exists():
             logger.info(f"Using workspace role for {name}: {workspace_role}")
-            prompt_text = workspace_role.read_text(encoding="utf-8")
+            role_content = workspace_role.read_text(encoding="utf-8")
+            common_content = _load_common_content(skills_dir)
+            prompt_text = (
+                f"{role_content}\n\n{common_content}" if common_content else role_content
+            )
+            prompt_text = prompt_text.replace("{expert_name}", name).replace(
+                "{perspective}", spec["perspective"]
+            )
         else:
-            # Priority 2: fallback to global skills
+            # Priority 2: fallback to global skills (role + common sections)
             global_skill = skills_dir / spec["skill_file"]
             if global_skill.exists():
                 logger.info(f"Fallback to global skill for {name}: {global_skill}")
-                prompt_text = global_skill.read_text(encoding="utf-8")
+                prompt_text = _build_expert_prompt_from_global(skills_dir, name, spec)
             else:
                 logger.error(f"No role found for {name}, using description as fallback")
                 prompt_text = spec["description"]
@@ -157,10 +203,11 @@ def build_experts_from_workspace(
         if ws_abs:
             prompt_text += build_workspace_boundary(ws_abs)
 
+        expert_tools = tools if tools else DEFAULT_EXPERT_TOOLS
         experts[name] = AgentDefinition(
             description=spec["description"],
             prompt=prompt_text,
-            tools=["Read", "Write"],
+            tools=expert_tools,
             model=model,
         )
 

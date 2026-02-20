@@ -9,6 +9,7 @@ from app.agent.discussion import run_discussion_for_topic
 from app.agent.workspace import get_topic_experts, read_discussion_history, read_discussion_summary, validate_topic_id
 from app.core.config import get_workspace_base
 from app.models.schemas import (
+    DEFAULT_ALLOWED_TOOLS,
     DiscussionProgress,
     DiscussionResult,
     DiscussionStatus,
@@ -35,6 +36,7 @@ async def run_discussion_background(
     max_turns: int,
     max_budget_usd: float,
     model: str | None = None,
+    allowed_tools: list[str] | None = None,
 ):
     """Background task to run discussion."""
     try:
@@ -49,6 +51,7 @@ async def run_discussion_background(
             max_turns=max_turns,
             max_budget_usd=max_budget_usd,
             model=model,
+            allowed_tools=allowed_tools,
         )
         logger.info(f"Discussion completed for topic {topic_id}, result: {result}")
         typed_result = DiscussionResult(**result)
@@ -89,6 +92,7 @@ async def start_discussion_endpoint(topic_id: str, req: StartDiscussionRequest):
     update_topic_discussion(topic_id, DiscussionStatus.RUNNING)
 
     # Start discussion in background
+    tools = req.allowed_tools if req.allowed_tools else DEFAULT_ALLOWED_TOOLS
     asyncio.create_task(run_discussion_background(
         topic_id=topic_id,
         topic_title=topic.title,
@@ -98,6 +102,7 @@ async def start_discussion_endpoint(topic_id: str, req: StartDiscussionRequest):
         max_turns=req.max_turns,
         max_budget_usd=req.max_budget_usd,
         model=req.model,
+        allowed_tools=tools,
     ))
 
     return DiscussionStatusResponse(

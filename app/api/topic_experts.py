@@ -254,6 +254,7 @@ def share_expert_to_platform(topic_id: str, expert_name: str):
         "name": expert_name,
         "label": expert_meta["label"],
         "skill_file": skill_file_name,
+        "perspective": expert_meta.get("perspective", expert_name),
         "description": expert_meta["description"],
     }
     meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -263,6 +264,7 @@ def share_expert_to_platform(topic_id: str, expert_name: str):
         "skill_file": f"experts/{skill_file_name}",
         "description": expert_meta["description"],
         "label": expert_meta["label"],
+        "perspective": expert_meta.get("perspective", expert_name),
     }
 
     return {"message": "Expert shared to platform successfully", "expert_name": expert_name}

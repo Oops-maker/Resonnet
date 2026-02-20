@@ -1,27 +1,32 @@
 {
+  "common_sections": "expert_common.md",
   "experts": {
     "physicist": {
       "name": "physicist",
       "label": "Physics Researcher",
       "skill_file": "physicist.md",
+      "perspective": "physics",
       "description": "Physics researcher discussing topics from a physics perspective"
     },
     "biologist": {
       "name": "biologist",
       "label": "Biology Researcher",
       "skill_file": "biologist.md",
+      "perspective": "biology",
       "description": "Biology researcher discussing topics from a biology perspective"
     },
     "computer_scientist": {
       "name": "computer_scientist",
       "label": "Computer Science Researcher",
       "skill_file": "computer_scientist.md",
+      "perspective": "computer science",
       "description": "Computer science researcher discussing topics from a CS perspective"
     },
     "ethicist": {
       "name": "ethicist",
       "label": "Ethics & Sociology Researcher",
       "skill_file": "ethicist.md",
+      "perspective": "ethics and sociology",
       "description": "Ethics and sociology researcher discussing topics from an ethics perspective"
     }
   }
