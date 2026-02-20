@@ -73,6 +73,107 @@ def init_discussion_history(ws_path: Path, topic_title: str, topic_body: str) ->
     return turns_dir
 
 
+def _parse_skill_id(skill_id: str) -> tuple[str, str]:
+    """Parse skill_id into (source, slug). Supports source-prefixed format: source:slug."""
+    raw = skill_id.removesuffix(".md") if skill_id.endswith(".md") else skill_id
+    if ":" in raw:
+        parts = raw.split(":", 1)
+        return parts[0], parts[1]
+    return "", raw
+
+
+def _resolve_skill_path(base_dir: Path, skill_id: str, skill_info: dict) -> Path | None:
+    """Resolve source file path for a skill. Returns None if not found.
+
+    - default: assignable_skills/default/{category}/{slug}.md
+    - imported (submodule): assignable_skills/_submodules/{source}/{skills_dir}/{category}/{slug}/SKILL.md
+      or {skills_dir}/{slug}/SKILL.md when category is 'general'
+    """
+    _, slug = _parse_skill_id(skill_id)
+    source = skill_info.get("source", "default") or "default"
+    category = skill_info.get("category", "")
+
+    submodules = base_dir / "_submodules" / source
+    if source != "default" and submodules.exists():
+        skills_dir = skill_info.get("_skills_dir", ".") or "."
+        if category and category != "general":
+            path = base_dir / "_submodules" / source / skills_dir / category / slug / "SKILL.md"
+        else:
+            path = base_dir / "_submodules" / source / skills_dir / slug / "SKILL.md"
+        return path if path.exists() else None
+
+    if not category:
+        return base_dir / source / f"{slug}.md"
+    return base_dir / source / category / f"{slug}.md"
+
+
+def _skill_dest_filename(skill_id: str) -> str:
+    """Destination filename in config/skills/. Replaces : with _ to avoid collisions."""
+    _, slug = _parse_skill_id(skill_id)
+    if ":" in (skill_id.removesuffix(".md") if skill_id.endswith(".md") else skill_id):
+        return f"{skill_id.replace(':', '_')}.md"
+    return f"{slug}.md"
+
+
+def copy_skills_to_workspace(ws_path: Path, skill_list: list[str]) -> list[str]:
+    """Copy selected skills from global assignable_skills to topic workspace config/skills/.
+
+    Supports source-prefixed IDs (e.g. awesome:critical_thinking) to avoid collisions
+    when importing from multiple skill libraries.
+
+    Path rule: assignable_skills/{source}/{category}/{slug}.md (all sources)
+
+    Args:
+        ws_path: Topic workspace path (workspace/topics/{topic_id})
+        skill_list: List of skill ids (e.g. ["research_methodology", "awesome:critical_thinking"])
+
+    Returns:
+        List of skill ids that were successfully copied.
+    """
+    if not skill_list:
+        return []
+
+    from app.core.config import get_assignable_skills_dir
+    from app.core.skills_meta import load_aggregated_meta
+
+    base_dir = get_assignable_skills_dir()
+    _, skills_meta = load_aggregated_meta(base_dir)
+    if not skills_meta:
+        logger.warning("Assignable skills meta not found")
+        return []
+
+    # Allow alphanumeric, underscore, hyphen, colon (for source:slug)
+    id_pattern = re.compile(r"^[a-zA-Z0-9_.-]+(:[a-zA-Z0-9_.-]+)*$")
+
+    dest_dir = ws_path / "config" / "skills"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    copied: list[str] = []
+    for skill_id in skill_list:
+        raw = skill_id.removesuffix(".md") if skill_id.endswith(".md") else skill_id
+        if not id_pattern.match(raw):
+            logger.warning(f"Invalid skill id (skipped): {skill_id}")
+            continue
+
+        skill_info = skills_meta.get(raw, {}) if isinstance(skills_meta.get(raw), dict) else {}
+        if not skill_info:
+            logger.warning(f"Skill not found in meta (skipped): {raw}")
+            continue
+
+        src = _resolve_skill_path(base_dir, raw, skill_info)
+        if not src or not src.exists():
+            logger.warning(f"Skill file not found (skipped): {src}")
+            continue
+
+        dest_name = _skill_dest_filename(raw)
+        dest = dest_dir / dest_name
+        dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+        copied.append(raw)
+        logger.info(f"Copied skill {raw} to {dest}")
+
+    return copied
+
+
 def _get_expert_label(expert_key: str, ws_path: Path) -> str:
     """Map expert key to display label.
 

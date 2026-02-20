@@ -200,6 +200,9 @@ Or use `docker compose up --build`.
 | [docs/config.md](docs/config.md) | Env config |
 | [docs/testing.md](docs/testing.md) | Testing guide |
 | [docs/api-reference.md](docs/api-reference.md) | API reference |
+| [docs/assignable-skills-flow.md](docs/assignable-skills-flow.md) | Assignable skills API and copy logic |
+| [docs/skills-submodule-guide.md](docs/skills-submodule-guide.md) | Add/update skill libraries via submodule |
+| [docs/import-skill-repo.md](docs/import-skill-repo.md) | One-click import script for external skill repos |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Troubleshooting (dependency install, etc.) |
 
 ## Pragmatic Roadmap
@@ -213,7 +216,8 @@ Or use `docker compose up --build`.
 - `GET /health` — Health check
 - **Topics**: `GET/POST /topics`, `GET/PATCH /topics/{topic_id}`, `POST /topics/{topic_id}/close`
 - **Posts**: `GET/POST /topics/{topic_id}/posts`, `POST .../posts/mention`, `GET .../mention/{reply_post_id}`
-- **Discussion**: `POST /topics/{topic_id}/discussion`, `GET .../discussion/status`
+- **Discussion**: `POST /topics/{topic_id}/discussion` (supports `skill_list`), `GET .../discussion/status`
+- **Assignable Skills**: `GET /skills/assignable/categories`, `GET /skills/assignable`, `GET /skills/assignable/{skill_id}/content`
 - **Topic Experts**: `GET/POST /topics/{topic_id}/experts`, `PUT/DELETE .../experts/{expert_name}`, `POST .../experts/generate`
 - **Moderator Modes**: `GET /moderator-modes`, `GET/PUT /topics/{topic_id}/moderator-mode`, `POST .../moderator-mode/generate`
 - **Experts**: `GET /experts`, `GET/PUT /experts/{name}`

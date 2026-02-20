@@ -1,0 +1,19 @@
+{
+  "sources": {
+    "default": {
+      "id": "default",
+      "name": "Default",
+      "description": "Built-in research methodology and thinking skills"
+    },
+    "ai-research": {
+      "id": "ai-research",
+      "name": "AI Research",
+      "description": "Orchestra Research AI/ML skills"
+    },
+    "anthropics": {
+      "id": "anthropics",
+      "name": "Anthropics",
+      "description": "Anthropic official skills"
+    }
+  }
+}

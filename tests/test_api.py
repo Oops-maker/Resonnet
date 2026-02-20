@@ -74,6 +74,75 @@ def test_get_topic_not_found(client: TestClient):
     assert response.status_code == 404
 
 
+def test_skills_assignable_list(client: TestClient):
+    """GET /skills/assignable returns list of assignable skills from meta.json."""
+    response = client.get("/skills/assignable")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    if len(data) > 0:
+        for item in data:
+            assert "id" in item
+            assert "name" in item
+            assert "description" in item
+            assert "category" in item
+            assert "category_name" in item
+            assert "source" in item
+
+
+def test_skills_assignable_content(client: TestClient):
+    """GET /skills/assignable/{id}/content returns skill markdown content."""
+    response = client.get("/skills/assignable/research_methodology/content")
+    assert response.status_code == 200
+    data = response.json()
+    assert "content" in data
+    assert "Research Methodology" in data["content"]
+
+
+def test_skills_assignable_list_category_filter(client: TestClient):
+    """GET /skills/assignable?category=X returns only skills in that category."""
+    response = client.get("/skills/assignable", params={"category": "methodology"})
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    for item in data:
+        assert item.get("category") == "methodology"
+
+
+def test_skills_assignable_list_minimal_fields(client: TestClient):
+    """GET /skills/assignable?fields=minimal returns id, name, category, category_name only."""
+    response = client.get("/skills/assignable", params={"fields": "minimal"})
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    if len(data) > 0:
+        item = data[0]
+        assert "id" in item and "name" in item and "category" in item and "category_name" in item
+        assert "description" not in item
+        assert "source" not in item
+
+
+def test_skills_assignable_list_pagination(client: TestClient):
+    """GET /skills/assignable?limit=2&offset=0 returns at most 2 items."""
+    response = client.get("/skills/assignable", params={"limit": 2, "offset": 0})
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) <= 2
+
+
+def test_skills_assignable_categories(client: TestClient):
+    """GET /skills/assignable/categories returns list of skill categories."""
+    response = client.get("/skills/assignable/categories")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    if len(data) > 0:
+        for item in data:
+            assert "id" in item
+            assert "name" in item
+
+
 def test_workspace_is_created_with_default_agents(client: TestClient, isolated_workspace: Path):
     topic = _create_topic(client)
     ws_path = isolated_workspace / "topics" / topic["id"]
@@ -131,3 +200,40 @@ def test_mention_unknown_expert_returns_400(client: TestClient):
     )
     assert response.status_code == 400
     assert "not in this topic" in response.json()["detail"]
+
+
+def test_copy_skills_to_workspace(isolated_workspace: Path):
+    """copy_skills_to_workspace copies selected skills from assignable_skills to config/skills/."""
+    from app.agent.workspace import copy_skills_to_workspace, ensure_topic_workspace
+
+    topic_id = "test-skill-copy"
+    ws_path = ensure_topic_workspace(isolated_workspace, topic_id)
+
+    copied = copy_skills_to_workspace(ws_path, ["research_methodology", "critical_thinking"])
+    assert len(copied) == 2
+    assert "research_methodology" in copied
+    assert "critical_thinking" in copied
+
+    skills_dir = ws_path / "config" / "skills"
+    assert skills_dir.exists()
+    assert (skills_dir / "research_methodology.md").exists()
+    assert (skills_dir / "critical_thinking.md").exists()
+    assert "Research Methodology" in (skills_dir / "research_methodology.md").read_text(encoding="utf-8")
+
+    # Invalid skill id is skipped
+    copied2 = copy_skills_to_workspace(ws_path, ["nonexistent_skill"])
+    assert len(copied2) == 0
+
+    # Empty list returns empty
+    assert copy_skills_to_workspace(ws_path, []) == []
+
+
+def test_copy_skills_uses_default_source_path(isolated_workspace: Path):
+    """Verify skills are resolved from default/{category}/{slug}.md structure."""
+    from app.agent.workspace import copy_skills_to_workspace, ensure_topic_workspace
+
+    ws_path = ensure_topic_workspace(isolated_workspace, "test-default-path")
+    copied = copy_skills_to_workspace(ws_path, ["evidence_based"])
+    assert "evidence_based" in copied
+    content = (ws_path / "config" / "skills" / "evidence_based.md").read_text(encoding="utf-8")
+    assert "Evidence-Based" in content

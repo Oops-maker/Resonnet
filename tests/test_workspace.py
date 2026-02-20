@@ -1,0 +1,93 @@
+"""Unit tests for workspace module (skill path resolution, copy logic)."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from app.agent.workspace import (
+    _parse_skill_id,
+    _resolve_skill_path,
+    _skill_dest_filename,
+)
+
+
+class TestParseSkillId:
+    """Tests for _parse_skill_id."""
+
+    def test_plain_slug_returns_empty_source(self):
+        source, slug = _parse_skill_id("research_methodology")
+        assert source == ""
+        assert slug == "research_methodology"
+
+    def test_source_prefixed_returns_both(self):
+        source, slug = _parse_skill_id("awesome:critical_thinking")
+        assert source == "awesome"
+        assert slug == "critical_thinking"
+
+    def test_strips_md_suffix(self):
+        source, slug = _parse_skill_id("research_methodology.md")
+        assert source == ""
+        assert slug == "research_methodology"
+
+    def test_source_prefixed_with_md_suffix(self):
+        source, slug = _parse_skill_id("awesome:critical_thinking.md")
+        assert source == "awesome"
+        assert slug == "critical_thinking"
+
+
+class TestSkillDestFilename:
+    """Tests for _skill_dest_filename."""
+
+    def test_plain_slug_returns_slug_md(self):
+        assert _skill_dest_filename("research_methodology") == "research_methodology.md"
+
+    def test_source_prefixed_replaces_colon_with_underscore(self):
+        assert _skill_dest_filename("awesome:critical_thinking") == "awesome_critical_thinking.md"
+
+    def test_strips_md_suffix_before_processing(self):
+        assert _skill_dest_filename("research_methodology.md") == "research_methodology.md"
+
+
+class TestResolveSkillPath:
+    """Tests for _resolve_skill_path."""
+
+    def test_default_source_with_category(self, tmp_path: Path):
+        base = tmp_path / "assignable_skills"
+        (base / "default" / "methodology").mkdir(parents=True)
+        (base / "default" / "methodology" / "research_methodology.md").write_text("# test")
+
+        skill_info = {"source": "default", "category": "methodology"}
+        path = _resolve_skill_path(base, "research_methodology", skill_info)
+        assert path is not None
+        assert path == base / "default" / "methodology" / "research_methodology.md"
+        assert path.exists()
+
+    def test_third_party_source_with_category(self, tmp_path: Path):
+        base = tmp_path / "assignable_skills"
+        (base / "awesome" / "thinking").mkdir(parents=True)
+        (base / "awesome" / "thinking" / "critical_thinking.md").write_text("# test")
+
+        skill_info = {"source": "awesome", "category": "thinking"}
+        path = _resolve_skill_path(base, "awesome:critical_thinking", skill_info)
+        assert path is not None
+        assert path == base / "awesome" / "thinking" / "critical_thinking.md"
+
+    def test_missing_source_defaults_to_default(self, tmp_path: Path):
+        base = tmp_path / "assignable_skills"
+        (base / "default" / "methodology").mkdir(parents=True)
+        (base / "default" / "methodology" / "evidence_based.md").write_text("# test")
+
+        skill_info = {"category": "methodology"}  # no source
+        path = _resolve_skill_path(base, "evidence_based", skill_info)
+        assert path is not None
+        assert path == base / "default" / "methodology" / "evidence_based.md"
+
+    def test_empty_category_fallback_flat_under_source(self, tmp_path: Path):
+        base = tmp_path / "assignable_skills"
+        (base / "default").mkdir(parents=True)
+        (base / "default" / "flat_skill.md").write_text("# test")
+
+        skill_info = {"source": "default", "category": ""}
+        path = _resolve_skill_path(base, "flat_skill", skill_info)
+        assert path is not None
+        assert path == base / "default" / "flat_skill.md"

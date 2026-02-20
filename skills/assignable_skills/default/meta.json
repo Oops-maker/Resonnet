@@ -1,0 +1,37 @@
+{
+  "categories": {
+    "methodology": {
+      "id": "methodology",
+      "name": "Methodology",
+      "description": "Research paradigms and norms"
+    },
+    "thinking": {
+      "id": "thinking",
+      "name": "Thinking",
+      "description": "Thinking modes and tools"
+    }
+  },
+  "skills": {
+    "research_methodology": {
+      "id": "research_methodology",
+      "source": "default",
+      "name": "Research Methodology",
+      "description": "Guide experts to adopt rigorous research methodology in analysis",
+      "category": "methodology"
+    },
+    "evidence_based": {
+      "id": "evidence_based",
+      "source": "default",
+      "name": "Evidence-Based",
+      "description": "Require literature and data to support viewpoints",
+      "category": "methodology"
+    },
+    "critical_thinking": {
+      "id": "critical_thinking",
+      "source": "default",
+      "name": "Critical Thinking",
+      "description": "Emphasize questioning assumptions, evaluating evidence, multi-perspective analysis",
+      "category": "thinking"
+    }
+  }
+}

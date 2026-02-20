@@ -108,6 +108,10 @@ class StartDiscussionRequest(BaseModel):
         default=None,
         description="启用的工具列表，如 Read, Write, Edit, Glob, Grep, Task, WebFetch, WebSearch。不传则使用默认全量",
     )
+    skill_list: list[str] = Field(
+        default_factory=list,
+        description="可选的 skill 列表（id），从全局 assignable_skills 拷贝到工作区 config/skills/，供主持人分配给专家",
+    )
 
 
 class DiscussionProgress(BaseModel):

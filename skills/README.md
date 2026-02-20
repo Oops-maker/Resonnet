@@ -13,12 +13,21 @@ Skills are organized by **scenario**. Each scenario contains expert role definit
 **Quick guide:**
 - Adding a new **persona** (e.g. economist, designer) → `experts/`
 - Adding a new **discussion style** (e.g. risk review, ideation) → `moderator/`
+- Adding **assignable skills** (skills the moderator can assign to experts) → `assignable_skills/` (scenario-agnostic, sibling to scenarios)
 - Changing **AI generation or reply behavior** → `prompts/` (or override specific files)
 
 ## Structure
 
 ```
 skills/
+├── assignable_skills/       # Assignable skills library (scenario-agnostic, sibling to scenarios)
+│   ├── meta.json           # Sources registry only: {"sources": {"default": {...}, "ai-research": {...}}}
+│   ├── default/            # source=default (built-in)
+│   │   ├── meta.json       # categories + skills for default
+│   │   ├── methodology/
+│   │   │   └── *.md
+│   │   └── thinking/
+│   │       └── *.md
 ├── scenarios/
 │   └── topic-lab/          # Research scenario (default)
 │       ├── experts/
@@ -45,6 +54,10 @@ skills/
 
 - **experts/meta.json**: `{"experts": {"<name>": {"name", "label", "skill_file", "description"}}}`
 - **moderator/meta.json**: `{"common_sections": "moderator_common.md", "modes": {"<id>": {"id", "name", "description", "num_rounds", "convergence_strategy", "prompt_file", "summary_scope"}}}`
+- **assignable_skills/meta.json**: Sources registry only: `{"sources": {"<id>": {"id", "name", "description"}}}`
+- **assignable_skills/{source}/meta.json**: Per-source `{"skills_dir"?, "categories": {...}, "skills": {...}}`. Built-in: path `{source}/{category}/{slug}.md`; imported: `skills_dir` points to root in `_submodules/{source}/`, runtime resolves `{skills_dir}/{category}/{slug}/SKILL.md`
+
+**Add/modify skill libraries**: See [.cursor/skills/skills-submodule-guide/SKILL.md](../.cursor/skills/skills-submodule-guide/SKILL.md) or [docs/skills-submodule-guide.md](../docs/skills-submodule-guide.md).
 
 See `scenarios/topic-lab/` for reference.
 

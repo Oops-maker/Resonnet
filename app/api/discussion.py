@@ -6,7 +6,13 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.agent.discussion import run_discussion_for_topic
-from app.agent.workspace import get_topic_experts, read_discussion_history, read_discussion_summary, validate_topic_id
+from app.agent.workspace import (
+    copy_skills_to_workspace,
+    get_topic_experts,
+    read_discussion_history,
+    read_discussion_summary,
+    validate_topic_id,
+)
 from app.core.config import get_workspace_base
 from app.models.schemas import (
     DEFAULT_ALLOWED_TOOLS,
@@ -37,6 +43,7 @@ async def run_discussion_background(
     max_budget_usd: float,
     model: str | None = None,
     allowed_tools: list[str] | None = None,
+    skill_list: list[str] | None = None,
 ):
     """Background task to run discussion."""
     try:
@@ -52,6 +59,7 @@ async def run_discussion_background(
             max_budget_usd=max_budget_usd,
             model=model,
             allowed_tools=allowed_tools,
+            skill_list=skill_list or [],
         )
         logger.info(f"Discussion completed for topic {topic_id}, result: {result}")
         typed_result = DiscussionResult(**result)
@@ -103,6 +111,7 @@ async def start_discussion_endpoint(topic_id: str, req: StartDiscussionRequest):
         max_budget_usd=req.max_budget_usd,
         model=req.model,
         allowed_tools=tools,
+        skill_list=req.skill_list or [],
     ))
 
     return DiscussionStatusResponse(

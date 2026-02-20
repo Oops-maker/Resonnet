@@ -1,0 +1,6 @@
+[submodule "skills/assignable_skills/_submodules/ai-research"]
+	path = skills/assignable_skills/_submodules/ai-research
+	url = https://github.com/Orchestra-Research/AI-Research-SKILLs.git
+[submodule "skills/assignable_skills/_submodules/anthropics"]
+	path = skills/assignable_skills/_submodules/anthropics
+	url = https://github.com/anthropics/skills.git

@@ -1,0 +1,707 @@
+{
+  "skills_dir": ".",
+  "categories": {
+    "09-infrastructure": {
+      "id": "09-infrastructure",
+      "name": "Infrastructure",
+      "description": ""
+    },
+    "17-observability": {
+      "id": "17-observability",
+      "name": "Observability",
+      "description": ""
+    },
+    "02-tokenization": {
+      "id": "02-tokenization",
+      "name": "Tokenization",
+      "description": ""
+    },
+    "08-distributed-training": {
+      "id": "08-distributed-training",
+      "name": "Distributed Training",
+      "description": ""
+    },
+    "12-inference-serving": {
+      "id": "12-inference-serving",
+      "name": "Inference Serving",
+      "description": ""
+    },
+    "19-emerging-techniques": {
+      "id": "19-emerging-techniques",
+      "name": "Emerging Techniques",
+      "description": ""
+    },
+    "05-data-processing": {
+      "id": "05-data-processing",
+      "name": "Data Processing",
+      "description": ""
+    },
+    "01-model-architecture": {
+      "id": "01-model-architecture",
+      "name": "Model Architecture",
+      "description": ""
+    },
+    "11-evaluation": {
+      "id": "11-evaluation",
+      "name": "Evaluation",
+      "description": ""
+    },
+    "16-prompt-engineering": {
+      "id": "16-prompt-engineering",
+      "name": "Prompt Engineering",
+      "description": ""
+    },
+    "10-optimization": {
+      "id": "10-optimization",
+      "name": "Optimization",
+      "description": ""
+    },
+    "07-safety-alignment": {
+      "id": "07-safety-alignment",
+      "name": "Safety Alignment",
+      "description": ""
+    },
+    "06-post-training": {
+      "id": "06-post-training",
+      "name": "Post Training",
+      "description": ""
+    },
+    "04-mechanistic-interpretability": {
+      "id": "04-mechanistic-interpretability",
+      "name": "Mechanistic Interpretability",
+      "description": ""
+    },
+    "general": {
+      "id": "general",
+      "name": "General",
+      "description": ""
+    },
+    "14-agents": {
+      "id": "14-agents",
+      "name": "Agents",
+      "description": ""
+    },
+    "03-fine-tuning": {
+      "id": "03-fine-tuning",
+      "name": "Fine Tuning",
+      "description": ""
+    },
+    "15-rag": {
+      "id": "15-rag",
+      "name": "Rag",
+      "description": ""
+    },
+    "21-research-ideation": {
+      "id": "21-research-ideation",
+      "name": "Research Ideation",
+      "description": ""
+    },
+    "13-mlops": {
+      "id": "13-mlops",
+      "name": "Mlops",
+      "description": ""
+    },
+    "18-multimodal": {
+      "id": "18-multimodal",
+      "name": "Multimodal",
+      "description": ""
+    }
+  },
+  "skills": {
+    "ai-research:litgpt": {
+      "id": "ai-research:litgpt",
+      "source": "ai-research",
+      "name": "implementing-llms-litgpt",
+      "description": "Implements and trains LLMs using Lightning AI's LitGPT with 20+ pretrained architectures (Llama, Gemma, Phi, Qwen, Mistral). Use when need clean model implementations, educational understanding of arc",
+      "category": "01-model-architecture"
+    },
+    "ai-research:mamba": {
+      "id": "ai-research:mamba",
+      "source": "ai-research",
+      "name": "mamba-architecture",
+      "description": "State-space model with O(n) complexity vs Transformers' O(n²). 5× faster inference, million-token sequences, no KV cache. Selective SSM with hardware-aware design. Mamba-1 (d_state=16) and Mamba-2 (d_",
+      "category": "01-model-architecture"
+    },
+    "ai-research:nanogpt": {
+      "id": "ai-research:nanogpt",
+      "source": "ai-research",
+      "name": "nanogpt",
+      "description": "Educational GPT implementation in ~300 lines. Reproduces GPT-2 (124M) on OpenWebText. Clean, hackable code for learning transformers. By Andrej Karpathy. Perfect for understanding GPT architecture fro",
+      "category": "01-model-architecture"
+    },
+    "ai-research:rwkv": {
+      "id": "ai-research:rwkv",
+      "source": "ai-research",
+      "name": "rwkv-architecture",
+      "description": "RNN+Transformer hybrid with O(n) inference. Linear time, infinite context, no KV cache. Train like GPT (parallel), infer like RNN (sequential). Linux Foundation AI project. Production at Windows, Offi",
+      "category": "01-model-architecture"
+    },
+    "ai-research:torchtitan": {
+      "id": "ai-research:torchtitan",
+      "source": "ai-research",
+      "name": "distributed-llm-pretraining-torchtitan",
+      "description": "Provides PyTorch-native distributed LLM pretraining using torchtitan with 4D parallelism (FSDP2, TP, PP, CP). Use when pretraining Llama 3.1, DeepSeek V3, or custom models at scale from 8 to 512+ GPUs",
+      "category": "01-model-architecture"
+    },
+    "ai-research:huggingface-tokenizers": {
+      "id": "ai-research:huggingface-tokenizers",
+      "source": "ai-research",
+      "name": "huggingface-tokenizers",
+      "description": "Fast tokenizers optimized for research and production. Rust-based implementation tokenizes 1GB in <20 seconds. Supports BPE, WordPiece, and Unigram algorithms. Train custom vocabularies, track alignme",
+      "category": "02-tokenization"
+    },
+    "ai-research:sentencepiece": {
+      "id": "ai-research:sentencepiece",
+      "source": "ai-research",
+      "name": "sentencepiece",
+      "description": "Language-independent tokenizer treating text as raw Unicode. Supports BPE and Unigram algorithms. Fast (50k sentences/sec), lightweight (6MB memory), deterministic vocabulary. Used by T5, ALBERT, XLNe",
+      "category": "02-tokenization"
+    },
+    "ai-research:axolotl": {
+      "id": "ai-research:axolotl",
+      "source": "ai-research",
+      "name": "axolotl",
+      "description": "Expert guidance for fine-tuning LLMs with Axolotl - YAML configs, 100+ models, LoRA/QLoRA, DPO/KTO/ORPO/GRPO, multimodal support version: 1.0.0 author: Orchestra Research license: MIT tags: [Fine-Tuni",
+      "category": "03-fine-tuning"
+    },
+    "ai-research:llama-factory": {
+      "id": "ai-research:llama-factory",
+      "source": "ai-research",
+      "name": "llama-factory",
+      "description": "Expert guidance for fine-tuning LLMs with LLaMA-Factory - WebUI no-code, 100+ models, 2/3/4/5/6/8-bit QLoRA, multimodal support version: 1.0.0 author: Orchestra Research license: MIT tags: [Fine-Tunin",
+      "category": "03-fine-tuning"
+    },
+    "ai-research:peft": {
+      "id": "ai-research:peft",
+      "source": "ai-research",
+      "name": "peft-fine-tuning",
+      "description": "Parameter-efficient fine-tuning for LLMs using LoRA, QLoRA, and 25+ methods. Use when fine-tuning large models (7B-70B) with limited GPU memory, when you need to train <1% of parameters with minimal a",
+      "category": "03-fine-tuning"
+    },
+    "ai-research:unsloth": {
+      "id": "ai-research:unsloth",
+      "source": "ai-research",
+      "name": "unsloth",
+      "description": "Expert guidance for fast fine-tuning with Unsloth - 2-5x faster training, 50-80% less memory, LoRA/QLoRA optimization version: 1.0.0 author: Orchestra Research license: MIT tags: [Fine-Tuning, Unsloth",
+      "category": "03-fine-tuning"
+    },
+    "ai-research:nnsight": {
+      "id": "ai-research:nnsight",
+      "source": "ai-research",
+      "name": "nnsight-remote-interpretability",
+      "description": "Provides guidance for interpreting and manipulating neural network internals using nnsight with optional NDIF remote execution. Use when needing to run interpretability experiments on massive models (",
+      "category": "04-mechanistic-interpretability"
+    },
+    "ai-research:pyvene": {
+      "id": "ai-research:pyvene",
+      "source": "ai-research",
+      "name": "pyvene-interventions",
+      "description": "Provides guidance for performing causal interventions on PyTorch models using pyvene's declarative intervention framework. Use when conducting causal tracing, activation patching, interchange interven",
+      "category": "04-mechanistic-interpretability"
+    },
+    "ai-research:saelens": {
+      "id": "ai-research:saelens",
+      "source": "ai-research",
+      "name": "sparse-autoencoder-training",
+      "description": "Provides guidance for training and analyzing Sparse Autoencoders (SAEs) using SAELens to decompose neural network activations into interpretable features. Use when discovering interpretable features, ",
+      "category": "04-mechanistic-interpretability"
+    },
+    "ai-research:transformer-lens": {
+      "id": "ai-research:transformer-lens",
+      "source": "ai-research",
+      "name": "transformer-lens-interpretability",
+      "description": "Provides guidance for mechanistic interpretability research using TransformerLens to inspect and manipulate transformer internals via HookPoints and activation caching. Use when reverse-engineering mo",
+      "category": "04-mechanistic-interpretability"
+    },
+    "ai-research:nemo-curator": {
+      "id": "ai-research:nemo-curator",
+      "source": "ai-research",
+      "name": "nemo-curator",
+      "description": "GPU-accelerated data curation for LLM training. Supports text/image/video/audio. Features fuzzy deduplication (16× faster), quality filtering (30+ heuristics), semantic deduplication, PII redaction, N",
+      "category": "05-data-processing"
+    },
+    "ai-research:ray-data": {
+      "id": "ai-research:ray-data",
+      "source": "ai-research",
+      "name": "ray-data",
+      "description": "Scalable data processing for ML workloads. Streaming execution across CPU/GPU, supports Parquet/CSV/JSON/images. Integrates with Ray Train, PyTorch, TensorFlow. Scales from single machine to 100s of n",
+      "category": "05-data-processing"
+    },
+    "ai-research:grpo-rl-training": {
+      "id": "ai-research:grpo-rl-training",
+      "source": "ai-research",
+      "name": "grpo-rl-training",
+      "description": "Expert guidance for GRPO/RL fine-tuning with TRL for reasoning and task-specific model training version: 1.0.0 author: Orchestra Research license: MIT tags: [Post-Training, Reinforcement Learning, GRP",
+      "category": "06-post-training"
+    },
+    "ai-research:miles": {
+      "id": "ai-research:miles",
+      "source": "ai-research",
+      "name": "miles-rl-training",
+      "description": "Provides guidance for enterprise-grade RL training using miles, a production-ready fork of slime. Use when training large MoE models with FP8/INT4, needing train-inference alignment, or requiring spec",
+      "category": "06-post-training"
+    },
+    "ai-research:openrlhf": {
+      "id": "ai-research:openrlhf",
+      "source": "ai-research",
+      "name": "openrlhf-training",
+      "description": "High-performance RLHF framework with Ray+vLLM acceleration. Use for PPO, GRPO, RLOO, DPO training of large models (7B-70B+). Built on Ray, vLLM, ZeRO-3. 2× faster than DeepSpeedChat with distributed a",
+      "category": "06-post-training"
+    },
+    "ai-research:simpo": {
+      "id": "ai-research:simpo",
+      "source": "ai-research",
+      "name": "simpo-training",
+      "description": "Simple Preference Optimization for LLM alignment. Reference-free alternative to DPO with better performance (+6.4 points on AlpacaEval 2.0). No reference model needed, more efficient than DPO. Use for",
+      "category": "06-post-training"
+    },
+    "ai-research:slime": {
+      "id": "ai-research:slime",
+      "source": "ai-research",
+      "name": "slime-rl-training",
+      "description": "Provides guidance for LLM post-training with RL using slime, a Megatron+SGLang framework. Use when training GLM models, implementing custom data generation workflows, or needing tight Megatron-LM inte",
+      "category": "06-post-training"
+    },
+    "ai-research:torchforge": {
+      "id": "ai-research:torchforge",
+      "source": "ai-research",
+      "name": "torchforge-rl-training",
+      "description": "Provides guidance for PyTorch-native agentic RL using torchforge, Meta's library separating infra from algorithms. Use when you want clean RL abstractions, easy algorithm experimentation, or scalable ",
+      "category": "06-post-training"
+    },
+    "ai-research:trl-fine-tuning": {
+      "id": "ai-research:trl-fine-tuning",
+      "source": "ai-research",
+      "name": "fine-tuning-with-trl",
+      "description": "Fine-tune LLMs using reinforcement learning with TRL - SFT for instruction tuning, DPO for preference alignment, PPO/GRPO for reward optimization, and reward model training. Use when need RLHF, align ",
+      "category": "06-post-training"
+    },
+    "ai-research:verl": {
+      "id": "ai-research:verl",
+      "source": "ai-research",
+      "name": "verl-rl-training",
+      "description": "Provides guidance for training LLMs with reinforcement learning using verl (Volcano Engine RL). Use when implementing RLHF, GRPO, PPO, or other RL algorithms for LLM post-training at scale with flexib",
+      "category": "06-post-training"
+    },
+    "ai-research:constitutional-ai": {
+      "id": "ai-research:constitutional-ai",
+      "source": "ai-research",
+      "name": "constitutional-ai",
+      "description": "Anthropic's method for training harmless AI through self-improvement. Two-phase approach - supervised learning with self-critique/revision, then RLAIF (RL from AI Feedback). Use for safety alignment, ",
+      "category": "07-safety-alignment"
+    },
+    "ai-research:llamaguard": {
+      "id": "ai-research:llamaguard",
+      "source": "ai-research",
+      "name": "llamaguard",
+      "description": "Meta's 7-8B specialized moderation model for LLM input/output filtering. 6 safety categories - violence/hate, sexual content, weapons, substances, self-harm, criminal planning. 94-95% accuracy. Deploy",
+      "category": "07-safety-alignment"
+    },
+    "ai-research:nemo-guardrails": {
+      "id": "ai-research:nemo-guardrails",
+      "source": "ai-research",
+      "name": "nemo-guardrails",
+      "description": "NVIDIA's runtime safety framework for LLM applications. Features jailbreak detection, input/output validation, fact-checking, hallucination detection, PII filtering, toxicity detection. Uses Colang 2.",
+      "category": "07-safety-alignment"
+    },
+    "ai-research:prompt-guard": {
+      "id": "ai-research:prompt-guard",
+      "source": "ai-research",
+      "name": "prompt-guard",
+      "description": "Meta's 86M prompt injection and jailbreak detector. Filters malicious prompts and third-party data for LLM apps. 99%+ TPR, <1% FPR. Fast (<2ms GPU). Multilingual (8 languages). Deploy with HuggingFace",
+      "category": "07-safety-alignment"
+    },
+    "ai-research:accelerate": {
+      "id": "ai-research:accelerate",
+      "source": "ai-research",
+      "name": "huggingface-accelerate",
+      "description": "Simplest distributed training API. 4 lines to add distributed support to any PyTorch script. Unified API for DeepSpeed/FSDP/Megatron/DDP. Automatic device placement, mixed precision (FP16/BF16/FP8). I",
+      "category": "08-distributed-training"
+    },
+    "ai-research:deepspeed": {
+      "id": "ai-research:deepspeed",
+      "source": "ai-research",
+      "name": "deepspeed",
+      "description": "Expert guidance for distributed training with DeepSpeed - ZeRO optimization stages, pipeline parallelism, FP16/BF16/FP8, 1-bit Adam, sparse attention version: 1.0.0 author: Orchestra Research license:",
+      "category": "08-distributed-training"
+    },
+    "ai-research:megatron-core": {
+      "id": "ai-research:megatron-core",
+      "source": "ai-research",
+      "name": "training-llms-megatron",
+      "description": "Trains large language models (2B-462B parameters) using NVIDIA Megatron-Core with advanced parallelism strategies. Use when training models >1B parameters, need maximum GPU efficiency (47% MFU on H100",
+      "category": "08-distributed-training"
+    },
+    "ai-research:pytorch-fsdp2": {
+      "id": "ai-research:pytorch-fsdp2",
+      "source": "ai-research",
+      "name": "pytorch-fsdp2",
+      "description": "Adds PyTorch FSDP2 (fully_shard) to training scripts with correct init, sharding, mixed precision/offload config, and distributed checkpointing. Use when models exceed single-GPU memory or when you ne",
+      "category": "08-distributed-training"
+    },
+    "ai-research:pytorch-lightning": {
+      "id": "ai-research:pytorch-lightning",
+      "source": "ai-research",
+      "name": "pytorch-lightning",
+      "description": "High-level PyTorch framework with Trainer class, automatic distributed training (DDP/FSDP/DeepSpeed), callbacks system, and minimal boilerplate. Scales from laptop to supercomputer with same code. Use",
+      "category": "08-distributed-training"
+    },
+    "ai-research:ray-train": {
+      "id": "ai-research:ray-train",
+      "source": "ai-research",
+      "name": "ray-train",
+      "description": "Distributed training orchestration across clusters. Scales PyTorch/TensorFlow/HuggingFace from laptop to 1000s of nodes. Built-in hyperparameter tuning with Ray Tune, fault tolerance, elastic scaling.",
+      "category": "08-distributed-training"
+    },
+    "ai-research:lambda-labs": {
+      "id": "ai-research:lambda-labs",
+      "source": "ai-research",
+      "name": "lambda-labs-gpu-cloud",
+      "description": "Reserved and on-demand GPU cloud instances for ML training and inference. Use when you need dedicated GPU instances with simple SSH access, persistent filesystems, or high-performance multi-node clust",
+      "category": "09-infrastructure"
+    },
+    "ai-research:modal": {
+      "id": "ai-research:modal",
+      "source": "ai-research",
+      "name": "modal-serverless-gpu",
+      "description": "Serverless GPU cloud platform for running ML workloads. Use when you need on-demand GPU access without infrastructure management, deploying ML models as APIs, or running batch jobs with automatic scal",
+      "category": "09-infrastructure"
+    },
+    "ai-research:skypilot": {
+      "id": "ai-research:skypilot",
+      "source": "ai-research",
+      "name": "skypilot-multi-cloud-orchestration",
+      "description": "Multi-cloud orchestration for ML workloads with automatic cost optimization. Use when you need to run training or batch jobs across multiple clouds, leverage spot instances with auto-recovery, or opti",
+      "category": "09-infrastructure"
+    },
+    "ai-research:awq": {
+      "id": "ai-research:awq",
+      "source": "ai-research",
+      "name": "awq-quantization",
+      "description": "Activation-aware weight quantization for 4-bit LLM compression with 3x speedup and minimal accuracy loss. Use when deploying large models (7B-70B) on limited GPU memory, when you need faster inference",
+      "category": "10-optimization"
+    },
+    "ai-research:bitsandbytes": {
+      "id": "ai-research:bitsandbytes",
+      "source": "ai-research",
+      "name": "quantizing-models-bitsandbytes",
+      "description": "Quantizes LLMs to 8-bit or 4-bit for 50-75% memory reduction with minimal accuracy loss. Use when GPU memory is limited, need to fit larger models, or want faster inference. Supports INT8, NF4, FP4 fo",
+      "category": "10-optimization"
+    },
+    "ai-research:flash-attention": {
+      "id": "ai-research:flash-attention",
+      "source": "ai-research",
+      "name": "optimizing-attention-flash",
+      "description": "Optimizes transformer attention with Flash Attention for 2-4x speedup and 10-20x memory reduction. Use when training/running transformers with long sequences (>512 tokens), encountering GPU memory iss",
+      "category": "10-optimization"
+    },
+    "ai-research:gguf": {
+      "id": "ai-research:gguf",
+      "source": "ai-research",
+      "name": "gguf-quantization",
+      "description": "GGUF format and llama.cpp quantization for efficient CPU/GPU inference. Use when deploying models on consumer hardware, Apple Silicon, or when needing flexible quantization from 2-8 bit without GPU re",
+      "category": "10-optimization"
+    },
+    "ai-research:gptq": {
+      "id": "ai-research:gptq",
+      "source": "ai-research",
+      "name": "gptq",
+      "description": "Post-training 4-bit quantization for LLMs with minimal accuracy loss. Use for deploying large models (70B, 405B) on consumer GPUs, when you need 4× memory reduction with <2% perplexity degradation, or",
+      "category": "10-optimization"
+    },
+    "ai-research:hqq": {
+      "id": "ai-research:hqq",
+      "source": "ai-research",
+      "name": "hqq-quantization",
+      "description": "Half-Quadratic Quantization for LLMs without calibration data. Use when quantizing models to 4/3/2-bit precision without needing calibration datasets, for fast quantization workflows, or when deployin",
+      "category": "10-optimization"
+    },
+    "ai-research:bigcode-evaluation-harness": {
+      "id": "ai-research:bigcode-evaluation-harness",
+      "source": "ai-research",
+      "name": "evaluating-code-models",
+      "description": "Evaluates code generation models across HumanEval, MBPP, MultiPL-E, and 15+ benchmarks with pass@k metrics. Use when benchmarking code models, comparing coding abilities, testing multi-language suppor",
+      "category": "11-evaluation"
+    },
+    "ai-research:lm-evaluation-harness": {
+      "id": "ai-research:lm-evaluation-harness",
+      "source": "ai-research",
+      "name": "evaluating-llms-harness",
+      "description": "Evaluates LLMs across 60+ academic benchmarks (MMLU, HumanEval, GSM8K, TruthfulQA, HellaSwag). Use when benchmarking model quality, comparing models, reporting academic results, or tracking training p",
+      "category": "11-evaluation"
+    },
+    "ai-research:nemo-evaluator": {
+      "id": "ai-research:nemo-evaluator",
+      "source": "ai-research",
+      "name": "nemo-evaluator-sdk",
+      "description": "Evaluates LLMs across 100+ benchmarks from 18+ harnesses (MMLU, HumanEval, GSM8K, safety, VLM) with multi-backend execution. Use when needing scalable evaluation on local Docker, Slurm HPC, or cloud p",
+      "category": "11-evaluation"
+    },
+    "ai-research:llama-cpp": {
+      "id": "ai-research:llama-cpp",
+      "source": "ai-research",
+      "name": "llama-cpp",
+      "description": "Runs LLM inference on CPU, Apple Silicon, and consumer GPUs without NVIDIA hardware. Use for edge deployment, M1/M2/M3 Macs, AMD/Intel GPUs, or when CUDA is unavailable. Supports GGUF quantization (1.",
+      "category": "12-inference-serving"
+    },
+    "ai-research:sglang": {
+      "id": "ai-research:sglang",
+      "source": "ai-research",
+      "name": "sglang",
+      "description": "Fast structured generation and serving for LLMs with RadixAttention prefix caching. Use for JSON/regex outputs, constrained decoding, agentic workflows with tool calls, or when you need 5× faster infe",
+      "category": "12-inference-serving"
+    },
+    "ai-research:tensorrt-llm": {
+      "id": "ai-research:tensorrt-llm",
+      "source": "ai-research",
+      "name": "tensorrt-llm",
+      "description": "Optimizes LLM inference with NVIDIA TensorRT for maximum throughput and lowest latency. Use for production deployment on NVIDIA GPUs (A100/H100), when you need 10-100x faster inference than PyTorch, o",
+      "category": "12-inference-serving"
+    },
+    "ai-research:vllm": {
+      "id": "ai-research:vllm",
+      "source": "ai-research",
+      "name": "serving-llms-vllm",
+      "description": "Serves LLMs with high throughput using vLLM's PagedAttention and continuous batching. Use when deploying production LLM APIs, optimizing inference latency/throughput, or serving models with limited GP",
+      "category": "12-inference-serving"
+    },
+    "ai-research:mlflow": {
+      "id": "ai-research:mlflow",
+      "source": "ai-research",
+      "name": "mlflow",
+      "description": "Track ML experiments, manage model registry with versioning, deploy models to production, and reproduce experiments with MLflow - framework-agnostic ML lifecycle platform version: 1.0.0 author: Orches",
+      "category": "13-mlops"
+    },
+    "ai-research:tensorboard": {
+      "id": "ai-research:tensorboard",
+      "source": "ai-research",
+      "name": "tensorboard",
+      "description": "Visualize training metrics, debug models with histograms, compare experiments, visualize model graphs, and profile performance with TensorBoard - Google's ML visualization toolkit version: 1.0.0 autho",
+      "category": "13-mlops"
+    },
+    "ai-research:weights-and-biases": {
+      "id": "ai-research:weights-and-biases",
+      "source": "ai-research",
+      "name": "weights-and-biases",
+      "description": "Track ML experiments with automatic logging, visualize training in real-time, optimize hyperparameters with sweeps, and manage model registry with W&B - collaborative MLOps platform version: 1.0.0 aut",
+      "category": "13-mlops"
+    },
+    "ai-research:autogpt": {
+      "id": "ai-research:autogpt",
+      "source": "ai-research",
+      "name": "autogpt-agents",
+      "description": "Autonomous AI agent platform for building and deploying continuous agents. Use when creating visual workflow agents, deploying persistent autonomous agents, or building complex multi-step AI automatio",
+      "category": "14-agents"
+    },
+    "ai-research:crewai": {
+      "id": "ai-research:crewai",
+      "source": "ai-research",
+      "name": "crewai-multi-agent",
+      "description": "Multi-agent orchestration framework for autonomous AI collaboration. Use when building teams of specialized agents working together on complex tasks, when you need role-based agent collaboration with ",
+      "category": "14-agents"
+    },
+    "ai-research:langchain": {
+      "id": "ai-research:langchain",
+      "source": "ai-research",
+      "name": "langchain",
+      "description": "Framework for building LLM-powered applications with agents, chains, and RAG. Supports multiple providers (OpenAI, Anthropic, Google), 500+ integrations, ReAct agents, tool calling, memory management,",
+      "category": "14-agents"
+    },
+    "ai-research:llamaindex": {
+      "id": "ai-research:llamaindex",
+      "source": "ai-research",
+      "name": "llamaindex",
+      "description": "Data framework for building LLM applications with RAG. Specializes in document ingestion (300+ connectors), indexing, and querying. Features vector indices, query engines, agents, and multi-modal supp",
+      "category": "14-agents"
+    },
+    "ai-research:chroma": {
+      "id": "ai-research:chroma",
+      "source": "ai-research",
+      "name": "chroma",
+      "description": "Open-source embedding database for AI applications. Store embeddings and metadata, perform vector and full-text search, filter by metadata. Simple 4-function API. Scales from notebooks to production c",
+      "category": "15-rag"
+    },
+    "ai-research:faiss": {
+      "id": "ai-research:faiss",
+      "source": "ai-research",
+      "name": "faiss",
+      "description": "Facebook's library for efficient similarity search and clustering of dense vectors. Supports billions of vectors, GPU acceleration, and various index types (Flat, IVF, HNSW). Use for fast k-NN search,",
+      "category": "15-rag"
+    },
+    "ai-research:pinecone": {
+      "id": "ai-research:pinecone",
+      "source": "ai-research",
+      "name": "pinecone",
+      "description": "Managed vector database for production AI applications. Fully managed, auto-scaling, with hybrid search (dense + sparse), metadata filtering, and namespaces. Low latency (<100ms p95). Use for producti",
+      "category": "15-rag"
+    },
+    "ai-research:qdrant": {
+      "id": "ai-research:qdrant",
+      "source": "ai-research",
+      "name": "qdrant-vector-search",
+      "description": "High-performance vector similarity search engine for RAG and semantic search. Use when building production RAG systems requiring fast nearest neighbor search, hybrid search with filtering, or scalable",
+      "category": "15-rag"
+    },
+    "ai-research:sentence-transformers": {
+      "id": "ai-research:sentence-transformers",
+      "source": "ai-research",
+      "name": "sentence-transformers",
+      "description": "Framework for state-of-the-art sentence, text, and image embeddings. Provides 5000+ pre-trained models for semantic similarity, clustering, and retrieval. Supports multilingual, domain-specific, and m",
+      "category": "15-rag"
+    },
+    "ai-research:dspy": {
+      "id": "ai-research:dspy",
+      "source": "ai-research",
+      "name": "dspy",
+      "description": "Build complex AI systems with declarative programming, optimize prompts automatically, create modular RAG systems and agents with DSPy - Stanford NLP's framework for systematic LM programming version:",
+      "category": "16-prompt-engineering"
+    },
+    "ai-research:guidance": {
+      "id": "ai-research:guidance",
+      "source": "ai-research",
+      "name": "guidance",
+      "description": "Control LLM output with regex and grammars, guarantee valid JSON/XML/code generation, enforce structured formats, and build multi-step workflows with Guidance - Microsoft Research's constrained genera",
+      "category": "16-prompt-engineering"
+    },
+    "ai-research:instructor": {
+      "id": "ai-research:instructor",
+      "source": "ai-research",
+      "name": "instructor",
+      "description": "Extract structured data from LLM responses with Pydantic validation, retry failed extractions automatically, parse complex JSON with type safety, and stream partial results with Instructor - battle-te",
+      "category": "16-prompt-engineering"
+    },
+    "ai-research:outlines": {
+      "id": "ai-research:outlines",
+      "source": "ai-research",
+      "name": "outlines",
+      "description": "Guarantee valid JSON/XML/code structure during generation, use Pydantic models for type-safe outputs, support local models (Transformers, vLLM), and maximize inference speed with Outlines - dottxt.ai'",
+      "category": "16-prompt-engineering"
+    },
+    "ai-research:langsmith": {
+      "id": "ai-research:langsmith",
+      "source": "ai-research",
+      "name": "langsmith-observability",
+      "description": "LLM observability platform for tracing, evaluation, and monitoring. Use when debugging LLM applications, evaluating model outputs against datasets, monitoring production systems, or building systemati",
+      "category": "17-observability"
+    },
+    "ai-research:phoenix": {
+      "id": "ai-research:phoenix",
+      "source": "ai-research",
+      "name": "phoenix-observability",
+      "description": "Open-source AI observability platform for LLM tracing, evaluation, and monitoring. Use when debugging LLM applications with detailed traces, running evaluations on datasets, or monitoring production A",
+      "category": "17-observability"
+    },
+    "ai-research:audiocraft": {
+      "id": "ai-research:audiocraft",
+      "source": "ai-research",
+      "name": "audiocraft-audio-generation",
+      "description": "PyTorch library for audio generation including text-to-music (MusicGen) and text-to-sound (AudioGen). Use when you need to generate music from text descriptions, create sound effects, or perform melod",
+      "category": "18-multimodal"
+    },
+    "ai-research:blip-2": {
+      "id": "ai-research:blip-2",
+      "source": "ai-research",
+      "name": "blip-2-vision-language",
+      "description": "Vision-language pre-training framework bridging frozen image encoders and LLMs. Use when you need image captioning, visual question answering, image-text retrieval, or multimodal chat with state-of-th",
+      "category": "18-multimodal"
+    },
+    "ai-research:clip": {
+      "id": "ai-research:clip",
+      "source": "ai-research",
+      "name": "clip",
+      "description": "OpenAI's model connecting vision and language. Enables zero-shot image classification, image-text matching, and cross-modal retrieval. Trained on 400M image-text pairs. Use for image search, content m",
+      "category": "18-multimodal"
+    },
+    "ai-research:llava": {
+      "id": "ai-research:llava",
+      "source": "ai-research",
+      "name": "llava",
+      "description": "Large Language and Vision Assistant. Enables visual instruction tuning and image-based conversations. Combines CLIP vision encoder with Vicuna/LLaMA language models. Supports multi-turn image chat, vi",
+      "category": "18-multimodal"
+    },
+    "ai-research:segment-anything": {
+      "id": "ai-research:segment-anything",
+      "source": "ai-research",
+      "name": "segment-anything-model",
+      "description": "Foundation model for image segmentation with zero-shot transfer. Use when you need to segment any object in images using points, boxes, or masks as prompts, or automatically generate all object masks ",
+      "category": "18-multimodal"
+    },
+    "ai-research:stable-diffusion": {
+      "id": "ai-research:stable-diffusion",
+      "source": "ai-research",
+      "name": "stable-diffusion-image-generation",
+      "description": "State-of-the-art text-to-image generation with Stable Diffusion models via HuggingFace Diffusers. Use when generating images from text prompts, performing image-to-image translation, inpainting, or bu",
+      "category": "18-multimodal"
+    },
+    "ai-research:whisper": {
+      "id": "ai-research:whisper",
+      "source": "ai-research",
+      "name": "whisper",
+      "description": "OpenAI's general-purpose speech recognition model. Supports 99 languages, transcription, translation to English, and language identification. Six model sizes from tiny (39M params) to large (1550M par",
+      "category": "18-multimodal"
+    },
+    "ai-research:knowledge-distillation": {
+      "id": "ai-research:knowledge-distillation",
+      "source": "ai-research",
+      "name": "knowledge-distillation",
+      "description": "Compress large language models using knowledge distillation from teacher to student models. Use when deploying smaller models with retained performance, transferring GPT-4 capabilities to open-source ",
+      "category": "19-emerging-techniques"
+    },
+    "ai-research:long-context": {
+      "id": "ai-research:long-context",
+      "source": "ai-research",
+      "name": "long-context",
+      "description": "Extend context windows of transformer models using RoPE, YaRN, ALiBi, and position interpolation techniques. Use when processing long documents (32k-128k+ tokens), extending pre-trained models beyond ",
+      "category": "19-emerging-techniques"
+    },
+    "ai-research:model-merging": {
+      "id": "ai-research:model-merging",
+      "source": "ai-research",
+      "name": "model-merging",
+      "description": "Merge multiple fine-tuned models using mergekit to combine capabilities without retraining. Use when creating specialized models by blending domain-specific expertise (math + coding + chat), improving",
+      "category": "19-emerging-techniques"
+    },
+    "ai-research:model-pruning": {
+      "id": "ai-research:model-pruning",
+      "source": "ai-research",
+      "name": "model-pruning",
+      "description": "Reduce LLM size and accelerate inference using pruning techniques like Wanda and SparseGPT. Use when compressing models without retraining, achieving 50% sparsity with minimal accuracy loss, or enabli",
+      "category": "19-emerging-techniques"
+    },
+    "ai-research:moe-training": {
+      "id": "ai-research:moe-training",
+      "source": "ai-research",
+      "name": "moe-training",
+      "description": "Train Mixture of Experts (MoE) models using DeepSpeed or HuggingFace. Use when training large-scale models with limited compute (5× cost reduction vs dense models), implementing sparse architectures l",
+      "category": "19-emerging-techniques"
+    },
+    "ai-research:speculative-decoding": {
+      "id": "ai-research:speculative-decoding",
+      "source": "ai-research",
+      "name": "speculative-decoding",
+      "description": "Accelerate LLM inference using speculative decoding, Medusa multiple heads, and lookahead decoding techniques. Use when optimizing inference speed (1.5-3.6× speedup), reducing latency for real-time ap",
+      "category": "19-emerging-techniques"
+    },
+    "ai-research:20-ml-paper-writing": {
+      "id": "ai-research:20-ml-paper-writing",
+      "source": "ai-research",
+      "name": "ml-paper-writing",
+      "description": "Write publication-ready ML/AI papers for NeurIPS, ICML, ICLR, ACL, AAAI, COLM. Use when drafting papers from research repos, structuring arguments, verifying citations, or preparing camera-ready submi",
+      "category": "general"
+    },
+    "ai-research:brainstorming-research-ideas": {
+      "id": "ai-research:brainstorming-research-ideas",
+      "source": "ai-research",
+      "name": "brainstorming-research-ideas",
+      "description": "Guides researchers through structured ideation frameworks to discover high-impact research directions. Use when exploring new problem spaces, pivoting between projects, or seeking novel angles on exis",
+      "category": "21-research-ideation"
+    },
+    "ai-research:creative-thinking-for-research": {
+      "id": "ai-research:creative-thinking-for-research",
+      "source": "ai-research",
+      "name": "creative-thinking-for-research",
+      "description": "Applies cognitive science frameworks for creative thinking to CS and AI research ideation. Use when seeking genuinely novel research directions by leveraging combinatorial creativity, analogical reaso",
+      "category": "21-research-ideation"
+    }
+  }
+}

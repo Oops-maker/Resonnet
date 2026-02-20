@@ -34,9 +34,18 @@
 | POST | `/topics/{topic_id}/discussion` | Start round discussion (async) |
 | GET | `/topics/{topic_id}/discussion/status` | Get discussion status |
 
-**POST /topics/{topic_id}/discussion** 请求体：
-- `num_rounds`, `max_turns`, `max_budget_usd`, `model`（可选）
-- `allowed_tools`（可选）：启用的工具列表，如 `["Read","Write","Edit","Glob","Grep","Task","WebFetch","WebSearch"]`。不传则使用默认全量
+**POST /topics/{topic_id}/discussion** request body:
+- `num_rounds`, `max_turns`, `max_budget_usd`, `model` (optional)
+- `skill_list` (optional): List of skill ids, e.g. `["research_methodology", "ai-research:litgpt"]`; copied to topic workspace for moderator assignment
+- `allowed_tools` (optional): Enabled tools list, e.g. `["Read","Write","Edit","Glob","Grep","Task","WebFetch","WebSearch"]`. Omit for default full set
+
+## Assignable Skills
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/skills/assignable/categories` | List skill categories |
+| GET | `/skills/assignable` | List assignable skills (query: `category`, `fields`, `limit`, `offset`) |
+| GET | `/skills/assignable/{skill_id}/content` | Get raw markdown content of a skill |
 
 ## Topic Experts
 

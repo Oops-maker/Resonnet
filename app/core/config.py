@@ -90,6 +90,12 @@ def get_skills_dir() -> Path:
     return skills_root / "scenarios" / preset
 
 
+def get_assignable_skills_dir() -> Path:
+    """Return skills/assignable_skills/ (场景无关，与 scenarios 同级)."""
+    project_root = Path(__file__).resolve().parent.parent.parent
+    return project_root / "skills" / "assignable_skills"
+
+
 def get_prompts_dir() -> Path:
     """Return the prompts directory for the current scenario.
 

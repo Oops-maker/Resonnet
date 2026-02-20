@@ -17,6 +17,7 @@ from app.api import (
     experts,
     moderator_modes,
     posts,
+    skills as skills_router,
     topic_experts,
     topics,
 )
@@ -69,6 +70,7 @@ app.include_router(posts.router, prefix="/topics", tags=["posts"])
 app.include_router(discussion_router.router, prefix="/topics", tags=["discussion"])
 app.include_router(topic_experts.router, prefix="/topics", tags=["topic-experts"])
 app.include_router(moderator_modes.router, tags=["moderator-modes"])
+app.include_router(skills_router.router, prefix="/skills", tags=["skills"])
 app.include_router(experts.router, prefix="/experts", tags=["experts"])
 
 

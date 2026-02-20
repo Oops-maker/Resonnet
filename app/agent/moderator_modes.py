@@ -167,11 +167,36 @@ def prepare_moderator_skill(ws_path: Path, topic: str, expert_names: list[str], 
             mode_id = "standard"
         skill_content = _build_moderator_prompt_from_preset(mode_id, params)
 
+    # Append skill assignment section when config/skills/ has assignable skills
+    skills_dir = ws_path / "config" / "skills"
+    if skills_dir.exists():
+        skill_files = sorted(skills_dir.glob("*.md"))
+        if skill_files:
+            skill_names = [f.stem for f in skill_files]
+            assignment_section = _build_skill_assignment_section(skill_names)
+            skill_content = skill_content.rstrip() + "\n\n" + assignment_section
+            logger.info(f"Added skill assignment section for {skill_names}")
+
     skill_file = ws_path / "config" / "moderator_skill.md"
     skill_file.parent.mkdir(parents=True, exist_ok=True)
     skill_file.write_text(skill_content, encoding="utf-8")
     logger.info(f"Saved moderator skill to {skill_file} (mode={mode_id}, rounds={num_rounds})")
     return skill_file
+
+
+def _build_skill_assignment_section(skill_names: list[str]) -> str:
+    """Build moderator instructions for assigning skills to experts."""
+    paths_str = "\n".join(f"- config/skills/{s}.md" for s in skill_names)
+    return f"""## Skill Assignment (config/skills/)
+
+以下技能已拷贝到工作区，供你按需分配给专家：
+
+{paths_str}
+
+**使用方式**：
+1. 每轮开始前，用 Read 工具阅读上述技能文件，根据当前讨论阶段与话题选择最相关的技能
+2. 调用专家 Task 时，在指令中附加技能内容，例如：「除你的角色外，请额外遵循以下指导：[粘贴技能内容]。然后阅读 shared/topic.md 并参与讨论。」
+3. 同一专家可分配多个技能，或不同专家分配不同技能；根据话题与专家专长灵活选择"""
 
 
 def get_moderator_prompt(ws_path: Path) -> str:

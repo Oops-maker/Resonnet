@@ -18,6 +18,7 @@ from .experts import EXPERT_SPECS, build_experts, build_experts_from_workspace, 
 from .moderator_modes import get_moderator_prompt, prepare_moderator_skill
 from .topic_sandbox import exclusive_topic_sandbox
 from .workspace import (
+    copy_skills_to_workspace,
     ensure_topic_workspace,
     init_discussion_history,
     read_discussion_history,
@@ -135,6 +136,7 @@ async def run_discussion_for_topic(
     max_budget_usd: float = 5.0,
     model: str | None = None,
     allowed_tools: list[str] | None = None,
+    skill_list: list[str] | None = None,
 ) -> dict[str, Any]:
     """Run discussion for a topic; return discussion_history, summary, cost, etc."""
     from app.core.config import get_workspace_base
@@ -142,6 +144,12 @@ async def run_discussion_for_topic(
     base = Path(workspace_base) if workspace_base else get_workspace_base()
     ws_path = ensure_topic_workspace(base, topic_id)
     init_discussion_history(ws_path, topic_title, topic_body)
+
+    # Copy user-selected skills from global assignable_skills to config/skills/
+    if skill_list:
+        copied = copy_skills_to_workspace(ws_path, skill_list)
+        if copied:
+            logger.info(f"Copied {len(copied)} skills to workspace: {copied}")
 
     config = get_agent_config()
     if model:

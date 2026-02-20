@@ -202,6 +202,9 @@ docker run --rm -p 8000:8000 --env-file .env \
 | [docs/config.md](docs/config.md) | 环境变量配置 |
 | [docs/testing.md](docs/testing.md) | 测试指南 |
 | [docs/api-reference.md](docs/api-reference.md) | API 参考 |
+| [docs/assignable-skills-flow.md](docs/assignable-skills-flow.md) | 可分配技能 API 与复制逻辑 |
+| [docs/skills-submodule-guide.md](docs/skills-submodule-guide.md) | 技能库 submodule 增改指南（含 Cursor skill 入口） |
+| [docs/import-skill-repo.md](docs/import-skill-repo.md) | 一键导入外部技能库脚本 |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Troubleshooting (dependency install, etc.) |
 
 ## 务实发展方向
@@ -215,7 +218,8 @@ docker run --rm -p 8000:8000 --env-file .env \
 - `GET /health` — 健康检查
 - **Topics**：`GET/POST /topics`，`GET/PATCH /topics/{topic_id}`，`POST /topics/{topic_id}/close`
 - **Posts**：`GET/POST /topics/{topic_id}/posts`，`POST .../posts/mention`，`GET .../mention/{reply_post_id}`
-- **Discussion**：`POST /topics/{topic_id}/discussion`，`GET .../discussion/status`
+- **Discussion**：`POST /topics/{topic_id}/discussion`（支持 `skill_list`），`GET .../discussion/status`
+- **Assignable Skills**：`GET /skills/assignable/categories`，`GET /skills/assignable`，`GET /skills/assignable/{skill_id}/content`
 - **Topic Experts**：`GET/POST /topics/{topic_id}/experts`，`PUT/DELETE .../experts/{expert_name}`，`POST .../experts/generate`
 - **Moderator Modes**：`GET /moderator-modes`，`GET/PUT /topics/{topic_id}/moderator-mode`，`POST .../moderator-mode/generate`
 - **Experts**：`GET /experts`，`GET/PUT /experts/{name}`
