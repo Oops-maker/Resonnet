@@ -1,0 +1,61 @@
+{
+  "common_sections": "moderator_common.md",
+  "categories": {
+    "discussion": {
+      "id": "discussion",
+      "name": "Discussion",
+      "description": "Standard discussion and debate formats"
+    },
+    "creative": {
+      "id": "creative",
+      "name": "Creative",
+      "description": "Ideation and review formats"
+    }
+  },
+  "modes": {
+    "standard": {
+      "id": "standard",
+      "source": "default",
+      "name": "Standard Round Table",
+      "description": "Balanced multi-round discussion, gradual divergence to convergence",
+      "category": "discussion",
+      "num_rounds": 5,
+      "convergence_strategy": "Opening views → Mid-round interaction → Deepen → Final round summary",
+      "prompt_file": "standard.md",
+      "summary_scope": "key findings, consensus, disagreements"
+    },
+    "brainstorm": {
+      "id": "brainstorm",
+      "source": "default",
+      "name": "Brainstorm",
+      "description": "Encourage divergent thinking, collect as many ideas as possible",
+      "category": "creative",
+      "num_rounds": 5,
+      "convergence_strategy": "Ideation → Categorize → Filter → Optimize → Final roadmap",
+      "prompt_file": "brainstorm.md",
+      "summary_scope": "all ideas, categories, selected options, roadmap"
+    },
+    "debate": {
+      "id": "debate",
+      "source": "default",
+      "name": "Debate",
+      "description": "Deep clash of opposing views, explore truth through argument and rebuttal",
+      "category": "discussion",
+      "num_rounds": 4,
+      "convergence_strategy": "Position statement → Cross-examination → Final summary",
+      "prompt_file": "debate.md",
+      "summary_scope": "core arguments, key disagreements, neutral moderator summary"
+    },
+    "review": {
+      "id": "review",
+      "source": "default",
+      "name": "Review Panel",
+      "description": "Strict review, check feasibility, risk, resources, and impact",
+      "category": "creative",
+      "num_rounds": 5,
+      "convergence_strategy": "Dimension-by-dimension review → Final scoring and recommendations",
+      "prompt_file": "review.md",
+      "summary_scope": "dimension scores, consensus and disagreements, improvement list, overall conclusion"
+    }
+  }
+}

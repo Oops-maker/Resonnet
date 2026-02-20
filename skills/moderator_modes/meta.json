@@ -1,0 +1,9 @@
+{
+  "sources": {
+    "default": {
+      "id": "default",
+      "name": "Default",
+      "description": "Built-in moderator modes for round-table discussions"
+    }
+  }
+}

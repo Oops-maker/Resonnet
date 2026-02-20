@@ -70,14 +70,19 @@
 | POST | `/topics/{topic_id}/experts/{expert_name}/share` | Share expert to platform |
 | POST | `/topics/{topic_id}/experts/generate` | AI-generate expert role |
 
-## Moderator Modes
+## Moderator Modes (Discussion Modes)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/moderator-modes` | List available moderator modes |
+| GET | `/moderator-modes` | List preset modes (for topic config) |
+| GET | `/moderator-modes/assignable/categories` | List mode categories |
+| GET | `/moderator-modes/assignable` | List assignable modes (query: `category`, `fields`, `limit`, `offset`) |
+| GET | `/moderator-modes/assignable/{mode_id}/content` | Get mode prompt content |
 | GET | `/topics/{topic_id}/moderator-mode` | Get topic's current moderator mode |
 | PUT | `/topics/{topic_id}/moderator-mode` | Set moderator mode |
 | POST | `/topics/{topic_id}/moderator-mode/generate` | AI-generate moderator prompt |
+
+Modes are loaded from `skills/moderator_modes/` (same structure as assignable_skills, mcps).
 
 ## Global Experts
 

@@ -133,6 +133,7 @@ uv sync   # 或 pip install -e ".[dev]"
 
 # 2. 配置环境变量（复制模板后补齐）
 cp .env.example .env
+# 当 backend 作为 submodule 时，也可将 .env 放在项目根目录；backend 优先加载项目根 .env
 
 # 3. 启动服务
 uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -224,7 +225,7 @@ docker run --rm -p 8000:8000 --env-file .env \
 - **Assignable Skills**：`GET /skills/assignable/categories`，`GET /skills/assignable`，`GET /skills/assignable/{skill_id}/content`
 - **MCP**：`GET /mcp/assignable/categories`，`GET /mcp/assignable`，`GET /mcp/assignable/{id}/content`
 - **Topic Experts**：`GET/POST /topics/{topic_id}/experts`，`PUT/DELETE .../experts/{expert_name}`，`POST .../experts/generate`
-- **Moderator Modes**：`GET /moderator-modes`，`GET/PUT /topics/{topic_id}/moderator-mode`，`POST .../moderator-mode/generate`
+- **Moderator Modes**：`GET /moderator-modes`，`GET /moderator-modes/assignable`，`GET /moderator-modes/assignable/{id}/content`，`GET/PUT /topics/{topic_id}/moderator-mode`，`POST .../moderator-mode/generate`
 - **Experts**：`GET /experts`，`GET/PUT /experts/{name}`
 
 详见 [docs/api-reference.md](docs/api-reference.md)。
@@ -236,7 +237,7 @@ docker run --rm -p 8000:8000 --env-file .env \
 | 类型 | 位置 | 说明 |
 |------|------|------|
 | 专家角色定义 | `skills/scenarios/topic-lab/experts/` | 新增 `.md` 技能文件，并在 `meta.json` 中注册 |
-| 讨论组织模式 | `skills/scenarios/topic-lab/moderator/` | 新增 `.md` 主持人模式，并在 `meta.json` 中注册 |
+| 讨论组织模式 | `skills/moderator_modes/` | 新增 `.md` 模式并在 `default/meta.json` 中注册，与 assignable_skills、mcps 同构 |
 | AI 功能提示词 | `skills/scenarios/topic-lab/prompts/` | 覆盖生成、讨论、@mention 等功能的 AI 行为；详见 [skills/README.md](skills/README.md) |
 
 详见 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [skills/README.md](skills/README.md)。

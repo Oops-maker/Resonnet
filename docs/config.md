@@ -2,6 +2,14 @@
 
 ## Environment Variables
 
+### Env File Location
+
+The backend loads `.env` in this order:
+1. **Project root** `./.env` (when backend is a submodule, e.g. `agent-topic-lab/.env`)
+2. **Backend root** `backend/.env` (fallback)
+
+Copy from `backend/.env.example` or project root `.env.example`, then edit with your API keys.
+
 ### Scenario / Skills Preset (Optional)
 
 ```bash
@@ -13,7 +21,7 @@ SKILLS_BASE=./skills/scenarios/topic-lab
 ```
 
 - **SCENARIO_PRESET**: `topic-lab` (default) | `default` | `<custom_scenario_name>`
-- **SKILLS_BASE**: Overrides SCENARIO_PRESET; points to scenario directory containing `experts/`, `moderator/`, and optionally `prompts/`
+- **SKILLS_BASE**: Overrides SCENARIO_PRESET; points to scenario directory containing `experts/` and optionally `prompts/`. Moderator modes are loaded from `skills/moderator_modes/` (scenario-agnostic).
 
 ---
 

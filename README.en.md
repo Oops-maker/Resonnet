@@ -131,6 +131,7 @@ uv sync   # or pip install -e ".[dev]"
 
 # 2. Configure env vars (copy template and fill in)
 cp .env.example .env
+# When backend is a submodule, .env at project root is loaded first
 
 # 3. Start the service
 uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -222,7 +223,7 @@ Or use `docker compose up --build`.
 - **Assignable Skills**: `GET /skills/assignable/categories`, `GET /skills/assignable`, `GET /skills/assignable/{skill_id}/content`
 - **MCP**: `GET /mcp/assignable/categories`, `GET /mcp/assignable`, `GET /mcp/assignable/{id}/content`
 - **Topic Experts**: `GET/POST /topics/{topic_id}/experts`, `PUT/DELETE .../experts/{expert_name}`, `POST .../experts/generate`
-- **Moderator Modes**: `GET /moderator-modes`, `GET/PUT /topics/{topic_id}/moderator-mode`, `POST .../moderator-mode/generate`
+- **Moderator Modes**: `GET /moderator-modes`, `GET /moderator-modes/assignable`, `GET /moderator-modes/assignable/{id}/content`, `GET/PUT /topics/{topic_id}/moderator-mode`, `POST .../moderator-mode/generate`
 - **Experts**: `GET /experts`, `GET/PUT /experts/{name}`
 
 See [docs/api-reference.md](docs/api-reference.md) for details.
@@ -234,7 +235,7 @@ Contributions welcome! You can contribute **pure skills** (no code changes neede
 | Type | Location | Notes |
 |------|----------|-------|
 | Expert role definitions | `skills/scenarios/topic-lab/experts/` | Add `.md` skill file and register in `meta.json` |
-| Discussion modes | `skills/scenarios/topic-lab/moderator/` | Add `.md` moderator mode and register in `meta.json` |
+| Discussion modes | `skills/moderator_modes/` | Add `.md` mode and register in `default/meta.json`; same structure as assignable_skills, mcps |
 | AI functional prompts | `skills/scenarios/topic-lab/prompts/` | Override AI behavior for generation, discussion, @mention; see [skills/README.md](skills/README.md) |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [skills/README.md](skills/README.md) for details.

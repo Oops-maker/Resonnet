@@ -1,5 +1,10 @@
 """Moderator modes API endpoints."""
 
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 
 from app.agent.generation import generate_moderator_mode
@@ -8,7 +13,8 @@ from app.agent.moderator_modes import (
     load_moderator_mode_config,
     save_moderator_mode_config,
 )
-from app.core.config import get_workspace_base
+from app.core.config import get_moderator_modes_dir, get_workspace_base
+from app.core.moderator_modes_meta import load_aggregated_modes_meta
 from app.models.schemas import (
     GenerateModeratorModeRequest,
     GenerateModeratorModeResponse,
@@ -18,7 +24,75 @@ from app.models.schemas import (
 )
 from app.models.store import get_topic
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+@router.get("/moderator-modes/assignable/categories")
+def list_assignable_moderator_mode_categories():
+    """List moderator mode categories from skills/moderator_modes/."""
+    base_dir = get_moderator_modes_dir()
+    categories, _, _ = load_aggregated_modes_meta(base_dir)
+    return [
+        {"id": c.get("id", k), "name": c.get("name", k), "description": c.get("description", "")}
+        for k, c in categories.items()
+        if isinstance(c, dict)
+    ]
+
+
+@router.get("/moderator-modes/assignable")
+def list_assignable_moderator_modes(
+    category: str | None = None,
+    fields: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+):
+    """List assignable moderator modes from skills/moderator_modes/ (category, source)."""
+    base_dir = get_moderator_modes_dir()
+    categories, modes, _ = load_aggregated_modes_meta(base_dir)
+    minimal = (fields or "").strip().lower() == "minimal"
+    result = []
+    for mode_id, m in modes.items():
+        if not isinstance(m, dict) or "id" not in m:
+            continue
+        cat_id = m.get("category", "")
+        if category is not None and category != "" and cat_id != category:
+            continue
+        cat_info = categories.get(cat_id, {}) if isinstance(categories.get(cat_id), dict) else {}
+        item = {
+            "id": m["id"],
+            "name": m.get("name", mode_id),
+            "category": cat_id,
+            "category_name": cat_info.get("name", cat_id),
+        }
+        if not minimal:
+            item["source"] = m.get("source", "default")
+            item["description"] = m.get("description", "")
+            item["num_rounds"] = m.get("num_rounds", 5)
+            item["convergence_strategy"] = m.get("convergence_strategy", "")
+        result.append(item)
+    if offset > 0:
+        result = result[offset:]
+    if limit is not None and limit > 0:
+        result = result[:limit]
+    return result
+
+
+@router.get("/moderator-modes/assignable/{mode_id}/content")
+def get_moderator_mode_content(mode_id: str):
+    """Return the mode prompt content (role-specific .md)."""
+    base_dir = get_moderator_modes_dir()
+    _, modes, _ = load_aggregated_modes_meta(base_dir)
+    raw = mode_id.removesuffix(".md") if mode_id.endswith(".md") else mode_id
+    mode_info = modes.get(raw, {}) if isinstance(modes.get(raw), dict) else {}
+    if not mode_info:
+        raise HTTPException(status_code=404, detail="Moderator mode not found")
+    source_id = mode_info.get("source", "default")
+    prompt_file = mode_info.get("prompt_file", f"{raw}.md")
+    path = base_dir / source_id / prompt_file
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Moderator mode prompt file not found")
+    return {"content": path.read_text(encoding="utf-8")}
 
 
 @router.get("/moderator-modes", response_model=list[ModeratorModeInfo])

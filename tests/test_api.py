@@ -284,3 +284,76 @@ def test_copy_mcp_to_workspace(isolated_workspace: Path):
     data = json.loads(mcp_path.read_text(encoding="utf-8"))
     assert "inspector" in data["mcpServers"]
     assert data["mcpServers"]["inspector"]["command"] == "npx"
+
+
+# --- Moderator modes tests (skills/moderator_modes/) ---
+
+def test_moderator_modes_assignable_list(client: TestClient):
+    """GET /moderator-modes/assignable returns modes with category, source from skills/moderator_modes/."""
+    resp = client.get("/moderator-modes/assignable")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    ids = [m["id"] for m in data]
+    assert "standard" in ids
+    assert "brainstorm" in ids
+    for m in data:
+        assert "id" in m
+        assert "name" in m
+        assert "category" in m
+        assert "category_name" in m
+        assert "source" in m
+
+
+def test_moderator_modes_assignable_content(client: TestClient):
+    """GET /moderator-modes/assignable/{id}/content returns mode prompt content."""
+    resp = client.get("/moderator-modes/assignable/standard/content")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "content" in data
+    assert "round-table discussion moderator" in data["content"] or "topic" in data["content"]
+
+
+def test_moderator_modes_list(client: TestClient):
+    """GET /moderator-modes returns preset modes from skills/moderator_modes/."""
+    resp = client.get("/moderator-modes")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    ids = [m["id"] for m in data]
+    assert "standard" in ids
+    assert "brainstorm" in ids
+    assert "debate" in ids
+    assert "review" in ids
+    for m in data:
+        assert "id" in m
+        assert "name" in m
+        assert "description" in m
+        assert "num_rounds" in m
+        assert "convergence_strategy" in m
+
+
+def test_moderator_mode_get_and_set(client: TestClient, isolated_workspace: Path):
+    """GET/PUT /topics/{id}/moderator-mode read/write config from workspace."""
+    topic = _create_topic(client)
+    topic_id = topic["id"]
+
+    get_resp = client.get(f"/topics/{topic_id}/moderator-mode")
+    assert get_resp.status_code == 200
+    cfg = get_resp.json()
+    assert cfg["mode_id"] == "standard"
+    assert "num_rounds" in cfg
+
+    put_resp = client.put(
+        f"/topics/{topic_id}/moderator-mode",
+        json={"mode_id": "brainstorm", "num_rounds": 4, "custom_prompt": None},
+    )
+    assert put_resp.status_code == 200
+    updated = put_resp.json()
+    assert updated["mode_id"] == "brainstorm"
+    assert updated["num_rounds"] == 4
+
+    config_file = isolated_workspace / "topics" / topic_id / "config" / "moderator_mode.json"
+    assert config_file.exists()
+    saved = json.loads(config_file.read_text(encoding="utf-8"))
+    assert saved["mode_id"] == "brainstorm"

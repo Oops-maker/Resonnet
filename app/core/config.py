@@ -7,8 +7,14 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-_env_path = Path(__file__).resolve().parent.parent.parent / ".env"
-load_dotenv(_env_path)
+# Load .env from project root (./.env) when backend is submodule; fallback to backend/.env
+_project_root = Path(__file__).resolve().parent.parent.parent.parent
+_env_root = _project_root / ".env"
+_env_backend = Path(__file__).resolve().parent.parent.parent / ".env"
+if _env_root.exists():
+    load_dotenv(_env_root, override=True)
+elif _env_backend.exists():
+    load_dotenv(_env_backend, override=True)
 
 
 def get_anthropic_api_key() -> str:
@@ -100,6 +106,12 @@ def get_mcps_dir() -> Path:
     """Return skills/mcps/ (assignable MCP servers, read-only config)."""
     project_root = Path(__file__).resolve().parent.parent.parent
     return project_root / "skills" / "mcps"
+
+
+def get_moderator_modes_dir() -> Path:
+    """Return skills/moderator_modes/ (unified with assignable_skills, mcps)."""
+    project_root = Path(__file__).resolve().parent.parent.parent
+    return project_root / "skills" / "moderator_modes"
 
 
 def get_prompts_dir() -> Path:

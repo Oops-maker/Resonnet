@@ -60,7 +60,7 @@ uv run uvicorn main:app --reload
 You can add or customize without modifying backend code:
 
 - **Expert roles** (who): Add `.md` under `skills/scenarios/topic-lab/experts/`, register in `meta.json`
-- **Moderator modes** (how discussions run): Add `.md` under `skills/scenarios/topic-lab/moderator/`, register in `meta.json`
+- **Discussion modes** (how discussions run): Add `.md` under `skills/moderator_modes/default/`, register in `default/meta.json` (same structure as assignable_skills, mcps)
 - **AI prompts** (how features behave): Override files in `skills/scenarios/topic-lab/prompts/` to change generation, discussion, or @mention behavior
 
 See [skills/README.md](skills/README.md) for component comparison and [docs/skills-generalization.md](docs/skills-generalization.md) for scenario design.

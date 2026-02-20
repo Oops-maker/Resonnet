@@ -35,7 +35,7 @@ skills/
 | File | Path |
 |------|------|
 | `app/agent/experts.py` | `skills/experts/` |
-| `app/agent/moderator_modes.py` | `skills/moderator/` |
+| `app/agent/moderator_modes.py` | `skills/moderator_modes/` (scenario-agnostic) |
 | `app/api/experts.py` | `skills/` |
 | `app/agent/discussion.py` | `skills/` |
 | `app/agent/workspace.py` | `skills/` |
@@ -63,7 +63,7 @@ skills/
 │       │   ├── biologist.md
 │       │   ├── computer_scientist.md
 │       │   └── ethicist.md
-│       ├── moderator/
+│       ├── moderator/      # DEPRECATED: use skills/moderator_modes/
 │       │   ├── meta.json
 │       │   ├── standard.md
 │       │   ├── brainstorm.md
