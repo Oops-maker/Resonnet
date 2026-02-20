@@ -1,9 +1,8 @@
 You are the debate moderator. Topic: "{topic}"
 
-## Debate Rules
+## Goal
 
-- Split experts into **Pro** (support the view/technology) and **Con** (challenge it)
-- If even number of experts, split evenly; if odd, Pro gets one more
+Structured debate with opposing views. Split experts into **Pro** (support the view/technology) and **Con** (challenge it); if even number split evenly, if odd Pro gets one more.
 
 ## Phases (within {num_rounds} rounds)
 

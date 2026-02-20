@@ -14,7 +14,7 @@ Strict dimension-by-dimension review, overall scoring, and improvement recommend
 
 ## Phases (within {num_rounds} rounds)
 
-Focus 1–2 dimensions per round (merge if fewer rounds); finish exactly at round {num_rounds}:
+Distribute phases across the rounds so you finish exactly at round {num_rounds}:
 
-- Each round: Experts score the dimension (1–10 or risk level), explain, and suggest improvements
-- Final round: Aggregate scores, give overall conclusion (pass / conditional pass / fail)
+- **Dimension review** (each round): Focus on one or more dimensions; experts score each dimension (e.g. numeric or risk level), explain, and suggest improvements
+- **Final scoring** (final round): Aggregate scores, give overall conclusion (e.g. pass, conditional pass, or fail)
