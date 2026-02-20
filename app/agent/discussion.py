@@ -18,12 +18,14 @@ from .experts import EXPERT_SPECS, build_experts, build_experts_from_workspace, 
 from .moderator_modes import get_moderator_prompt, prepare_moderator_skill
 from .topic_sandbox import exclusive_topic_sandbox
 from .workspace import (
+    copy_mcp_to_workspace,
     copy_skills_to_workspace,
     ensure_topic_workspace,
     init_discussion_history,
     read_discussion_history,
     read_discussion_summary,
 )
+from app.core.mcp_config import load_mcp_config_from_path
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,25 @@ def _load_system_prompt(ws_abs: str) -> str:
 def _expert_tools_from_moderator_tools(moderator_tools: list[str]) -> list[str]:
     """专家不使用 Task（仅主持人用于调用子 agent），其余工具与主持人一致"""
     return [t for t in moderator_tools if t != "Task"]
+
+
+def _load_mcp_servers_for_sdk(workspace_dir: Path) -> dict[str, dict]:
+    """Load MCP config from workspace config/mcp.json and convert to SDK format.
+
+    Returns dict suitable for ClaudeAgentOptions(mcp_servers=...).
+    Each server: {"command": str, "args": list, "env": dict | None}
+    """
+    path = workspace_dir / "config" / "mcp.json"
+    cfg = load_mcp_config_from_path(path)
+    if not cfg.mcpServers:
+        return {}
+    result: dict[str, dict] = {}
+    for sid, srv in cfg.mcpServers.items():
+        entry: dict = {"command": srv.command, "args": srv.args or []}
+        if srv.env:
+            entry["env"] = srv.env
+        result[sid] = entry
+    return result
 
 
 async def run_discussion(
@@ -70,7 +91,12 @@ async def run_discussion(
 
     # Build AgentDefinitions from workspace role files (fallback to global skills)
     # Pass ws_abs so each expert's prompt includes the topic sandbox boundary.
-    tools = allowed_tools if allowed_tools else DEFAULT_ALLOWED_TOOLS
+    tools = list(allowed_tools) if allowed_tools else list(DEFAULT_ALLOWED_TOOLS)
+    mcp_servers = _load_mcp_servers_for_sdk(workspace_dir)
+    if mcp_servers:
+        for sid in mcp_servers:
+            tools.append(f"mcp__{sid}__*")
+        logger.info(f"MCP servers loaded for discussion: {list(mcp_servers.keys())}")
     expert_tools = _expert_tools_from_moderator_tools(tools)
 
     if expert_names:
@@ -95,18 +121,21 @@ async def run_discussion(
     prepare_moderator_skill(workspace_dir, topic, expert_names or EXPERT_ORDER, num_rounds=num_rounds)
     prompt = get_moderator_prompt(workspace_dir)
 
-    options = ClaudeAgentOptions(
-        allowed_tools=tools,
-        permission_mode="bypassPermissions",
-        system_prompt=system_prompt,
-        cwd=ws_abs,
-        add_dirs=[ws_abs],
-        agents=experts,
-        max_turns=max_turns,
-        max_budget_usd=max_budget_usd,
-        env=env,
-        model=model,
-    )
+    options_kw: dict[str, Any] = {
+        "allowed_tools": tools,
+        "permission_mode": "bypassPermissions",
+        "system_prompt": system_prompt,
+        "cwd": ws_abs,
+        "add_dirs": [ws_abs],
+        "agents": experts,
+        "max_turns": max_turns,
+        "max_budget_usd": max_budget_usd,
+        "env": env,
+        "model": model,
+    }
+    if mcp_servers:
+        options_kw["mcp_servers"] = mcp_servers
+    options = ClaudeAgentOptions(**options_kw)
 
     result_info: dict[str, Any] = {"num_turns": 0, "total_cost_usd": None}
     logger.info("Starting query...")
@@ -137,6 +166,7 @@ async def run_discussion_for_topic(
     model: str | None = None,
     allowed_tools: list[str] | None = None,
     skill_list: list[str] | None = None,
+    mcp_server_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     """Run discussion for a topic; return discussion_history, summary, cost, etc."""
     from app.core.config import get_workspace_base
@@ -150,6 +180,12 @@ async def run_discussion_for_topic(
         copied = copy_skills_to_workspace(ws_path, skill_list)
         if copied:
             logger.info(f"Copied {len(copied)} skills to workspace: {copied}")
+
+    # Copy user-selected MCP servers from global mcp.json to config/mcp.json
+    if mcp_server_ids:
+        copied_mcp = copy_mcp_to_workspace(ws_path, mcp_server_ids)
+        if copied_mcp:
+            logger.info(f"Copied {len(copied_mcp)} MCP servers to workspace: {copied_mcp}")
 
     config = get_agent_config()
     if model:

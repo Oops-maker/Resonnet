@@ -44,6 +44,7 @@ async def run_discussion_background(
     model: str | None = None,
     allowed_tools: list[str] | None = None,
     skill_list: list[str] | None = None,
+    mcp_server_ids: list[str] | None = None,
 ):
     """Background task to run discussion."""
     try:
@@ -60,6 +61,7 @@ async def run_discussion_background(
             model=model,
             allowed_tools=allowed_tools,
             skill_list=skill_list or [],
+            mcp_server_ids=mcp_server_ids or [],
         )
         logger.info(f"Discussion completed for topic {topic_id}, result: {result}")
         typed_result = DiscussionResult(**result)
@@ -112,6 +114,7 @@ async def start_discussion_endpoint(topic_id: str, req: StartDiscussionRequest):
         model=req.model,
         allowed_tools=tools,
         skill_list=req.skill_list or [],
+        mcp_server_ids=req.mcp_server_ids or [],
     ))
 
     return DiscussionStatusResponse(

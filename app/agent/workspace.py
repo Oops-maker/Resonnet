@@ -270,6 +270,67 @@ def copy_skills_to_workspace(ws_path: Path, skill_list: list[str]) -> list[str]:
     return copied
 
 
+def copy_mcp_to_workspace(ws_path: Path, server_ids: list[str]) -> list[str]:
+    """Copy selected MCP servers from skills/mcps/ to topic workspace config/mcp.json.
+
+    Args:
+        ws_path: Topic workspace path (workspace/topics/{topic_id})
+        server_ids: List of MCP server IDs to copy (e.g. ["inspector"])
+
+    Returns:
+        List of server IDs that were successfully copied.
+    """
+    if not server_ids:
+        return []
+
+    from app.core.config import get_mcps_dir
+    from app.core.mcps_meta import load_aggregated_mcps_meta
+
+    base_dir = get_mcps_dir()
+    _, mcps_meta = load_aggregated_mcps_meta(base_dir)
+    if not mcps_meta:
+        logger.warning("Assignable MCPs meta not found")
+        return []
+
+    dest_dir = ws_path / "config"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = dest_dir / "mcp.json"
+
+    from app.models.schemas import MCPServerConfig
+
+    mcp_servers: dict = {}
+    for sid in server_ids:
+        info = mcps_meta.get(sid, {}) if isinstance(mcps_meta.get(sid), dict) else {}
+        if not info or "command" not in info:
+            logger.warning(f"MCP not found in meta (skipped): {sid}")
+            continue
+        try:
+            cfg = MCPServerConfig(
+                command=info.get("command", ""),
+                args=info.get("args", []),
+                env=info.get("env"),
+            )
+            from app.core.mcp_config import validate_mcp_server
+            validate_mcp_server(sid, cfg)
+        except ValueError as e:
+            logger.warning(f"MCP {sid} validation failed (skipped): {e}")
+            continue
+        mcp_servers[sid] = {
+            "command": info.get("command", ""),
+            "args": info.get("args", []),
+            **({"env": info["env"]} if info.get("env") else {}),
+        }
+
+    if not mcp_servers:
+        return []
+
+    data = {"mcpServers": mcp_servers}
+    dest_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    copied = list(mcp_servers.keys())
+    logger.info(f"Copied MCP servers {copied} to {dest_path}")
+    return copied
+
+
 def _get_expert_label(expert_key: str, ws_path: Path) -> str:
     """Map expert key to display label.
 

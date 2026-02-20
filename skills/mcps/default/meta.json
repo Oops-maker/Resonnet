@@ -1,0 +1,45 @@
+{
+  "categories": {
+    "tools": {"id": "tools", "name": "Tools", "description": "Development and debugging tools"},
+    "data": {"id": "data", "name": "Data", "description": "Memory, fetch, and data access"},
+    "remote": {"id": "remote", "name": "Remote", "description": "Remote MCP servers"}
+  },
+  "mcps": {
+    "inspector": {
+      "id": "inspector",
+      "source": "default",
+      "name": "MCP Inspector",
+      "description": "Debug and inspect MCP servers",
+      "category": "tools",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/inspector"]
+    },
+    "memory": {
+      "id": "memory",
+      "source": "default",
+      "name": "MCP Memory",
+      "description": "Persistent knowledge graph for entities, relations, and observations",
+      "category": "data",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "fetch": {
+      "id": "fetch",
+      "source": "default",
+      "name": "MCP Fetch",
+      "description": "Fetch web content and convert HTML to markdown",
+      "category": "data",
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    },
+    "time": {
+      "id": "time",
+      "source": "default",
+      "name": "MCP Time",
+      "description": "Get current time and timezone information",
+      "category": "tools",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-time"]
+    }
+  }
+}

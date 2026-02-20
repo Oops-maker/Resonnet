@@ -52,6 +52,15 @@ AI_GENERATION_MODEL=glm-4-flash
 
 ---
 
+### 3. MCP (Model Context Protocol)
+
+MCP servers are configured in `skills/mcps/` (read-only, same structure as assignable_skills). **Accepted sources only**: npm, uvx, remote (mcp-remote). No local paths.
+
+- Discussion API accepts `mcp_server_ids`; selected servers are copied to `workspace/topics/{id}/config/mcp.json` and passed to Claude Agent SDK.
+- See [mcp-config.md](mcp-config.md) for API, validation, and pass-through flow.
+
+---
+
 ## Rules
 
 1. **Do not mix the two configs**

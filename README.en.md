@@ -112,7 +112,8 @@ Built around cognitive alignment and controlled collaboration:
 - **Topic workspace isolation**: Topic-level workspaces, concurrency lock
 - **Expert & moderator generation**: AI-generated expert role definitions and moderator prompts
 - **@mention reply**: @expert in posts triggers async AI replies
-- **REST API**: Full CRUD for Topics, Posts, Experts, Moderator Modes
+- **MCP tool extension**: Select MCP servers (time, fetch, etc.) for discussion; passed to Agent SDK for invocation
+- **REST API**: Full CRUD for Topics, Posts, Experts, Moderator Modes, MCP
 
 ## Reference Implementation
 
@@ -201,6 +202,7 @@ Or use `docker compose up --build`.
 | [docs/testing.md](docs/testing.md) | Testing guide |
 | [docs/api-reference.md](docs/api-reference.md) | API reference |
 | [docs/assignable-skills-flow.md](docs/assignable-skills-flow.md) | Assignable skills API and copy logic |
+| [docs/mcp-config.md](docs/mcp-config.md) | MCP config, API, pass-through flow (npm/uvx/remote only) |
 | [docs/skills-submodule-guide.md](docs/skills-submodule-guide.md) | Add/update skill libraries via submodule |
 | [docs/import-skill-repo.md](docs/import-skill-repo.md) | One-click import script for external skill repos |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Troubleshooting (dependency install, etc.) |
@@ -216,8 +218,9 @@ Or use `docker compose up --build`.
 - `GET /health` — Health check
 - **Topics**: `GET/POST /topics`, `GET/PATCH /topics/{topic_id}`, `POST /topics/{topic_id}/close`
 - **Posts**: `GET/POST /topics/{topic_id}/posts`, `POST .../posts/mention`, `GET .../mention/{reply_post_id}`
-- **Discussion**: `POST /topics/{topic_id}/discussion` (supports `skill_list`), `GET .../discussion/status`
+- **Discussion**: `POST /topics/{topic_id}/discussion` (supports `skill_list`, `mcp_server_ids`), `GET .../discussion/status`
 - **Assignable Skills**: `GET /skills/assignable/categories`, `GET /skills/assignable`, `GET /skills/assignable/{skill_id}/content`
+- **MCP**: `GET /mcp/assignable/categories`, `GET /mcp/assignable`, `GET /mcp/assignable/{id}/content`
 - **Topic Experts**: `GET/POST /topics/{topic_id}/experts`, `PUT/DELETE .../experts/{expert_name}`, `POST .../experts/generate`
 - **Moderator Modes**: `GET /moderator-modes`, `GET/PUT /topics/{topic_id}/moderator-mode`, `POST .../moderator-mode/generate`
 - **Experts**: `GET /experts`, `GET/PUT /experts/{name}`

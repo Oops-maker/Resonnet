@@ -112,6 +112,10 @@ class StartDiscussionRequest(BaseModel):
         default_factory=list,
         description="可选的 skill 列表（id），从全局 assignable_skills 拷贝到工作区 config/skills/，供主持人分配给专家",
     )
+    mcp_server_ids: list[str] = Field(
+        default_factory=list,
+        description="可选的 MCP 服务器 ID 列表，从全局 mcp.json 拷贝到话题工作区 config/mcp.json",
+    )
 
 
 class DiscussionProgress(BaseModel):
@@ -263,3 +267,17 @@ class GenerateModeratorModeResponse(BaseModel):
     message: str
     custom_prompt: str
     config: ModeratorModeConfig
+
+
+# --- MCP models ---
+
+class MCPServerConfig(BaseModel):
+    """Single MCP server config. Only npm, uvx, remote allowed; no local paths."""
+    command: str = Field(..., min_length=1)
+    args: list[str] = Field(default_factory=list)
+    env: dict[str, str] | None = None
+
+
+class MCPConfig(BaseModel):
+    """MCP config (Cursor-compatible mcpServers format)."""
+    mcpServers: dict[str, MCPServerConfig] = Field(default_factory=dict)

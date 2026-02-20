@@ -5,10 +5,13 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-_env = Path(__file__).resolve().parent.parent / ".env"
-if _env.exists():
-    # Ensure real local .env values override test placeholders.
-    load_dotenv(_env, override=True)
+# 与 config.py 一致：加载项目根 .env；若不存在则尝试 backend/.env
+_env_root = Path(__file__).resolve().parent.parent.parent / ".env"
+_env_backend = Path(__file__).resolve().parent.parent / ".env"
+if _env_root.exists():
+    load_dotenv(_env_root, override=True)
+elif _env_backend.exists():
+    load_dotenv(_env_backend, override=True)
 
 # 单元测试占位值（无真实 API 调用）；仅在未配置时兜底
 os.environ.setdefault("ANTHROPIC_API_KEY", "test")

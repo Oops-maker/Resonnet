@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import (
     discussion as discussion_router,
     experts,
+    mcp as mcp_router,
     moderator_modes,
     posts,
     skills as skills_router,
@@ -72,6 +73,7 @@ app.include_router(topic_experts.router, prefix="/topics", tags=["topic-experts"
 app.include_router(moderator_modes.router, tags=["moderator-modes"])
 app.include_router(skills_router.router, prefix="/skills", tags=["skills"])
 app.include_router(experts.router, prefix="/experts", tags=["experts"])
+app.include_router(mcp_router.router, prefix="/mcp", tags=["mcp"])
 
 
 @app.get("/health")

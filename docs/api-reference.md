@@ -37,6 +37,7 @@
 **POST /topics/{topic_id}/discussion** request body:
 - `num_rounds`, `max_turns`, `max_budget_usd`, `model` (optional)
 - `skill_list` (optional): List of skill ids, e.g. `["research_methodology", "ai-research:litgpt"]`; copied to topic workspace for moderator assignment
+- `mcp_server_ids` (optional): List of MCP server ids, e.g. `["time", "fetch"]`; copied to topic workspace `config/mcp.json`, passed to Agent SDK
 - `allowed_tools` (optional): Enabled tools list, e.g. `["Read","Write","Edit","Glob","Grep","Task","WebFetch","WebSearch"]`. Omit for default full set
 
 ## Assignable Skills
@@ -46,6 +47,16 @@
 | GET | `/skills/assignable/categories` | List skill categories |
 | GET | `/skills/assignable` | List assignable skills (query: `category`, `fields`, `limit`, `offset`) |
 | GET | `/skills/assignable/{skill_id}/content` | Get raw markdown content of a skill |
+
+## MCP (Model Context Protocol)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/mcp/assignable/categories` | List MCP categories |
+| GET | `/mcp/assignable` | List assignable MCP servers (query: `category`, `fields`, `limit`, `offset`) |
+| GET | `/mcp/assignable/{id}/content` | Get MCP config JSON (command, args) for a server |
+
+> MCP config accepts npm, uvx, remote only; no local paths. See [mcp-config.md](mcp-config.md).
 
 ## Topic Experts
 

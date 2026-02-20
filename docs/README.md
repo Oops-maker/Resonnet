@@ -9,6 +9,7 @@ This directory contains technical implementation details and design docs for Res
 | [architecture.md](architecture.md) | Overall architecture: API layer, agent layer, workspace layout, data flow |
 | [assignable-skills-flow.md](assignable-skills-flow.md) | Assignable skills API, copy logic, meta aggregation |
 | [config.md](config.md) | Environment variables; SCENARIO_PRESET, SKILLS_BASE; ANTHROPIC_* vs AI_GENERATION_* |
+| [mcp-config.md](mcp-config.md) | MCP config API, validation (npm/uvx/remote only, no local) |
 | [testing.md](testing.md) | Test layers (unit/integration), .env setup, CI notes |
 | [api-reference.md](api-reference.md) | API endpoint list and brief descriptions |
 | [skills-generalization.md](skills-generalization.md) | Skills scenario design; experts/moderator under `skills/scenarios/topic-lab/` |

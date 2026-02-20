@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -214,6 +215,109 @@ async def test_run_discussion_mocked_populates_result_info(discussion_workspace:
 
     assert result["num_turns"] == 3
     assert result["total_cost_usd"] == 0.05
+
+
+@pytest.mark.asyncio
+async def test_run_discussion_mocked_passes_mcp_to_sdk(discussion_workspace: Path):
+    """When config/mcp.json exists, run_discussion passes mcp_servers and mcp__* to ClaudeAgentOptions."""
+    from app.agent.discussion import run_discussion
+    from claude_agent_sdk import ResultMessage
+
+    captured_options: list[Any] = []
+
+    async def mock_query(prompt: str = "", options=None, **kwargs):
+        captured_options.append(options)
+        yield ResultMessage(
+            subtype="success",
+            duration_ms=100,
+            duration_api_ms=80,
+            is_error=False,
+            num_turns=1,
+            session_id="test-session",
+            total_cost_usd=0.001,
+            usage=None,
+            result=None,
+        )
+
+    mcp_json = discussion_workspace / "config" / "mcp.json"
+    mcp_json.write_text(
+        json.dumps({
+            "mcpServers": {
+                "time": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-time"]},
+            }
+        }, indent=2),
+        encoding="utf-8",
+    )
+
+    with (
+        patch("app.agent.discussion.query", side_effect=mock_query),
+        patch("app.agent.discussion.build_experts_from_workspace") as mock_build,
+    ):
+        mock_build.return_value = {}
+        await run_discussion(
+            workspace_dir=discussion_workspace,
+            config={"api_key": "test", "model": None},
+            topic="Test",
+            num_rounds=1,
+            expert_names=["physicist"],
+            max_turns=10,
+            max_budget_usd=1.0,
+        )
+
+    assert len(captured_options) == 1
+    opts = captured_options[0]
+    assert opts is not None
+    assert hasattr(opts, "mcp_servers")
+    assert opts.mcp_servers == {
+        "time": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-time"]},
+    }
+    assert "mcp__time__*" in opts.allowed_tools
+
+
+@pytest.mark.asyncio
+async def test_run_discussion_mocked_no_mcp_when_config_missing(discussion_workspace: Path):
+    """When config/mcp.json does not exist, run_discussion does not pass mcp_servers."""
+    from app.agent.discussion import run_discussion
+    from claude_agent_sdk import ResultMessage
+
+    captured_options: list[Any] = []
+
+    async def mock_query(prompt: str = "", options=None, **kwargs):
+        captured_options.append(options)
+        yield ResultMessage(
+            subtype="success",
+            duration_ms=100,
+            duration_api_ms=80,
+            is_error=False,
+            num_turns=1,
+            session_id="test-session",
+            total_cost_usd=0.001,
+            usage=None,
+            result=None,
+        )
+
+    # No mcp.json - do not create it
+    with (
+        patch("app.agent.discussion.query", side_effect=mock_query),
+        patch("app.agent.discussion.build_experts_from_workspace") as mock_build,
+    ):
+        mock_build.return_value = {}
+        await run_discussion(
+            workspace_dir=discussion_workspace,
+            config={"api_key": "test", "model": None},
+            topic="Test",
+            num_rounds=1,
+            expert_names=["physicist"],
+            max_turns=10,
+            max_budget_usd=1.0,
+        )
+
+    assert len(captured_options) == 1
+    opts = captured_options[0]
+    mcp = getattr(opts, "mcp_servers", None)
+    assert mcp is None or mcp == {}
+    mcp_tools = [t for t in opts.allowed_tools if t.startswith("mcp__")]
+    assert not mcp_tools
 
 
 # --- API mention flow (mocked) ---
@@ -426,3 +530,85 @@ def test_discussion_real_agentsdk_generates_history(
         "turn_files_exist": len(turn_files) >= 1,
     }
     _assert_evidence("discussion", evidence, list(evidence.keys()))
+
+
+@pytest.mark.integration
+@pytest.mark.slow
+@pytest.mark.skipif(
+    not _has_real_api_key(),
+    reason="需要 .env 中提供真实 ANTHROPIC_API_KEY 才能执行 Agent SDK 集成测试",
+)
+def test_discussion_mcp_time_integration(
+    client: TestClient,
+    isolated_workspace: Path,
+):
+    """Integration: MCP time server passed to Agent SDK; prompt triggers MCP tool call.
+
+    验证 MCP 传参链路：API mcp_server_ids -> copy_mcp_to_workspace -> run_discussion
+    -> ClaudeAgentOptions(mcp_servers) -> 模型调用 MCP 时间工具并返回时间信息。
+    """
+    _print_section("MCP time integration: 通过提示词触发 MCP 调用")
+
+    create = client.post(
+        "/topics",
+        json={
+            "title": "MCP 时间工具测试",
+            "body": "请使用 MCP 时间工具获取当前时间，并简要回答当前是几点几分（或对应时区）。",
+        },
+    )
+    assert create.status_code == 201
+    topic_id = create.json()["id"]
+
+    client.patch(f"/topics/{topic_id}", json={"expert_names": ["physicist"]})
+    start_resp = client.post(
+        f"/topics/{topic_id}/discussion",
+        json={
+            "num_rounds": 1,
+            "max_turns": 30,
+            "max_budget_usd": 1.0,
+            "mcp_server_ids": ["time"],
+        },
+    )
+    assert start_resp.status_code == 202, start_resp.text
+    assert start_resp.json()["status"] == "running"
+
+    final = _poll_discussion_until_done(client, topic_id, timeout_sec=180)
+    assert final["status"] == "completed", f"MCP 讨论运行失败: {final}"
+    result = final.get("result")
+    assert result is not None
+
+    # 1. 验证 MCP 传参链路：config/mcp.json 应已写入且包含 time server
+    ws_topic = isolated_workspace / "topics" / topic_id
+    mcp_path = ws_topic / "config" / "mcp.json"
+    assert mcp_path.exists(), "copy_mcp_to_workspace 应已写入 config/mcp.json"
+    mcp_data = json.loads(mcp_path.read_text(encoding="utf-8"))
+    assert "time" in (mcp_data.get("mcpServers") or {}), "mcp.json 应包含 time server"
+
+    # 2. 讨论历史（可能为空，取决于 agent 是否写出 turn 文件）
+    history = (result.get("discussion_history") or "").strip()
+    if not history:
+        turns_dir = ws_topic / "shared" / "turns"
+        if turns_dir.exists():
+            turn_files = sorted(turns_dir.glob("*.md"))
+            history = "\n\n".join(
+                f.read_text(encoding="utf-8") for f in turn_files
+            ).strip()
+
+    # 3. 若历史非空，验证包含时间相关表述（MCP 时间工具被调用）
+    time_pattern = re.compile(
+        r"\d{1,2}:\d{2}|"
+        r"\d{1,2}\s*点\s*\d{1,2}\s*分|"
+        r"\d{4}-\d{2}-\d{2}|"
+        r"UTC|GMT|timezone|时区|时间"
+    )
+    history_contains_time = bool(history and time_pattern.search(history))
+
+    evidence = {
+        "scenario": "mcp_time",
+        "status_completed": final["status"] == "completed",
+        "mcp_json_written": mcp_path.exists(),
+        "mcp_time_in_config": "time" in (mcp_data.get("mcpServers") or {}),
+        "history_contains_time": history_contains_time,
+    }
+    # 必选：MCP 传参链路（copy + config）；可选：历史含时间（取决于 agent 是否写出 turn）
+    _assert_evidence("mcp_time", evidence, ["scenario", "status_completed", "mcp_json_written", "mcp_time_in_config"])

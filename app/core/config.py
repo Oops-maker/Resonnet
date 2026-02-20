@@ -96,6 +96,12 @@ def get_assignable_skills_dir() -> Path:
     return project_root / "skills" / "assignable_skills"
 
 
+def get_mcps_dir() -> Path:
+    """Return skills/mcps/ (assignable MCP servers, read-only config)."""
+    project_root = Path(__file__).resolve().parent.parent.parent
+    return project_root / "skills" / "mcps"
+
+
 def get_prompts_dir() -> Path:
     """Return the prompts directory for the current scenario.
 

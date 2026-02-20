@@ -237,3 +237,50 @@ def test_copy_skills_uses_default_source_path(isolated_workspace: Path):
     assert "evidence_based" in copied
     content = (ws_path / "config" / "skills" / "evidence_based.md").read_text(encoding="utf-8")
     assert "Evidence-Based" in content
+
+
+# --- MCP assignable tests ---
+
+def test_mcp_assignable_list(client: TestClient):
+    """GET /mcp/assignable returns list of assignable MCPs from skills/mcps/."""
+    resp = client.get("/mcp/assignable")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    if len(data) > 0:
+        for item in data:
+            assert "id" in item
+            assert "name" in item
+            assert "description" in item
+            assert "category" in item
+            assert "category_name" in item
+            assert "source" in item
+
+
+def test_mcp_assignable_content(client: TestClient):
+    """GET /mcp/assignable/{id}/content returns MCP config JSON."""
+    resp = client.get("/mcp/assignable/inspector/content")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "content" in data
+    content = json.loads(data["content"])
+    assert content["command"] == "npx"
+    assert "@modelcontextprotocol/inspector" in content["args"]
+
+
+def test_copy_mcp_to_workspace(isolated_workspace: Path):
+    """copy_mcp_to_workspace copies selected MCPs from skills/mcps/ to topic config/mcp.json."""
+    from app.agent.workspace import copy_mcp_to_workspace, ensure_topic_workspace
+
+    topic_id = "test-mcp-copy"
+    ws_path = ensure_topic_workspace(isolated_workspace, topic_id)
+
+    copied = copy_mcp_to_workspace(ws_path, ["inspector"])
+    assert len(copied) == 1
+    assert "inspector" in copied
+
+    mcp_path = ws_path / "config" / "mcp.json"
+    assert mcp_path.exists()
+    data = json.loads(mcp_path.read_text(encoding="utf-8"))
+    assert "inspector" in data["mcpServers"]
+    assert data["mcpServers"]["inspector"]["command"] == "npx"
