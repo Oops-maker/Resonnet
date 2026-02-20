@@ -39,7 +39,7 @@ def list_assignable_skills(
     limit: int | None = None,
     offset: int = 0,
 ):
-    """List available assignable skills from skills/assignable_skills/.
+    """List available assignable skills from libs/assignable_skills/.
 
     Query params (all optional):
     - category: filter by category id (e.g. methodology, thinking)

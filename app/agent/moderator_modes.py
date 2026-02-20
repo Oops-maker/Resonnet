@@ -18,7 +18,7 @@ _MODES, _SOURCE_COMMON_SECTIONS = get_modes_and_common(_MODERATOR_MODES_DIR)
 
 
 def _load_preset_modes() -> dict:
-    """Load preset moderator modes from skills/moderator_modes/ (unified meta)."""
+    """Load preset moderator modes from libs/moderator_modes/ (unified meta)."""
     valid_modes = {}
     for mode_id, mode_data in _MODES.items():
         if all(key in mode_data for key in ["id", "name", "description", "num_rounds", "convergence_strategy"]):
@@ -68,7 +68,7 @@ def _build_moderator_prompt_from_preset(mode_id: str, params: dict) -> str:
     return _fill_skill_template(combined, **params)
 
 
-# Preset moderator modes (loaded from skills/moderator_modes/)
+# Preset moderator modes (loaded from libs/moderator_modes/)
 PRESET_MODES = _load_preset_modes()
 
 

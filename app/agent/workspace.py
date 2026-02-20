@@ -271,7 +271,7 @@ def copy_skills_to_workspace(ws_path: Path, skill_list: list[str]) -> list[str]:
 
 
 def copy_mcp_to_workspace(ws_path: Path, server_ids: list[str]) -> list[str]:
-    """Copy selected MCP servers from skills/mcps/ to topic workspace config/mcp.json.
+    """Copy selected MCP servers from libs/mcps/ to topic workspace config/mcp.json.
 
     Args:
         ws_path: Topic workspace path (workspace/topics/{topic_id})
@@ -336,7 +336,7 @@ def _get_expert_label(expert_key: str, ws_path: Path) -> str:
 
     Priority:
     1. Workspace config/experts_metadata.json  (topic-level override)
-    2. Global skills/experts/meta.json via EXPERT_SPECS  (single source of truth)
+    2. Global libs/experts/ via EXPERT_SPECS  (single source of truth)
     3. expert_key itself as fallback
     """
     from .experts import EXPERT_SPECS
@@ -401,16 +401,16 @@ def _ensure_agents_structure(ws_path: Path):
     """Create agents/<name>/ directories and copy default role.md if not exists.
 
     For each system-supported expert, creates an agents/<name>/ directory.
-    If role.md doesn't exist, copies from global skills/ as default content.
+    If role.md doesn't exist, copies from global libs/experts/ as default content.
     Existing role.md files are never overwritten (preserves user customization).
     """
     from .experts import EXPERT_SPECS
-    from app.core.config import get_skills_dir
+    from app.core.config import get_experts_dir
 
     agents_dir = ws_path / "agents"
     agents_dir.mkdir(exist_ok=True)
 
-    skills_dir = get_skills_dir()
+    experts_dir = get_experts_dir()
 
     for expert_name, spec in EXPERT_SPECS.items():
         expert_dir = agents_dir / expert_name
@@ -420,7 +420,8 @@ def _ensure_agents_structure(ws_path: Path):
 
         # Only copy if role.md doesn't exist (idempotent, preserves customization)
         if not role_file.exists():
-            global_skill_file = skills_dir / spec["skill_file"]
+            source_id = spec.get("source", "default")
+            global_skill_file = experts_dir / source_id / spec["skill_file"]
             if global_skill_file.exists():
                 logger.info(
                     f"Creating default role for {expert_name} from {global_skill_file.name}"

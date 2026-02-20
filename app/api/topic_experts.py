@@ -13,7 +13,7 @@ from app.agent.workspace import (
     get_topic_experts,
     remove_expert_metadata,
 )
-from app.core.config import get_skills_dir, get_workspace_base
+from app.core.config import get_experts_dir, get_workspace_base
 from app.models.schemas import (
     AddExpertRequest,
     GenerateExpertActionResponse,
@@ -69,13 +69,14 @@ def add_expert_to_topic(topic_id: str, req: AddExpertRequest):
         if req.preset_name not in EXPERT_SPECS:
             raise HTTPException(status_code=400, detail=f"Unknown preset expert: {req.preset_name}")
 
-        # Copy from global skills
+        # Copy from global libs (libs/experts/{source}/)
         spec = EXPERT_SPECS[req.preset_name]
-        skills_dir = get_skills_dir()
-        global_skill_file = skills_dir / spec["skill_file"]
+        experts_dir = get_experts_dir()
+        source_id = spec.get("source", "default")
+        global_skill_file = experts_dir / source_id / spec["skill_file"]
 
         if not global_skill_file.exists():
-            raise HTTPException(status_code=404, detail=f"Skill file not found: {spec['skill_file']}")
+            raise HTTPException(status_code=404, detail=f"Skill file not found: {source_id}/{spec['skill_file']}")
 
         expert_dir = agents_dir / req.preset_name
         expert_dir.mkdir(parents=True, exist_ok=True)
@@ -241,30 +242,35 @@ def share_expert_to_platform(topic_id: str, expert_name: str):
     if not expert_meta:
         raise HTTPException(status_code=404, detail="Expert metadata not found")
 
-    # Write role file to global skills/experts/
-    skills_dir = get_skills_dir()
-    experts_dir = skills_dir / "experts"
+    # Write role file to libs/experts/default/ (unified with mcps, moderator_modes)
+    experts_dir = get_experts_dir()
+    default_dir = experts_dir / "default"
+    default_dir.mkdir(parents=True, exist_ok=True)
     skill_file_name = f"{expert_name}.md"
-    (experts_dir / skill_file_name).write_text(role_file.read_text(encoding="utf-8"), encoding="utf-8")
+    (default_dir / skill_file_name).write_text(role_file.read_text(encoding="utf-8"), encoding="utf-8")
 
-    # Update meta.json (store filename only, _load_expert_specs adds "experts/" prefix)
-    meta_path = experts_dir / "meta.json"
+    # Update default/meta.json
+    meta_path = default_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    meta["experts"][expert_name] = {
+    meta.setdefault("experts", {})[expert_name] = {
+        "id": expert_name,
+        "source": "default",
         "name": expert_name,
         "label": expert_meta["label"],
+        "description": expert_meta["description"],
+        "category": "scholar",
         "skill_file": skill_file_name,
         "perspective": expert_meta.get("perspective", expert_name),
-        "description": expert_meta["description"],
     }
     meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    # Bug fix 3: must include "experts/" prefix to match how _load_expert_specs formats it
+    # Update in-memory EXPERT_SPECS for subsequent requests
     EXPERT_SPECS[expert_name] = {
-        "skill_file": f"experts/{skill_file_name}",
+        "skill_file": skill_file_name,
         "description": expert_meta["description"],
         "label": expert_meta["label"],
         "perspective": expert_meta.get("perspective", expert_name),
+        "source": "default",
     }
 
     return {"message": "Expert shared to platform successfully", "expert_name": expert_name}

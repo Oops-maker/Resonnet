@@ -7,7 +7,7 @@
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-ASSIGNABLE_DIR="$BACKEND_ROOT/skills/assignable_skills"
+ASSIGNABLE_DIR="$BACKEND_ROOT/libs/assignable_skills"
 SUBMODULES_DIR="$ASSIGNABLE_DIR/_submodules"
 META_FILE="$ASSIGNABLE_DIR/meta.json"
 
@@ -39,7 +39,7 @@ if [ -d "$SUBMODULE_PATH/.git" ]; then
   (cd "$SUBMODULE_PATH" && git fetch origin && git checkout main 2>/dev/null || git checkout master 2>/dev/null || true && git pull origin main 2>/dev/null || git pull origin master 2>/dev/null || git pull)
 else
   echo "Adding submodule..."
-  git -C "$BACKEND_ROOT" submodule add --force "$REPO_URL" "skills/assignable_skills/_submodules/$SOURCE_NAME" 2>/dev/null || {
+  git -C "$BACKEND_ROOT" submodule add --force "$REPO_URL" "libs/assignable_skills/_submodules/$SOURCE_NAME" 2>/dev/null || {
     # If not in a git repo or submodule add fails, clone instead
     if [ ! -d "$SUBMODULE_PATH" ]; then
       git clone --depth 1 "$REPO_URL" "$SUBMODULE_PATH"

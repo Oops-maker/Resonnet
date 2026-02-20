@@ -1,11 +1,11 @@
 # MCP Configuration
 
-MCP (Model Context Protocol) servers are configured in `skills/mcps/` (read-only, same structure as assignable_skills).
+MCP (Model Context Protocol) servers are configured in `libs/mcps/` (read-only, same structure as assignable_skills).
 
 ## Directory Structure
 
 ```
-skills/mcps/
+libs/mcps/
 ├── meta.json          # sources registry
 ├── default/
 │   └── meta.json      # categories + mcps
@@ -52,7 +52,7 @@ skills/mcps/
 
 ## Topic Discussion
 
-When starting a discussion, selected MCP server IDs are copied from `skills/mcps/` to `workspace/topics/{id}/config/mcp.json`.
+When starting a discussion, selected MCP server IDs are copied from `libs/mcps/` to `workspace/topics/{id}/config/mcp.json`.
 
 ## MCP → Agent SDK 传参链路
 

@@ -1,4 +1,4 @@
-"""MCP API: list assignable MCPs from skills/mcps/ (read-only)."""
+"""MCP API: list assignable MCPs from libs/mcps/ (read-only)."""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ def list_assignable_mcps(
     limit: int | None = None,
     offset: int = 0,
 ):
-    """List available assignable MCPs from skills/mcps/.
+    """List available assignable MCPs from libs/mcps/.
 
     Query params (all optional):
     - category: filter by category id

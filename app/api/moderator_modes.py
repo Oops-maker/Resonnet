@@ -30,7 +30,7 @@ router = APIRouter()
 
 @router.get("/moderator-modes/assignable/categories")
 def list_assignable_moderator_mode_categories():
-    """List moderator mode categories from skills/moderator_modes/."""
+    """List moderator mode categories from libs/moderator_modes/."""
     base_dir = get_moderator_modes_dir()
     categories, _, _ = load_aggregated_modes_meta(base_dir)
     return [
@@ -47,7 +47,7 @@ def list_assignable_moderator_modes(
     limit: int | None = None,
     offset: int = 0,
 ):
-    """List assignable moderator modes from skills/moderator_modes/ (category, source)."""
+    """List assignable moderator modes from libs/moderator_modes/ (category, source)."""
     base_dir = get_moderator_modes_dir()
     categories, modes, _ = load_aggregated_modes_meta(base_dir)
     minimal = (fields or "").strip().lower() == "minimal"

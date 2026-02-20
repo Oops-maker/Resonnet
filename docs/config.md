@@ -10,18 +10,7 @@ The backend loads `.env` in this order:
 
 Copy from `backend/.env.example` or project root `.env.example`, then edit with your API keys.
 
-### Scenario / Skills Preset (Optional)
-
-```bash
-# Default: topic-lab (research scenario with physicist, biologist, etc.)
-SCENARIO_PRESET=topic-lab
-
-# Or use a custom path (absolute or relative to project root)
-SKILLS_BASE=./skills/scenarios/topic-lab
-```
-
-- **SCENARIO_PRESET**: `topic-lab` (default) | `default` | `<custom_scenario_name>`
-- **SKILLS_BASE**: Overrides SCENARIO_PRESET; points to scenario directory containing `experts/` and optionally `prompts/`. Moderator modes are loaded from `skills/moderator_modes/` (scenario-agnostic).
+All libraries (experts, moderator_modes, mcps, assignable_skills, prompts) are loaded from `libs/`. No scenario preset.
 
 ---
 
@@ -62,7 +51,7 @@ AI_GENERATION_MODEL=glm-4-flash
 
 ### 3. MCP (Model Context Protocol)
 
-MCP servers are configured in `skills/mcps/` (read-only, same structure as assignable_skills). **Accepted sources only**: npm, uvx, remote (mcp-remote). No local paths.
+MCP servers are configured in `libs/mcps/` (read-only, same structure as assignable_skills). **Accepted sources only**: npm, uvx, remote (mcp-remote). No local paths.
 
 - Discussion API accepts `mcp_server_ids`; selected servers are copied to `workspace/topics/{id}/config/mcp.json` and passed to Claude Agent SDK.
 - See [mcp-config.md](mcp-config.md) for API, validation, and pass-through flow.

@@ -132,6 +132,7 @@ uv sync   # or pip install -e ".[dev]"
 # 2. Configure env vars (copy template and fill in)
 cp .env.example .env
 # When backend is a submodule, .env at project root is loaded first
+# No scenario config needed: experts, moderator modes, skills, MCP are in libs/
 
 # 3. Start the service
 uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -152,7 +153,7 @@ curl http://localhost:8000/health
 | `ANTHROPIC_MODEL` | | Claude model name |
 | `WORKSPACE_BASE` | | Workspace directory, default `./workspace` |
 
-See [docs/config.md](docs/config.md) for details.
+See [docs/config.md](docs/config.md) for details. All libraries (experts, moderator_modes, mcps, assignable_skills, prompts) load from `libs/`; no scenario config needed.
 
 ## Testing
 
@@ -234,11 +235,11 @@ Contributions welcome! You can contribute **pure skills** (no code changes neede
 
 | Type | Location | Notes |
 |------|----------|-------|
-| Expert role definitions | `skills/scenarios/topic-lab/experts/` | Add `.md` skill file and register in `meta.json` |
-| Discussion modes | `skills/moderator_modes/` | Add `.md` mode and register in `default/meta.json`; same structure as assignable_skills, mcps |
-| AI functional prompts | `skills/scenarios/topic-lab/prompts/` | Override AI behavior for generation, discussion, @mention; see [skills/README.md](skills/README.md) |
+| Expert role definitions | `libs/experts/default/` | Add `.md` skill file and register in `default/meta.json` |
+| Discussion modes | `libs/moderator_modes/` | Add `.md` mode and register in `default/meta.json`; same structure as assignable_skills, mcps |
+| AI functional prompts | `libs/prompts/` | Override AI behavior for generation, discussion, @mention; see [libs/README.md](libs/README.md) |
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [skills/README.md](skills/README.md) for details.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [libs/README.md](libs/README.md) for details.
 
 ## Security
 

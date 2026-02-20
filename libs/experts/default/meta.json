@@ -1,0 +1,52 @@
+{
+  "common_sections": "expert_common.md",
+  "categories": {
+    "scholar": {
+      "id": "scholar",
+      "name": "学者",
+      "description": "Academic researchers from different disciplines"
+    }
+  },
+  "experts": {
+    "physicist": {
+      "id": "physicist",
+      "source": "default",
+      "name": "physicist",
+      "label": "Physics Researcher",
+      "description": "Physics researcher discussing topics from a physics perspective",
+      "category": "scholar",
+      "skill_file": "physicist.md",
+      "perspective": "physics"
+    },
+    "biologist": {
+      "id": "biologist",
+      "source": "default",
+      "name": "biologist",
+      "label": "Biology Researcher",
+      "description": "Biology researcher discussing topics from a biology perspective",
+      "category": "scholar",
+      "skill_file": "biologist.md",
+      "perspective": "biology"
+    },
+    "computer_scientist": {
+      "id": "computer_scientist",
+      "source": "default",
+      "name": "computer_scientist",
+      "label": "Computer Science Researcher",
+      "description": "Computer science researcher discussing topics from a CS perspective",
+      "category": "scholar",
+      "skill_file": "computer_scientist.md",
+      "perspective": "computer science"
+    },
+    "ethicist": {
+      "id": "ethicist",
+      "source": "default",
+      "name": "ethicist",
+      "label": "Ethics & Sociology Researcher",
+      "description": "Ethics and sociology researcher discussing topics from an ethics perspective",
+      "category": "scholar",
+      "skill_file": "ethicist.md",
+      "perspective": "ethics and sociology"
+    }
+  }
+}

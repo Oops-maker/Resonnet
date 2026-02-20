@@ -142,7 +142,9 @@ class ExpertInfo(BaseModel):
     description: str
     skill_file: str
     skill_content: str
-    perspective: str = ""  # 用于前端分组展示，如 physics, biology
+    perspective: str = ""  # 学科视角，如 physics, biology
+    category: Optional[str] = None  # 分类 id，用于分组（与 skills/mcps 一致）
+    category_name: Optional[str] = None  # 分类显示名
 
 
 class ExpertUpdateRequest(BaseModel):

@@ -27,7 +27,7 @@ Restart backend after update.
    ./scripts/import_skill_repo.sh <repo_url> [source_name]
    ```
 3. `source_name` is optional; derived from URL if omitted (e.g. `AI-Research-SKILLs` → `ai-research`).
-4. Commit: `_submodules/<source>/`, `assignable_skills/<source>/`, `meta.json`, `.gitmodules`.
+4. Commit: `_submodules/<source>/`, `libs/assignable_skills/<source>/`, `meta.json`, `.gitmodules`.
 
 **Examples**:
 - `./scripts/import_skill_repo.sh git@github.com:Orchestra-Research/AI-Research-SKILLs.git`
@@ -55,10 +55,10 @@ The import script recursively finds all `SKILL.md`:
 
 ```bash
 # All SKILL.md (skills stay in _submodules; no symlinks)
-find skills/assignable_skills/_submodules -name "SKILL.md"
+find libs/assignable_skills/_submodules -name "SKILL.md"
 
 # By keyword in meta
-cat skills/assignable_skills/ai-research/meta.json | python3 -c "
+cat libs/assignable_skills/ai-research/meta.json | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
 q='rag'
@@ -79,9 +79,9 @@ for sid,s in d['skills'].items():
 | Action | Command |
 |--------|---------|
 | Update/add skill library | `./scripts/import_skill_repo.sh <url> [source]` |
-| List sources | `cat skills/assignable_skills/meta.json` |
-| List skills by source | `cat skills/assignable_skills/<source>/meta.json` |
-| Find SKILL.md | `find skills/assignable_skills/_submodules -name "SKILL.md"` |
+| List sources | `cat libs/assignable_skills/meta.json` |
+| List skills by source | `cat libs/assignable_skills/<source>/meta.json` |
+| Find SKILL.md | `find libs/assignable_skills/_submodules -name "SKILL.md"` |
 
 ## Related Docs
 

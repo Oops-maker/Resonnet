@@ -82,7 +82,7 @@
 | PUT | `/topics/{topic_id}/moderator-mode` | Set moderator mode |
 | POST | `/topics/{topic_id}/moderator-mode/generate` | AI-generate moderator prompt |
 
-Modes are loaded from `skills/moderator_modes/` (same structure as assignable_skills, mcps).
+Modes are loaded from `libs/moderator_modes/` (same structure as assignable_skills, mcps).
 
 ## Global Experts
 
@@ -91,3 +91,5 @@ Modes are loaded from `skills/moderator_modes/` (same structure as assignable_sk
 | GET | `/experts` | List global expert definitions |
 | GET | `/experts/{name}` | Get expert details |
 | PUT | `/experts/{name}` | Update expert definition |
+
+Response fields: `name`, `label`, `description`, `skill_file`, `skill_content`, `perspective`, `category`, `category_name` (aligned with skills/moderator_modes).

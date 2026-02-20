@@ -10,7 +10,7 @@ from typing import Any
 
 from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 
-from app.core.config import get_prompts_dir, get_skills_dir
+from app.core.config import get_prompts_dir
 from app.models.schemas import DEFAULT_ALLOWED_TOOLS
 from app.core.model_pricing import calculate_cost_from_usage
 from .config import get_agent_config
@@ -78,8 +78,6 @@ async def run_discussion(
     """Run discussion and return num_turns, total_cost_usd."""
     logger.info(f"Starting run_discussion for topic, model={config.get('model')}, experts={expert_names}")
 
-    skills_dir = get_skills_dir()
-
     env = {"ANTHROPIC_API_KEY": config["api_key"]}
     if config.get("base_url"):
         env["ANTHROPIC_BASE_URL"] = config["base_url"]
@@ -101,11 +99,11 @@ async def run_discussion(
 
     if expert_names:
         experts = build_experts_from_workspace(
-            workspace_dir, skills_dir, expert_names, model=model, ws_abs=ws_abs, tools=expert_tools
+            workspace_dir, expert_names, model=model, ws_abs=ws_abs, tools=expert_tools
         )
     else:
         logger.warning("No expert_names specified, using all default experts")
-        experts = build_experts(skills_dir, model=model, tools=expert_tools)
+        experts = build_experts(model=model, tools=expert_tools)
 
     logger.info(f"Built {len(experts)} experts: {list(experts.keys())}")
 

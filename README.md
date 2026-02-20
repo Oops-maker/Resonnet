@@ -134,6 +134,7 @@ uv sync   # 或 pip install -e ".[dev]"
 # 2. 配置环境变量（复制模板后补齐）
 cp .env.example .env
 # 当 backend 作为 submodule 时，也可将 .env 放在项目根目录；backend 优先加载项目根 .env
+# 无需配置 scenarios：专家、讨论方式、技能、MCP 等库均在 libs/，通过 .env 即可
 
 # 3. 启动服务
 uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -154,7 +155,7 @@ curl http://localhost:8000/health
 | `ANTHROPIC_MODEL` | | Claude 模型名 |
 | `WORKSPACE_BASE` | | 工作区目录，默认 `./workspace` |
 
-详见 [docs/config.md](docs/config.md)。
+详见 [docs/config.md](docs/config.md)。所有库（experts、moderator_modes、mcps、assignable_skills、prompts）从 `libs/` 加载，无需配置 scenarios。
 
 ## 测试
 
@@ -236,11 +237,11 @@ docker run --rm -p 8000:8000 --env-file .env \
 
 | 类型 | 位置 | 说明 |
 |------|------|------|
-| 专家角色定义 | `skills/scenarios/topic-lab/experts/` | 新增 `.md` 技能文件，并在 `meta.json` 中注册 |
-| 讨论组织模式 | `skills/moderator_modes/` | 新增 `.md` 模式并在 `default/meta.json` 中注册，与 assignable_skills、mcps 同构 |
-| AI 功能提示词 | `skills/scenarios/topic-lab/prompts/` | 覆盖生成、讨论、@mention 等功能的 AI 行为；详见 [skills/README.md](skills/README.md) |
+| 专家角色定义 | `libs/experts/default/` | 新增 `.md` 技能文件，并在 `default/meta.json` 中注册 |
+| 讨论组织模式 | `libs/moderator_modes/` | 新增 `.md` 模式并在 `default/meta.json` 中注册，与 assignable_skills、mcps 同构 |
+| AI 功能提示词 | `libs/prompts/` | 覆盖生成、讨论、@mention 等功能的 AI 行为；详见 [libs/README.md](libs/README.md) |
 
-详见 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [skills/README.md](skills/README.md)。
+详见 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [libs/README.md](libs/README.md)。
 
 ## 安全
 

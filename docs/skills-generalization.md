@@ -1,6 +1,6 @@
 # Skills Generalization: From Topic Lab to a Generic Backend
 
-> **Implemented**: This design has been applied. Skills have been migrated to `skills/scenarios/topic-lab/`. See `docs/config.md` for configuration.
+> **Implemented**: Scenarios removed. All libraries (experts, moderator_modes, mcps, assignable_skills, prompts) are in `libs/`. No scenario preset. See `docs/config.md`.
 
 ## Pre-Migration Analysis
 
@@ -34,7 +34,7 @@ skills/
 
 | File | Path |
 |------|------|
-| `app/agent/experts.py` | `skills/experts/` |
+| `app/agent/experts.py` | `skills/experts/` (unified with mcps, moderator_modes) |
 | `app/agent/moderator_modes.py` | `skills/moderator_modes/` (scenario-agnostic) |
 | `app/api/experts.py` | `skills/` |
 | `app/agent/discussion.py` | `skills/` |
@@ -127,7 +127,7 @@ def get_skills_dir() -> Path:
 
 ### 2. Migrate Existing Skills
 
-- Move `skills/experts/` → `skills/scenarios/topic-lab/experts/`
+- Experts now at `skills/experts/` (unified with mcps, moderator_modes; sources + per-source meta)
 - Move `skills/moderator/` → `skills/scenarios/topic-lab/moderator/`
 
 ### 3. Replace Hardcoded Paths

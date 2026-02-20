@@ -127,7 +127,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    subgraph Src["Source: skills/assignable_skills/"]
+    subgraph Src["Source: libs/assignable_skills/"]
         M[meta.json]
         default[default/]
         methodology[methodology/]

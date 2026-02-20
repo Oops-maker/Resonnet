@@ -72,57 +72,36 @@ def get_workspace_base() -> Path:
     return Path(__file__).resolve().parent.parent.parent / "workspace"
 
 
-def get_skills_dir() -> Path:
-    """Return the skills root directory for the current scenario.
-
-    - SKILLS_BASE: If set (absolute or relative to project root), use it.
-    - SCENARIO_PRESET: topic-lab (default) | default | <custom_scenario_name>
-    """
-    project_root = Path(__file__).resolve().parent.parent.parent
-    skills_root = project_root / "skills"
-
-    base_override = os.getenv("SKILLS_BASE", "")
-    if base_override:
-        p = Path(base_override)
-        if not p.is_absolute():
-            p = project_root / base_override
-        return p.resolve()
-
-    preset = os.getenv("SCENARIO_PRESET", "topic-lab")
-    if preset == "topic-lab":
-        return skills_root / "scenarios" / "topic-lab"
-    if preset == "default":
-        return skills_root / "default"
-    return skills_root / "scenarios" / preset
+def _libs_root() -> Path:
+    """Return libs/ root (experts, moderator_modes, mcps, assignable_skills, prompts)."""
+    return Path(__file__).resolve().parent.parent.parent / "libs"
 
 
 def get_assignable_skills_dir() -> Path:
-    """Return skills/assignable_skills/ (场景无关，与 scenarios 同级)."""
-    project_root = Path(__file__).resolve().parent.parent.parent
-    return project_root / "skills" / "assignable_skills"
+    """Return libs/assignable_skills/."""
+    return _libs_root() / "assignable_skills"
 
 
 def get_mcps_dir() -> Path:
-    """Return skills/mcps/ (assignable MCP servers, read-only config)."""
-    project_root = Path(__file__).resolve().parent.parent.parent
-    return project_root / "skills" / "mcps"
+    """Return libs/mcps/ (assignable MCP servers, read-only config)."""
+    return _libs_root() / "mcps"
 
 
 def get_moderator_modes_dir() -> Path:
-    """Return skills/moderator_modes/ (unified with assignable_skills, mcps)."""
-    project_root = Path(__file__).resolve().parent.parent.parent
-    return project_root / "skills" / "moderator_modes"
+    """Return libs/moderator_modes/."""
+    return _libs_root() / "moderator_modes"
+
+
+def get_experts_dir() -> Path:
+    """Return libs/experts/."""
+    return _libs_root() / "experts"
 
 
 def get_prompts_dir() -> Path:
-    """Return the prompts directory for the current scenario.
-
-    - If scenario has prompts/ subdir (e.g. skills/scenarios/topic-lab/prompts/), use it.
-    - Otherwise fallback to app/prompts/ for backward compatibility.
-    """
-    scenario_prompts = get_skills_dir() / "prompts"
-    if scenario_prompts.exists() and scenario_prompts.is_dir():
-        return scenario_prompts
+    """Return prompts directory: libs/prompts/ if exists, else app/prompts/."""
+    libs_prompts = _libs_root() / "prompts"
+    if libs_prompts.exists() and libs_prompts.is_dir():
+        return libs_prompts
     return Path(__file__).resolve().parent.parent / "prompts"
 
 

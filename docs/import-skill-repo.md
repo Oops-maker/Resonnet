@@ -9,6 +9,6 @@
 
 When backend is a submodule, run from repo root: `./backend/scripts/import_skill_repo.sh`.
 
-- Clones to `skills/assignable_skills/_submodules/<source>`
+- Clones to `libs/assignable_skills/_submodules/<source>`
 - Recursively scans `SKILL.md`, infers `skills_dir`, writes `{source}/meta.json` (no symlinks)
 - Runtime resolves paths to `_submodules/{source}/{skills_dir}/{category}/{slug}/SKILL.md`

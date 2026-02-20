@@ -69,7 +69,7 @@ Before submitting:
 | Agent logic | `app/agent/*.py` + integration tests if Agent SDK |
 | Config | `app/core/config.py` + `docs/config.md` |
 | Schemas | `app/models/schemas.py` |
-| Skills | `skills/scenarios/topic-lab/experts/` or `skills/scenarios/topic-lab/moderator/` (see README Contributing) |
+| Skills | `libs/experts/default/` or `libs/moderator_modes/default/` (see README Contributing) |
 
 ## References
 
