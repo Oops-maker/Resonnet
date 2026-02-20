@@ -13,14 +13,17 @@ router = APIRouter()
 EXPERTS_DIR = get_experts_dir()
 
 
-def _build_expert_info(name: str) -> ExpertInfo:
+def _build_expert_info(name: str, include_content: bool = True) -> ExpertInfo:
+    """Build ExpertInfo. When include_content=False, skip disk read for skill_content."""
     spec = EXPERT_SPECS.get(name)
     if not spec:
         raise HTTPException(status_code=404, detail=f"Expert '{name}' not found")
     source_id = spec.get("source", "default")
     skill_file = spec["skill_file"]
-    skill_path = EXPERTS_DIR / source_id / skill_file
-    skill_content = skill_path.read_text(encoding="utf-8") if skill_path.exists() else ""
+    skill_content = ""
+    if include_content:
+        skill_path = EXPERTS_DIR / source_id / skill_file
+        skill_content = skill_path.read_text(encoding="utf-8") if skill_path.exists() else ""
     cat_id = spec.get("category", "")
     cat_info = EXPERT_CATEGORIES.get(cat_id, {}) if cat_id else {}
     return ExpertInfo(
@@ -36,13 +39,23 @@ def _build_expert_info(name: str) -> ExpertInfo:
 
 
 @router.get("", response_model=list[ExpertInfo])
-def list_experts():
-    return [_build_expert_info(name) for name in EXPERT_SPECS]
+def list_experts(fields: str | None = None):
+    """List global expert definitions. fields=minimal omits skill_content (faster)."""
+    include_content = (fields or "").strip().lower() != "minimal"
+    return [_build_expert_info(name, include_content=include_content) for name in EXPERT_SPECS]
+
+
+@router.get("/{name}/content")
+def get_expert_content(name: str):
+    """Return only the skill markdown content (aligned with skills/mcp/moderator-modes)."""
+    info = _build_expert_info(name, include_content=True)
+    return {"content": info.skill_content}
 
 
 @router.get("/{name}", response_model=ExpertInfo)
 def get_expert(name: str):
-    return _build_expert_info(name)
+    """Get full expert details including skill_content."""
+    return _build_expert_info(name, include_content=True)
 
 
 @router.put("/{name}", response_model=ExpertInfo)

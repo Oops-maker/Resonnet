@@ -131,6 +131,21 @@ def test_skills_assignable_list_pagination(client: TestClient):
     assert len(data) <= 2
 
 
+def test_skills_assignable_list_q_search(client: TestClient):
+    """GET /skills/assignable?q=X filters by id/name/description (case-insensitive)."""
+    response = client.get("/skills/assignable", params={"q": "methodology"})
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    for item in data:
+        q_lower = "methodology"
+        assert (
+            q_lower in (item.get("id") or "").lower()
+            or q_lower in (item.get("name") or "").lower()
+            or q_lower in (item.get("description") or "").lower()
+        )
+
+
 def test_skills_assignable_categories(client: TestClient):
     """GET /skills/assignable/categories returns list of skill categories."""
     response = client.get("/skills/assignable/categories")
@@ -257,6 +272,17 @@ def test_mcp_assignable_list(client: TestClient):
             assert "source" in item
 
 
+def test_mcp_assignable_list_q_search(client: TestClient):
+    """GET /mcp/assignable?q=X filters by id/name/description."""
+    resp = client.get("/mcp/assignable", params={"q": "inspector"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+    ids = [i["id"] for i in data]
+    assert "inspector" in ids
+
+
 def test_mcp_assignable_content(client: TestClient):
     """GET /mcp/assignable/{id}/content returns MCP config JSON."""
     resp = client.get("/mcp/assignable/inspector/content")
@@ -305,6 +331,17 @@ def test_moderator_modes_assignable_list(client: TestClient):
         assert "source" in m
 
 
+def test_moderator_modes_assignable_list_q_search(client: TestClient):
+    """GET /moderator-modes/assignable?q=X filters by id/name/description."""
+    resp = client.get("/moderator-modes/assignable", params={"q": "standard"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+    ids = [m["id"] for m in data]
+    assert "standard" in ids
+
+
 def test_moderator_modes_assignable_content(client: TestClient):
     """GET /moderator-modes/assignable/{id}/content returns mode prompt content."""
     resp = client.get("/moderator-modes/assignable/standard/content")
@@ -331,6 +368,43 @@ def test_moderator_modes_list(client: TestClient):
         assert "description" in m
         assert "num_rounds" in m
         assert "convergence_strategy" in m
+
+
+def test_libs_invalidate_cache(client: TestClient):
+    """POST /libs/invalidate-cache clears meta cache and returns success."""
+    resp = client.post("/libs/invalidate-cache")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "message" in data
+    assert "invalidated" in data["message"].lower() or "cache" in data["message"].lower()
+
+
+def test_experts_list_minimal(client: TestClient):
+    """GET /experts?fields=minimal returns experts without skill_content (empty string)."""
+    resp = client.get("/experts", params={"fields": "minimal"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    if len(data) > 0:
+        for item in data:
+            assert "name" in item
+            assert "label" in item
+            assert item.get("skill_content") == ""
+
+
+def test_experts_get_content(client: TestClient):
+    """GET /experts/{name}/content returns skill markdown content only."""
+    resp = client.get("/experts/physicist/content")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "content" in data
+    assert isinstance(data["content"], str)
+
+
+def test_experts_get_content_not_found(client: TestClient):
+    """GET /experts/{name}/content returns 404 for unknown expert."""
+    resp = client.get("/experts/nonexistent_expert_xyz/content")
+    assert resp.status_code == 404
 
 
 def test_moderator_mode_get_and_set(client: TestClient, isolated_workspace: Path):

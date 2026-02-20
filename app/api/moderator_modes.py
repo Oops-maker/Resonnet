@@ -14,7 +14,7 @@ from app.agent.moderator_modes import (
     save_moderator_mode_config,
 )
 from app.core.config import get_moderator_modes_dir, get_workspace_base
-from app.core.moderator_modes_meta import load_aggregated_modes_meta
+from app.core.libs_service import get_cached_modes_meta, list_assignable_items
 from app.models.schemas import (
     GenerateModeratorModeRequest,
     GenerateModeratorModeResponse,
@@ -32,7 +32,7 @@ router = APIRouter()
 def list_assignable_moderator_mode_categories():
     """List moderator mode categories from libs/moderator_modes/."""
     base_dir = get_moderator_modes_dir()
-    categories, _, _ = load_aggregated_modes_meta(base_dir)
+    categories, _, _ = get_cached_modes_meta(base_dir)
     return [
         {"id": c.get("id", k), "name": c.get("name", k), "description": c.get("description", "")}
         for k, c in categories.items()
@@ -40,49 +40,49 @@ def list_assignable_moderator_mode_categories():
     ]
 
 
+def _modes_extra_fields(m: dict, _cat: dict) -> dict:
+    return {
+        "num_rounds": m.get("num_rounds", 5),
+        "convergence_strategy": m.get("convergence_strategy", ""),
+    }
+
+
 @router.get("/moderator-modes/assignable")
 def list_assignable_moderator_modes(
     category: str | None = None,
+    q: str | None = None,
     fields: str | None = None,
     limit: int | None = None,
     offset: int = 0,
 ):
-    """List assignable moderator modes from libs/moderator_modes/ (category, source)."""
+    """List assignable moderator modes from libs/moderator_modes/ (category, source).
+
+    Query params (all optional):
+    - category: filter by category id
+    - q: search in id, name, description (case-insensitive)
+    - fields: "minimal" = id, name, category, category_name only
+    - limit, offset: pagination
+    """
     base_dir = get_moderator_modes_dir()
-    categories, modes, _ = load_aggregated_modes_meta(base_dir)
+    categories, modes, _ = get_cached_modes_meta(base_dir)
     minimal = (fields or "").strip().lower() == "minimal"
-    result = []
-    for mode_id, m in modes.items():
-        if not isinstance(m, dict) or "id" not in m:
-            continue
-        cat_id = m.get("category", "")
-        if category is not None and category != "" and cat_id != category:
-            continue
-        cat_info = categories.get(cat_id, {}) if isinstance(categories.get(cat_id), dict) else {}
-        item = {
-            "id": m["id"],
-            "name": m.get("name", mode_id),
-            "category": cat_id,
-            "category_name": cat_info.get("name", cat_id),
-        }
-        if not minimal:
-            item["source"] = m.get("source", "default")
-            item["description"] = m.get("description", "")
-            item["num_rounds"] = m.get("num_rounds", 5)
-            item["convergence_strategy"] = m.get("convergence_strategy", "")
-        result.append(item)
-    if offset > 0:
-        result = result[offset:]
-    if limit is not None and limit > 0:
-        result = result[:limit]
-    return result
+    return list_assignable_items(
+        categories,
+        modes,
+        category=category,
+        q=q,
+        minimal=minimal,
+        limit=limit,
+        offset=offset,
+        extra_item_fields=None if minimal else _modes_extra_fields,
+    )
 
 
 @router.get("/moderator-modes/assignable/{mode_id}/content")
 def get_moderator_mode_content(mode_id: str):
     """Return the mode prompt content (role-specific .md)."""
     base_dir = get_moderator_modes_dir()
-    _, modes, _ = load_aggregated_modes_meta(base_dir)
+    _, modes, _ = get_cached_modes_meta(base_dir)
     raw = mode_id.removesuffix(".md") if mode_id.endswith(".md") else mode_id
     mode_info = modes.get(raw, {}) if isinstance(modes.get(raw), dict) else {}
     if not mode_info:

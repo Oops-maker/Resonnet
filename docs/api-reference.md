@@ -6,6 +6,12 @@
 |--------|------|-------------|
 | GET | `/health` | Health check; returns `{"status": "ok"}` |
 
+## Libs (Admin)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/libs/invalidate-cache` | Clear meta cache for skills/mcp/moderator_modes (hot-reload) |
+
 ## Topics
 
 | Method | Path | Description |
@@ -45,7 +51,7 @@
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/skills/assignable/categories` | List skill categories |
-| GET | `/skills/assignable` | List assignable skills (query: `category`, `fields`, `limit`, `offset`) |
+| GET | `/skills/assignable` | List assignable skills (query: `category`, `q`, `fields`, `limit`, `offset`) |
 | GET | `/skills/assignable/{skill_id}/content` | Get raw markdown content of a skill |
 
 ## MCP (Model Context Protocol)
@@ -53,7 +59,7 @@
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/mcp/assignable/categories` | List MCP categories |
-| GET | `/mcp/assignable` | List assignable MCP servers (query: `category`, `fields`, `limit`, `offset`) |
+| GET | `/mcp/assignable` | List assignable MCP servers (query: `category`, `q`, `fields`, `limit`, `offset`) |
 | GET | `/mcp/assignable/{id}/content` | Get MCP config JSON (command, args) for a server |
 
 > MCP config accepts npm, uvx, remote only; no local paths. See [mcp-config.md](mcp-config.md).
@@ -76,7 +82,7 @@
 |--------|------|-------------|
 | GET | `/moderator-modes` | List preset modes (for topic config) |
 | GET | `/moderator-modes/assignable/categories` | List mode categories |
-| GET | `/moderator-modes/assignable` | List assignable modes (query: `category`, `fields`, `limit`, `offset`) |
+| GET | `/moderator-modes/assignable` | List assignable modes (query: `category`, `q`, `fields`, `limit`, `offset`) |
 | GET | `/moderator-modes/assignable/{mode_id}/content` | Get mode prompt content |
 | GET | `/topics/{topic_id}/moderator-mode` | Get topic's current moderator mode |
 | PUT | `/topics/{topic_id}/moderator-mode` | Set moderator mode |
@@ -88,8 +94,9 @@ Modes are loaded from `libs/moderator_modes/` (same structure as assignable_skil
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/experts` | List global expert definitions |
-| GET | `/experts/{name}` | Get expert details |
+| GET | `/experts` | List global expert definitions (query: `fields=minimal` omits skill_content for faster list) |
+| GET | `/experts/{name}/content` | Get expert skill markdown content only (aligned with skills/mcp/moderator-modes) |
+| GET | `/experts/{name}` | Get full expert details including skill_content |
 | PUT | `/experts/{name}` | Update expert definition |
 
 Response fields: `name`, `label`, `description`, `skill_file`, `skill_content`, `perspective`, `category`, `category_name` (aligned with skills/moderator_modes).

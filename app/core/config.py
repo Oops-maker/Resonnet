@@ -72,6 +72,15 @@ def get_workspace_base() -> Path:
     return Path(__file__).resolve().parent.parent.parent / "workspace"
 
 
+def get_libs_cache_ttl_seconds() -> int:
+    """Libs meta cache TTL. 0 = no cache (always fresh, hot-reload). Default 60."""
+    raw = os.getenv("LIBS_CACHE_TTL_SECONDS", "60")
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 60
+
+
 def _libs_root() -> Path:
     """Return libs/ root (experts, moderator_modes, mcps, assignable_skills, prompts)."""
     return Path(__file__).resolve().parent.parent.parent / "libs"

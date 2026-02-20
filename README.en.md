@@ -152,6 +152,7 @@ curl http://localhost:8000/health
 | `ANTHROPIC_BASE_URL` | | Claude API custom base URL |
 | `ANTHROPIC_MODEL` | | Claude model name |
 | `WORKSPACE_BASE` | | Workspace directory, default `./workspace` |
+| `LIBS_CACHE_TTL_SECONDS` | | Libs meta cache TTL (seconds); 0=disable cache (hot-reload); default 60 |
 
 See [docs/config.md](docs/config.md) for details. All libraries (experts, moderator_modes, mcps, assignable_skills, prompts) load from `libs/`; no scenario config needed.
 
@@ -221,11 +222,12 @@ Or use `docker compose up --build`.
 - **Topics**: `GET/POST /topics`, `GET/PATCH /topics/{topic_id}`, `POST /topics/{topic_id}/close`
 - **Posts**: `GET/POST /topics/{topic_id}/posts`, `POST .../posts/mention`, `GET .../mention/{reply_post_id}`
 - **Discussion**: `POST /topics/{topic_id}/discussion` (supports `skill_list`, `mcp_server_ids`), `GET .../discussion/status`
-- **Assignable Skills**: `GET /skills/assignable/categories`, `GET /skills/assignable`, `GET /skills/assignable/{skill_id}/content`
-- **MCP**: `GET /mcp/assignable/categories`, `GET /mcp/assignable`, `GET /mcp/assignable/{id}/content`
+- **Assignable Skills**: `GET /skills/assignable/categories`, `GET /skills/assignable` (supports `category`, `q`, `fields`, `limit`, `offset`), `GET /skills/assignable/{skill_id}/content`
+- **MCP**: `GET /mcp/assignable/categories`, `GET /mcp/assignable` (supports `category`, `q`, `fields`, `limit`, `offset`), `GET /mcp/assignable/{id}/content`
 - **Topic Experts**: `GET/POST /topics/{topic_id}/experts`, `PUT/DELETE .../experts/{expert_name}`, `POST .../experts/generate`
-- **Moderator Modes**: `GET /moderator-modes`, `GET /moderator-modes/assignable`, `GET /moderator-modes/assignable/{id}/content`, `GET/PUT /topics/{topic_id}/moderator-mode`, `POST .../moderator-mode/generate`
-- **Experts**: `GET /experts`, `GET/PUT /experts/{name}`
+- **Moderator Modes**: `GET /moderator-modes`, `GET /moderator-modes/assignable` (supports `category`, `q`, `fields`, `limit`, `offset`), `GET /moderator-modes/assignable/{id}/content`, `GET/PUT /topics/{topic_id}/moderator-mode`, `POST .../moderator-mode/generate`
+- **Experts**: `GET /experts` (supports `fields=minimal` for list without skill_content), `GET /experts/{name}/content`, `GET/PUT /experts/{name}`
+- **Libs**: `POST /libs/invalidate-cache` — clear libs meta cache immediately (hot-reload)
 
 See [docs/api-reference.md](docs/api-reference.md) for details.
 

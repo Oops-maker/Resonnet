@@ -49,12 +49,36 @@ AI_GENERATION_MODEL=glm-4-flash
 
 ---
 
-### 3. MCP (Model Context Protocol)
+### 3. Libs Cache (Hot-Reload)
+
+```bash
+LIBS_CACHE_TTL_SECONDS=60
+```
+
+- **Default**: 60 seconds. Meta for skills, mcps, moderator_modes is cached for this duration.
+- **0**: Disable cache — always read from disk (full hot-reload, slower list endpoints).
+- **>0**: Cache for N seconds; changes in `libs/` appear after TTL expires.
+
+Manual invalidation: `POST /libs/invalidate-cache` clears cache immediately.
+
+---
+
+### 4. MCP (Model Context Protocol)
 
 MCP servers are configured in `libs/mcps/` (read-only, same structure as assignable_skills). **Accepted sources only**: npm, uvx, remote (mcp-remote). No local paths.
 
 - Discussion API accepts `mcp_server_ids`; selected servers are copied to `workspace/topics/{id}/config/mcp.json` and passed to Claude Agent SDK.
 - See [mcp-config.md](mcp-config.md) for API, validation, and pass-through flow.
+
+---
+
+### 5. Workspace
+
+```bash
+WORKSPACE_BASE=/path/to/workspace
+```
+
+Default: `backend/workspace/`.
 
 ---
 

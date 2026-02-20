@@ -8,7 +8,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.core.config import get_mcps_dir
-from app.core.mcps_meta import load_aggregated_mcps_meta
+from app.core.libs_service import get_cached_mcps_meta, list_assignable_items
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -18,7 +18,7 @@ router = APIRouter()
 def list_assignable_mcp_categories():
     """List MCP categories from mcps (main meta + per-source meta)."""
     base_dir = get_mcps_dir()
-    categories, _ = load_aggregated_mcps_meta(base_dir)
+    categories, _ = get_cached_mcps_meta(base_dir)
     return [
         {
             "id": c.get("id", k),
@@ -33,6 +33,7 @@ def list_assignable_mcp_categories():
 @router.get("/assignable", response_model=list)
 def list_assignable_mcps(
     category: str | None = None,
+    q: str | None = None,
     fields: str | None = None,
     limit: int | None = None,
     offset: int = 0,
@@ -41,47 +42,23 @@ def list_assignable_mcps(
 
     Query params (all optional):
     - category: filter by category id
+    - q: search in id, name, description (case-insensitive)
     - fields: "minimal" = id, name, category, category_name only
     - limit, offset: pagination
     """
     base_dir = get_mcps_dir()
-    categories, mcps = load_aggregated_mcps_meta(base_dir)
-
+    categories, mcps = get_cached_mcps_meta(base_dir)
     try:
         minimal = (fields or "").strip().lower() == "minimal"
-
-        result = []
-        for mcp_id, mcp_data in mcps.items():
-            if isinstance(mcp_data, dict) and "id" in mcp_data:
-                cat_id = mcp_data.get("category", "")
-                if category is not None and category != "" and cat_id != category:
-                    continue
-                cat_info = categories.get(cat_id, {}) if isinstance(categories.get(cat_id), dict) else {}
-                item = {
-                    "id": mcp_data["id"],
-                    "name": mcp_data.get("name", mcp_id),
-                    "category": cat_id,
-                    "category_name": cat_info.get("name", cat_id),
-                }
-                if not minimal:
-                    item["source"] = mcp_data.get("source", "default")
-                    item["description"] = mcp_data.get("description", "")
-                result.append(item)
-            else:
-                if category is not None and category != "":
-                    continue
-                item = {"id": mcp_id, "name": mcp_id, "category": "", "category_name": ""}
-                if not minimal:
-                    item["source"] = ""
-                    item["description"] = ""
-                result.append(item)
-
-        if offset > 0:
-            result = result[offset:]
-        if limit is not None and limit > 0:
-            result = result[:limit]
-
-        return result
+        return list_assignable_items(
+            categories,
+            mcps,
+            category=category,
+            q=q,
+            minimal=minimal,
+            limit=limit,
+            offset=offset,
+        )
     except Exception as e:
         logger.error(f"Failed to load assignable MCPs: {e}")
         raise HTTPException(status_code=500, detail="Failed to load assignable MCPs")
@@ -91,7 +68,7 @@ def list_assignable_mcps(
 def get_mcp_content(mcp_id: str):
     """Return the MCP server config (command, args) as JSON."""
     base_dir = get_mcps_dir()
-    _, mcps_meta = load_aggregated_mcps_meta(base_dir)
+    _, mcps_meta = get_cached_mcps_meta(base_dir)
 
     raw = mcp_id.removesuffix(".json") if mcp_id.endswith(".json") else mcp_id
     mcp_info = mcps_meta.get(raw, {}) if isinstance(mcps_meta.get(raw), dict) else {}

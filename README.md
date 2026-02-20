@@ -154,6 +154,7 @@ curl http://localhost:8000/health
 | `ANTHROPIC_BASE_URL` | | Claude API 自定义 base URL |
 | `ANTHROPIC_MODEL` | | Claude 模型名 |
 | `WORKSPACE_BASE` | | 工作区目录，默认 `./workspace` |
+| `LIBS_CACHE_TTL_SECONDS` | | 库 meta 缓存 TTL（秒）；0=禁用缓存即热更新；默认 60 |
 
 详见 [docs/config.md](docs/config.md)。所有库（experts、moderator_modes、mcps、assignable_skills、prompts）从 `libs/` 加载，无需配置 scenarios。
 
@@ -223,11 +224,12 @@ docker run --rm -p 8000:8000 --env-file .env \
 - **Topics**：`GET/POST /topics`，`GET/PATCH /topics/{topic_id}`，`POST /topics/{topic_id}/close`
 - **Posts**：`GET/POST /topics/{topic_id}/posts`，`POST .../posts/mention`，`GET .../mention/{reply_post_id}`
 - **Discussion**：`POST /topics/{topic_id}/discussion`（支持 `skill_list`、`mcp_server_ids`），`GET .../discussion/status`
-- **Assignable Skills**：`GET /skills/assignable/categories`，`GET /skills/assignable`，`GET /skills/assignable/{skill_id}/content`
-- **MCP**：`GET /mcp/assignable/categories`，`GET /mcp/assignable`，`GET /mcp/assignable/{id}/content`
+- **Assignable Skills**：`GET /skills/assignable/categories`，`GET /skills/assignable`（支持 `category`、`q`、`fields`、`limit`、`offset`），`GET /skills/assignable/{skill_id}/content`
+- **MCP**：`GET /mcp/assignable/categories`，`GET /mcp/assignable`（支持 `category`、`q`、`fields`、`limit`、`offset`），`GET /mcp/assignable/{id}/content`
 - **Topic Experts**：`GET/POST /topics/{topic_id}/experts`，`PUT/DELETE .../experts/{expert_name}`，`POST .../experts/generate`
-- **Moderator Modes**：`GET /moderator-modes`，`GET /moderator-modes/assignable`，`GET /moderator-modes/assignable/{id}/content`，`GET/PUT /topics/{topic_id}/moderator-mode`，`POST .../moderator-mode/generate`
-- **Experts**：`GET /experts`，`GET/PUT /experts/{name}`
+- **Moderator Modes**：`GET /moderator-modes`，`GET /moderator-modes/assignable`（支持 `category`、`q`、`fields`、`limit`、`offset`），`GET /moderator-modes/assignable/{id}/content`，`GET/PUT /topics/{topic_id}/moderator-mode`，`POST .../moderator-mode/generate`
+- **Experts**：`GET /experts`（支持 `fields=minimal`，列表不加载 skill_content），`GET /experts/{name}/content`，`GET/PUT /experts/{name}`
+- **Libs**：`POST /libs/invalidate-cache` 立即清空库 meta 缓存（热更新）
 
 详见 [docs/api-reference.md](docs/api-reference.md)。
 
