@@ -129,7 +129,9 @@ def get_topic(topic_id: str) -> Optional[Topic]:
 
 
 def list_topics() -> List[Topic]:
-    return list(topics_db.values())
+    topics = list(topics_db.values())
+    topics.sort(key=lambda t: t.updated_at, reverse=True)
+    return topics
 
 
 def update_topic(topic_id: str, data: TopicUpdate) -> Optional[Topic]:
