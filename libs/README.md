@@ -51,11 +51,12 @@ libs/
 
 ## Meta Format
 
-- **experts/meta.json**: `{"sources": {"default": {...}}}` (sources registry only)
-- **experts/{source}/meta.json**: `{"common_sections": "expert_common.md", "categories": {...}, "experts": {"<id>": {"id", "source", "name", "label", "description", "category", "skill_file", "perspective"}}}`
-- Built-in experts are all in `category: scholar` (学者); API returns `category` and `category_name` for grouping.
-- **moderator_modes/meta.json**: `{"sources": {"default": {...}}}` (sources registry only)
+- **experts/meta.json**: `{"sources": {"default": {...}, "topiclab_shared": {...}}}` (sources registry)
+- **experts/{source}/meta.json**: `{"common_sections": "expert_common.md", "categories": {...}, "experts": {...}}`
+- Built-in experts: `default/` with `category: scholar`. User-shared: `topiclab_shared/` with `category: topiclab` (empty template in repo; `.md` files added via share API are gitignored).
+- **moderator_modes/meta.json**: `{"sources": {"default": {...}, "topiclab_shared": {...}}}` (sources registry)
 - **moderator_modes/{source}/meta.json**: `{"common_sections": "moderator_common.md", "categories": {...}, "modes": {...}}`
+- User-shared modes: `topiclab_shared/` (empty template in repo; `.md` files added via share API are gitignored).
 - **assignable_skills/meta.json**: Sources registry only
 - **assignable_skills/{source}/meta.json**: Per-source `{"skills_dir"?, "categories": {...}, "skills": {...}}`
 

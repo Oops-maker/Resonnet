@@ -87,6 +87,7 @@
 | GET | `/topics/{topic_id}/moderator-mode` | Get topic's current moderator mode |
 | PUT | `/topics/{topic_id}/moderator-mode` | Set moderator mode |
 | POST | `/topics/{topic_id}/moderator-mode/generate` | AI-generate moderator prompt |
+| POST | `/topics/{topic_id}/moderator-mode/share` | Share custom mode to platform (body: `mode_id`, `name?`, `description?`) |
 
 **GET/PUT moderator-mode** response/body fields:
 - `mode_id`, `num_rounds`, `custom_prompt` (required for PUT)

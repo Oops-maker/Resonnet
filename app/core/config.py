@@ -82,17 +82,51 @@ def get_libs_cache_ttl_seconds() -> int:
 
 
 def _libs_root() -> Path:
-    """Return libs/ root (experts, moderator_modes, mcps, assignable_skills, prompts)."""
+    """Return primary libs/ root (mount point in Docker; where we write topiclab_shared)."""
     return Path(__file__).resolve().parent.parent.parent / "libs"
 
 
+def get_libs_builtin_root() -> Path | None:
+    """Return built-in libs root if exists (Docker: /app/libs_builtin). None when not in Docker."""
+    builtin = Path("/app/libs_builtin").resolve()
+    if builtin.exists():
+        return builtin
+    return None
+
+
+def get_expert_source_dir(source_id: str) -> Path:
+    """Return experts base dir. default→builtin (canonical); topiclab_shared→primary (mount, user supplement)."""
+    primary = _libs_root() / "experts"
+    builtin = get_libs_builtin_root()
+    if source_id == "topiclab_shared":
+        return primary
+    if builtin:
+        builtin_experts = builtin / "experts"
+        if (builtin_experts / source_id).exists():
+            return builtin_experts
+    return primary
+
+
+def get_moderator_mode_source_dir(source_id: str) -> Path:
+    """Return moderator_modes dir. default→builtin; topiclab_shared→primary (mount, user supplement)."""
+    primary = _libs_root() / "moderator_modes"
+    builtin = get_libs_builtin_root()
+    if source_id == "topiclab_shared":
+        return primary
+    if builtin:
+        builtin_modes = builtin / "moderator_modes"
+        if (builtin_modes / source_id).exists():
+            return builtin_modes
+    return primary
+
+
 def get_assignable_skills_dir() -> Path:
-    """Return libs/assignable_skills/."""
+    """Return primary libs/assignable_skills/ (for writing). Reading merges builtin + primary."""
     return _libs_root() / "assignable_skills"
 
 
 def get_mcps_dir() -> Path:
-    """Return libs/mcps/ (assignable MCP servers, read-only config)."""
+    """Return primary libs/mcps/ (for writing). Reading merges builtin + primary."""
     return _libs_root() / "mcps"
 
 
@@ -107,7 +141,12 @@ def get_experts_dir() -> Path:
 
 
 def get_prompts_dir() -> Path:
-    """Return prompts directory: libs/prompts/ if exists, else app/prompts/."""
+    """Return prompts directory: builtin libs/prompts/ > primary (mount) > app/prompts/. Mount only supplement."""
+    builtin = get_libs_builtin_root()
+    if builtin:
+        builtin_prompts = builtin / "prompts"
+        if builtin_prompts.exists() and builtin_prompts.is_dir():
+            return builtin_prompts
     libs_prompts = _libs_root() / "prompts"
     if libs_prompts.exists() and libs_prompts.is_dir():
         return libs_prompts

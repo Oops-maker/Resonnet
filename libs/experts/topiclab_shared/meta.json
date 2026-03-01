@@ -1,0 +1,11 @@
+{
+  "common_sections": "expert_common.md",
+  "categories": {
+    "topiclab": {
+      "id": "topiclab",
+      "name": "TopicLab",
+      "description": "User-shared experts from frontend"
+    }
+  },
+  "experts": {}
+}

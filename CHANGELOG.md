@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.3.0] - 2026-03-01
+
+### Added
+
+- **Expert share to platform**: `POST /topics/{id}/experts/{name}/share` — share topic-level expert to `libs/experts/topiclab_shared/`; rejects built-in experts (source=default); reloads EXPERT_SPECS and invalidates libs cache
+- **Moderator mode share to platform**: `POST /topics/{id}/moderator-mode/share` — share custom moderator mode to `libs/moderator_modes/topiclab_shared/`; body: `mode_id`, `name?`, `description?`; creates meta.json if missing
+- **Topic-level moderator config**: `GET/PUT /topics/{id}/moderator-mode` supports `skill_list`, `mcp_server_ids`, `model`; persisted per topic; fallback from `config/skills/` and `config/mcp.json` when missing
+- **Discussion params**: `POST /topics/{id}/discussion` accepts `skill_list`, `mcp_server_ids`, `allowed_tools`; copied to topic workspace for moderator/agent use
+
+### Fixed
+
+- **Expert share 500**: `POST /topics/{id}/experts/{name}/share` no longer returns 500 when `libs/experts/topiclab_shared/meta.json` does not exist (first share). Creates default meta structure like moderator-mode share.
+
+### Changed
+
+- Topic moderator mode config: skill_list, mcp_server_ids, model persisted in workspace; discussion uses topic config when present
+- Expert share: creates `topiclab_shared/meta.json` with default categories when missing (aligned with moderator-mode share)
+
 ## [0.2.0] - 2026-02-21
 
 ### Added

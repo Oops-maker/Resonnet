@@ -4,6 +4,11 @@
       "id": "default",
       "name": "Default",
       "description": "Built-in moderator modes for round-table discussions"
+    },
+    "topiclab_shared": {
+      "id": "topiclab_shared",
+      "name": "TopicLab-共享",
+      "description": "User-shared moderator modes from frontend"
     }
   }
 }

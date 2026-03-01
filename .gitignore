@@ -26,3 +26,9 @@ htmlcov/
 *.log*
 
 workspace/
+
+# User-shared content in topiclab_shared (runtime data; keep expert_common.md, moderator_common.md)
+libs/experts/topiclab_shared/*.md
+!libs/experts/topiclab_shared/expert_common.md
+libs/moderator_modes/topiclab_shared/*.md
+!libs/moderator_modes/topiclab_shared/moderator_common.md

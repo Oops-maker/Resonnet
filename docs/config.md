@@ -72,13 +72,24 @@ MCP servers are configured in `libs/mcps/` (read-only, same structure as assigna
 
 ---
 
-### 5. Workspace
+### 5. Workspace and Libs (Docker)
 
 ```bash
 WORKSPACE_BASE=/path/to/workspace
 ```
 
-Default: `backend/workspace/`.
+For Docker deployments, both workspace and libs can be mounted for persistence:
+
+| Volume | Env / Default | Purpose |
+|--------|---------------|---------|
+| `WORKSPACE_PATH` | `./backend/workspace` | Topic workspaces, posts, discussion artifacts |
+| `LIBS_PATH` | `./backend/libs` | Experts, moderator modes, skills, MCP config; **user-shared** content in `topiclab_shared/` |
+
+User-shared experts and moderator modes (from frontend "共享到角色库" / "共享到讨论方式库") are stored in `libs/experts/topiclab_shared/` and `libs/moderator_modes/topiclab_shared/` respectively. Mount `libs` to persist them across container restarts.
+
+**When `LIBS_PATH` points to an empty directory** (e.g. `/data/libs` for persistence): the backend merges from both built-in (`/app/libs_builtin` in Docker) and the mount. Built-in `default` sources (experts, moderator modes, skills, MCP) are read from built-in; `topiclab_shared` and user writes go to the mount.
+
+Default: `backend/workspace/`. For Docker, see volume mounts above.
 
 ---
 

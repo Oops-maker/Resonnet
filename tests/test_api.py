@@ -456,3 +456,106 @@ def test_moderator_mode_get_and_set(client: TestClient, isolated_workspace: Path
     assert reloaded["skill_list"] == ["skill_a", "skill_b"]
     assert reloaded["mcp_server_ids"] == ["mcp_x"]
     assert reloaded["model"] == "qwen-flash"
+
+
+def test_expert_share_when_meta_json_missing(client: TestClient, isolated_workspace: Path, monkeypatch):
+    """Share succeeds when topiclab_shared/meta.json does not exist (first share)."""
+    from app.core.config import get_experts_dir
+
+    # Use isolated experts dir with no topiclab_shared/meta.json
+    experts_root = isolated_workspace / "libs" / "experts"
+    experts_root.mkdir(parents=True)
+    monkeypatch.setattr("app.api.topic_experts.get_experts_dir", lambda: experts_root)
+
+    topic = _create_topic(client)
+    topic_id = topic["id"]
+    ws_path = isolated_workspace / "topics" / topic_id
+    (ws_path / "agents" / "first_share_expert").mkdir(parents=True)
+    (ws_path / "agents" / "first_share_expert" / "role.md").write_text("# First Share", encoding="utf-8")
+    (ws_path / "config").mkdir(parents=True, exist_ok=True)
+    meta = {"experts": [{"name": "first_share_expert", "label": "First", "description": "First share test"}]}
+    (ws_path / "config" / "experts_metadata.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+
+    resp = client.post(f"/topics/{topic_id}/experts/first_share_expert/share")
+    assert resp.status_code == 200
+    assert resp.json().get("expert_name") == "first_share_expert"
+
+    meta_path = experts_root / "topiclab_shared" / "meta.json"
+    assert meta_path.exists()
+    meta_data = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert "first_share_expert" in meta_data.get("experts", {})
+
+
+def test_expert_share_to_topiclab_shared(client: TestClient, isolated_workspace: Path):
+    """POST /topics/{id}/experts/{name}/share writes to topiclab_shared and reloads."""
+    from app.core.config import get_experts_dir
+
+    topic = _create_topic(client)
+    topic_id = topic["id"]
+    ws_path = isolated_workspace / "topics" / topic_id
+    (ws_path / "agents" / "test_shared_expert").mkdir(parents=True, exist_ok=True)
+    (ws_path / "agents" / "test_shared_expert" / "role.md").write_text("# Test Expert\nRole content.", encoding="utf-8")
+    (ws_path / "config").mkdir(parents=True, exist_ok=True)
+    meta = {"experts": [{"name": "test_shared_expert", "label": "Test Shared", "description": "For share test"}]}
+    (ws_path / "config" / "experts_metadata.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+
+    resp = client.post(f"/topics/{topic_id}/experts/test_shared_expert/share")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("expert_name") == "test_shared_expert"
+
+    experts_dir = get_experts_dir()
+    shared_file = experts_dir / "topiclab_shared" / "test_shared_expert.md"
+    assert shared_file.exists()
+    assert "Test Expert" in shared_file.read_text(encoding="utf-8")
+
+    # Verify expert appears in list
+    list_resp = client.get("/experts")
+    assert list_resp.status_code == 200
+    names = [e["name"] for e in list_resp.json()]
+    assert "test_shared_expert" in names
+
+
+def test_expert_share_rejects_builtin(client: TestClient, isolated_workspace: Path):
+    """Share rejects overwriting built-in expert (physicist)."""
+    topic = _create_topic(client)
+    topic_id = topic["id"]
+    ws_path = isolated_workspace / "topics" / topic_id
+    (ws_path / "agents" / "physicist").mkdir(parents=True, exist_ok=True)
+    (ws_path / "agents" / "physicist" / "role.md").write_text("# Custom Physicist", encoding="utf-8")
+    (ws_path / "config").mkdir(parents=True, exist_ok=True)
+    meta = {"experts": [{"name": "physicist", "label": "Custom", "description": "Test"}]}
+    (ws_path / "config" / "experts_metadata.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+
+    resp = client.post(f"/topics/{topic_id}/experts/physicist/share")
+    assert resp.status_code == 409
+    assert "built-in" in resp.json().get("detail", "").lower()
+
+
+def test_moderator_mode_share_to_topiclab_shared(client: TestClient, isolated_workspace: Path):
+    """POST /topics/{id}/moderator-mode/share writes custom mode to topiclab_shared."""
+    from app.core.config import get_moderator_modes_dir
+
+    topic = _create_topic(client)
+    topic_id = topic["id"]
+    config_dir = isolated_workspace / "topics" / topic_id / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config = {
+        "mode_id": "custom",
+        "num_rounds": 5,
+        "custom_prompt": "# Custom moderator\nModerator prompt content.",
+    }
+    (config_dir / "moderator_mode.json").write_text(json.dumps(config, ensure_ascii=False), encoding="utf-8")
+
+    resp = client.post(
+        f"/topics/{topic_id}/moderator-mode/share",
+        json={"mode_id": "test_shared_mode", "name": "Test Shared Mode", "description": "For share test"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("mode_id") == "test_shared_mode"
+
+    modes_dir = get_moderator_modes_dir()
+    shared_file = modes_dir / "topiclab_shared" / "test_shared_mode.md"
+    assert shared_file.exists()
+    assert "Custom moderator" in shared_file.read_text(encoding="utf-8")

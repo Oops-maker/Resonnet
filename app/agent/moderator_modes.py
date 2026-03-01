@@ -6,15 +6,14 @@ import json
 import logging
 from pathlib import Path
 
-from app.core.config import get_moderator_modes_dir
+from app.core.config import get_moderator_mode_source_dir
 from app.core.moderator_modes_meta import get_modes_and_common
 
 from .workspace import build_output_language_instruction
 
 logger = logging.getLogger(__name__)
 
-_MODERATOR_MODES_DIR = get_moderator_modes_dir()
-_MODES, _SOURCE_COMMON_SECTIONS = get_modes_and_common(_MODERATOR_MODES_DIR)
+_MODES, _SOURCE_COMMON_SECTIONS = get_modes_and_common()
 
 
 def _load_preset_modes() -> dict:
@@ -40,7 +39,8 @@ def _load_preset_modes() -> dict:
 def _load_common_content(source_id: str = "default") -> str:
     """Load common moderator sections (Workspace, Rules, Language) for given source."""
     common_file = _SOURCE_COMMON_SECTIONS.get(source_id, "moderator_common.md")
-    common_path = _MODERATOR_MODES_DIR / source_id / common_file
+    modes_dir = get_moderator_mode_source_dir(source_id)
+    common_path = modes_dir / source_id / common_file
     if common_path.exists():
         return common_path.read_text(encoding="utf-8")
     return ""
@@ -51,7 +51,8 @@ def _load_mode_prompt(mode_id: str) -> str:
     spec = PRESET_MODES.get(mode_id, {})
     source_id = spec.get("source", "default")
     prompt_file = spec.get("prompt_file", f"{mode_id}.md")
-    skill_file = _MODERATOR_MODES_DIR / source_id / prompt_file
+    modes_dir = get_moderator_mode_source_dir(source_id)
+    skill_file = modes_dir / source_id / prompt_file
     if not skill_file.exists():
         raise FileNotFoundError(f"Moderator skill file not found: {skill_file}")
     return skill_file.read_text(encoding="utf-8")
@@ -70,6 +71,18 @@ def _build_moderator_prompt_from_preset(mode_id: str, params: dict) -> str:
 
 # Preset moderator modes (loaded from libs/moderator_modes/)
 PRESET_MODES = _load_preset_modes()
+
+
+def reload_moderator_modes() -> None:
+    """Reload PRESET_MODES from disk (e.g. after share to topiclab_shared).
+
+    Updates dict in-place so importers (e.g. moderator_modes API) see the new data.
+    """
+    global _MODES, _SOURCE_COMMON_SECTIONS
+    _MODES, _SOURCE_COMMON_SECTIONS = get_modes_and_common()
+    new_modes = _load_preset_modes()
+    PRESET_MODES.clear()
+    PRESET_MODES.update(new_modes)
 
 
 def load_moderator_mode_config(ws_path: Path) -> dict:

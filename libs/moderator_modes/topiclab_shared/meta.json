@@ -1,0 +1,11 @@
+{
+  "common_sections": "moderator_common.md",
+  "categories": {
+    "topiclab": {
+      "id": "topiclab",
+      "name": "TopicLab",
+      "description": "User-shared moderator modes from frontend"
+    }
+  },
+  "modes": {}
+}

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
-from app.agent.experts import EXPERT_SPECS
+from app.agent.experts import EXPERT_SPECS, reload_expert_specs
 from app.agent.generation import generate_expert
 from app.agent.workspace import (
     add_expert_metadata,
@@ -218,16 +218,17 @@ def get_topic_expert_content(topic_id: str, expert_name: str):
 
 @router.post("/{topic_id}/experts/{expert_name}/share", response_model=TopicExpertResponse)
 def share_expert_to_platform(topic_id: str, expert_name: str):
-    """Share a topic-level expert to the platform preset library."""
+    """Share a topic-level expert to the platform library (topiclab_shared source)."""
     topic = get_topic(topic_id)
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
 
-    # Bug fix 1: reject if name already exists in global preset library
-    if expert_name in EXPERT_SPECS:
+    # Reject if expert is built-in (default source); allow overwrite for topiclab_shared
+    existing = EXPERT_SPECS.get(expert_name)
+    if existing and existing.get("source") == "default":
         raise HTTPException(
             status_code=409,
-            detail=f"Expert '{expert_name}' already exists in the global expert pool; cannot overwrite"
+            detail=f"Expert '{expert_name}' is built-in; cannot overwrite"
         )
 
     ws_base = get_workspace_base()
@@ -242,36 +243,45 @@ def share_expert_to_platform(topic_id: str, expert_name: str):
     if not expert_meta:
         raise HTTPException(status_code=404, detail="Expert metadata not found")
 
-    # Write role file to libs/experts/default/ (unified with mcps, moderator_modes)
+    # Write to libs/experts/topiclab_shared/ (user-shared, separate from built-in default)
     experts_dir = get_experts_dir()
-    default_dir = experts_dir / "default"
-    default_dir.mkdir(parents=True, exist_ok=True)
+    shared_dir = experts_dir / "topiclab_shared"
+    shared_dir.mkdir(parents=True, exist_ok=True)
     skill_file_name = f"{expert_name}.md"
-    (default_dir / skill_file_name).write_text(role_file.read_text(encoding="utf-8"), encoding="utf-8")
+    (shared_dir / skill_file_name).write_text(role_file.read_text(encoding="utf-8"), encoding="utf-8")
 
-    # Update default/meta.json
-    meta_path = default_dir / "meta.json"
-    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    # Update topiclab_shared/meta.json (create if missing, like moderator_mode share)
+    meta_path = shared_dir / "meta.json"
+    if meta_path.exists():
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    else:
+        meta = {
+            "common_sections": "expert_common.md",
+            "categories": {
+                "topiclab": {
+                    "id": "topiclab",
+                    "name": "TopicLab",
+                    "description": "User-shared experts from frontend",
+                }
+            },
+            "experts": {},
+        }
     meta.setdefault("experts", {})[expert_name] = {
         "id": expert_name,
-        "source": "default",
+        "source": "topiclab_shared",
         "name": expert_name,
         "label": expert_meta["label"],
         "description": expert_meta["description"],
-        "category": "scholar",
+        "category": "topiclab",
         "skill_file": skill_file_name,
         "perspective": expert_meta.get("perspective", expert_name),
     }
     meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    # Update in-memory EXPERT_SPECS for subsequent requests
-    EXPERT_SPECS[expert_name] = {
-        "skill_file": skill_file_name,
-        "description": expert_meta["description"],
-        "label": expert_meta["label"],
-        "perspective": expert_meta.get("perspective", expert_name),
-        "source": "default",
-    }
+    # Reload EXPERT_SPECS so subsequent requests see the new expert
+    reload_expert_specs()
+    from app.core.libs_service import invalidate_libs_cache
+    invalidate_libs_cache()
 
     return {"message": "Expert shared to platform successfully", "expert_name": expert_name}
 

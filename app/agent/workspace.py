@@ -184,7 +184,9 @@ def _resolve_skill_path(base_dir: Path, skill_id: str, skill_info: dict) -> Path
     - default: assignable_skills/default/{category}/{slug}.md
     - imported (submodule): assignable_skills/_submodules/{source}/{skills_dir}/{category}/{slug}/SKILL.md
       or {skills_dir}/{slug}/SKILL.md when category is 'general'
+    Uses _base_dir from skill_info when skill was loaded from builtin.
     """
+    base_dir = skill_info.get("_base_dir", base_dir) or base_dir
     _, slug = _parse_skill_id(skill_id)
     source = skill_info.get("source", "default") or "default"
     category = skill_info.get("category", "")
@@ -405,12 +407,10 @@ def _ensure_agents_structure(ws_path: Path):
     Existing role.md files are never overwritten (preserves user customization).
     """
     from .experts import EXPERT_SPECS
-    from app.core.config import get_experts_dir
+    from app.core.config import get_expert_source_dir
 
     agents_dir = ws_path / "agents"
     agents_dir.mkdir(exist_ok=True)
-
-    experts_dir = get_experts_dir()
 
     for expert_name, spec in EXPERT_SPECS.items():
         expert_dir = agents_dir / expert_name
@@ -421,6 +421,7 @@ def _ensure_agents_structure(ws_path: Path):
         # Only copy if role.md doesn't exist (idempotent, preserves customization)
         if not role_file.exists():
             source_id = spec.get("source", "default")
+            experts_dir = get_expert_source_dir(source_id)
             global_skill_file = experts_dir / source_id / spec["skill_file"]
             if global_skill_file.exists():
                 logger.info(

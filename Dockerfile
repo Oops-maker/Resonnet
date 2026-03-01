@@ -15,6 +15,8 @@ RUN mkdir -p /home/appuser/.pip && \
 
 # 复制代码并修改所有权
 COPY . .
+# 保留内置 libs 到 libs_builtin，供挂载 LIBS_PATH 为空时初始化
+RUN cp -r libs libs_builtin 2>/dev/null || true
 RUN chown -R appuser:appuser /app /home/appuser/.pip
 
 # 切换到非 root 用户

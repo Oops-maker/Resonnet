@@ -145,6 +145,7 @@ class ExpertInfo(BaseModel):
     perspective: str = ""  # 学科视角，如 physics, biology
     category: Optional[str] = None  # 分类 id，用于分组（与 skills/mcps 一致）
     category_name: Optional[str] = None  # 分类显示名
+    source: Optional[str] = None  # default=内置, topiclab_shared=共享
 
 
 class ExpertUpdateRequest(BaseModel):
@@ -219,6 +220,13 @@ class SetModeratorModeRequest(BaseModel):
     skill_list: Optional[list[str]] = None
     mcp_server_ids: Optional[list[str]] = None
     model: Optional[str] = None
+
+
+class ShareModeratorModeRequest(BaseModel):
+    """Share topic's custom moderator mode to platform library."""
+    mode_id: str = Field(..., min_length=2, max_length=50, pattern=r"^[a-z0-9_]+$")
+    name: Optional[str] = Field(None, min_length=2, max_length=80)
+    description: Optional[str] = Field(None, min_length=1, max_length=500)
 
 
 # --- Post models ---

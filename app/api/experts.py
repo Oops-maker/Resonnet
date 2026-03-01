@@ -5,12 +5,10 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
 from app.agent.experts import EXPERT_CATEGORIES, EXPERT_SPECS
-from app.core.config import get_experts_dir
+from app.core.config import get_expert_source_dir
 from app.models.schemas import ExpertInfo, ExpertUpdateRequest
 
 router = APIRouter()
-
-EXPERTS_DIR = get_experts_dir()
 
 
 def _build_expert_info(name: str, include_content: bool = True) -> ExpertInfo:
@@ -22,7 +20,8 @@ def _build_expert_info(name: str, include_content: bool = True) -> ExpertInfo:
     skill_file = spec["skill_file"]
     skill_content = ""
     if include_content:
-        skill_path = EXPERTS_DIR / source_id / skill_file
+        experts_dir = get_expert_source_dir(source_id)
+        skill_path = experts_dir / source_id / skill_file
         skill_content = skill_path.read_text(encoding="utf-8") if skill_path.exists() else ""
     cat_id = spec.get("category", "")
     cat_info = EXPERT_CATEGORIES.get(cat_id, {}) if cat_id else {}
@@ -35,6 +34,7 @@ def _build_expert_info(name: str, include_content: bool = True) -> ExpertInfo:
         perspective=spec.get("perspective", name),
         category=cat_id or None,
         category_name=cat_info.get("name", cat_id) if cat_id else None,
+        source=source_id,
     )
 
 
@@ -64,6 +64,7 @@ def update_expert(name: str, req: ExpertUpdateRequest):
     if not spec:
         raise HTTPException(status_code=404, detail=f"Expert '{name}' not found")
     source_id = spec.get("source", "default")
-    skill_path = EXPERTS_DIR / source_id / spec["skill_file"]
+    experts_dir = get_expert_source_dir(source_id)
+    skill_path = experts_dir / source_id / spec["skill_file"]
     skill_path.write_text(req.skill_content, encoding="utf-8")
     return _build_expert_info(name)

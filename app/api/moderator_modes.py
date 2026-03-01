@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -11,16 +12,18 @@ from app.agent.generation import generate_moderator_mode
 from app.agent.moderator_modes import (
     PRESET_MODES,
     load_moderator_mode_config,
+    reload_moderator_modes,
     save_moderator_mode_config,
 )
 from app.core.config import get_moderator_modes_dir, get_workspace_base
-from app.core.libs_service import get_cached_modes_meta, list_assignable_items
+from app.core.libs_service import get_cached_modes_meta, invalidate_libs_cache, list_assignable_items
 from app.models.schemas import (
     GenerateModeratorModeRequest,
     GenerateModeratorModeResponse,
     ModeratorModeConfig,
     ModeratorModeInfo,
     SetModeratorModeRequest,
+    ShareModeratorModeRequest,
 )
 from app.models.store import get_topic
 
@@ -198,3 +201,81 @@ async def generate_moderator_mode_endpoint(topic_id: str, req: GenerateModerator
         "custom_prompt": custom_prompt,
         "config": config,
     }
+
+
+@router.post("/topics/{topic_id}/moderator-mode/share", response_model=dict)
+def share_moderator_mode_to_platform(topic_id: str, req: ShareModeratorModeRequest):
+    """Share topic's custom moderator mode to platform library (topiclab_shared source)."""
+    topic = get_topic(topic_id)
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+
+    ws_base = get_workspace_base()
+    ws_path = ws_base / "topics" / topic_id
+    config = load_moderator_mode_config(ws_path)
+
+    if config.get("mode_id") != "custom" or not config.get("custom_prompt"):
+        raise HTTPException(
+            status_code=400,
+            detail="Topic must use a custom moderator mode with custom_prompt to share"
+        )
+
+    # Reject if mode_id is built-in (default source)
+    existing = PRESET_MODES.get(req.mode_id)
+    if existing and existing.get("source") == "default":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Mode '{req.mode_id}' conflicts with built-in mode; choose a different id"
+        )
+
+    modes_dir = get_moderator_modes_dir()
+    shared_dir = modes_dir / "topiclab_shared"
+    shared_dir.mkdir(parents=True, exist_ok=True)
+
+    prompt_file_name = f"{req.mode_id}.md"
+    (shared_dir / prompt_file_name).write_text(config["custom_prompt"], encoding="utf-8")
+
+    name = req.name or req.mode_id.replace("_", " ").title()
+    description = req.description or f"User-shared moderator mode: {name}"
+
+    meta_path = shared_dir / "meta.json"
+    if meta_path.exists():
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    else:
+        meta = {
+            "common_sections": "moderator_common.md",
+            "categories": {
+                "topiclab": {
+                    "id": "topiclab",
+                    "name": "TopicLab",
+                    "description": "User-shared moderator modes from frontend",
+                }
+            },
+            "modes": {},
+        }
+    # Ensure topiclab_shared is registered in main meta.json
+    main_meta_path = modes_dir / "meta.json"
+    main_meta = json.loads(main_meta_path.read_text(encoding="utf-8"))
+    main_meta.setdefault("sources", {})["topiclab_shared"] = {
+        "id": "topiclab_shared",
+        "name": "TopicLab-共享",
+        "description": "User-shared moderator modes from frontend",
+    }
+    main_meta_path.write_text(json.dumps(main_meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    meta.setdefault("modes", {})[req.mode_id] = {
+        "id": req.mode_id,
+        "source": "topiclab_shared",
+        "name": name,
+        "description": description,
+        "category": "topiclab",
+        "num_rounds": config.get("num_rounds", 5),
+        "convergence_strategy": "User-defined flow",
+        "prompt_file": prompt_file_name,
+        "summary_scope": "key findings, consensus, disagreements",
+    }
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    reload_moderator_modes()
+    invalidate_libs_cache()
+
+    return {"message": "Moderator mode shared to platform successfully", "mode_id": req.mode_id}
