@@ -1,10 +1,13 @@
 """Topic-level experts management API endpoints."""
 
 import json
+import logging
 import shutil
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+
+logger = logging.getLogger(__name__)
 
 from app.agent.experts import EXPERT_SPECS, reload_expert_specs
 from app.agent.generation import generate_expert
@@ -219,71 +222,107 @@ def get_topic_expert_content(topic_id: str, expert_name: str):
 @router.post("/{topic_id}/experts/{expert_name}/share", response_model=TopicExpertResponse)
 def share_expert_to_platform(topic_id: str, expert_name: str):
     """Share a topic-level expert to the platform library (topiclab_shared source)."""
-    topic = get_topic(topic_id)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    try:
+        topic = get_topic(topic_id)
+        if not topic:
+            raise HTTPException(status_code=404, detail="Topic not found")
 
-    # Reject if expert is built-in (default source); allow overwrite for topiclab_shared
-    existing = EXPERT_SPECS.get(expert_name)
-    if existing and existing.get("source") == "default":
-        raise HTTPException(
-            status_code=409,
-            detail=f"Expert '{expert_name}' is built-in; cannot overwrite"
-        )
+        # Reject if expert is built-in (default source); allow overwrite for topiclab_shared
+        existing = EXPERT_SPECS.get(expert_name)
+        if existing and existing.get("source") == "default":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Expert '{expert_name}' is built-in; cannot overwrite"
+            )
 
-    ws_base = get_workspace_base()
-    ws_path = ws_base / "topics" / topic_id
-    role_file = ws_path / "agents" / expert_name / "role.md"
+        ws_base = get_workspace_base()
+        ws_path = ws_base / "topics" / topic_id
+        role_file = ws_path / "agents" / expert_name / "role.md"
 
-    if not role_file.exists():
-        raise HTTPException(status_code=404, detail=f"Expert not found: {expert_name}")
+        if not role_file.exists():
+            raise HTTPException(status_code=404, detail=f"Expert not found: {expert_name}")
 
-    experts = get_topic_experts(ws_path)
-    expert_meta = next((e for e in experts if e["name"] == expert_name), None)
-    if not expert_meta:
-        raise HTTPException(status_code=404, detail="Expert metadata not found")
+        experts = get_topic_experts(ws_path)
+        expert_meta = next((e for e in experts if e["name"] == expert_name), None)
+        if not expert_meta:
+            raise HTTPException(status_code=404, detail="Expert metadata not found")
 
-    # Write to libs/experts/topiclab_shared/ (user-shared, separate from built-in default)
-    experts_dir = get_experts_dir()
-    shared_dir = experts_dir / "topiclab_shared"
-    shared_dir.mkdir(parents=True, exist_ok=True)
-    skill_file_name = f"{expert_name}.md"
-    (shared_dir / skill_file_name).write_text(role_file.read_text(encoding="utf-8"), encoding="utf-8")
+        # Write to libs/experts/topiclab_shared/ (user-shared, separate from built-in default)
+        experts_dir = get_experts_dir()
+        shared_dir = experts_dir / "topiclab_shared"
+        shared_dir.mkdir(parents=True, exist_ok=True)
+        skill_file_name = f"{expert_name}.md"
+        (shared_dir / skill_file_name).write_text(role_file.read_text(encoding="utf-8"), encoding="utf-8")
 
-    # Update topiclab_shared/meta.json (create if missing, like moderator_mode share)
-    meta_path = shared_dir / "meta.json"
-    if meta_path.exists():
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    else:
-        meta = {
-            "common_sections": "expert_common.md",
-            "categories": {
-                "topiclab": {
-                    "id": "topiclab",
-                    "name": "TopicLab",
-                    "description": "User-shared experts from frontend",
-                }
-            },
-            "experts": {},
+        # Update topiclab_shared/meta.json (create if missing, like moderator_mode share)
+        meta_path = shared_dir / "meta.json"
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                logger.warning(f"Invalid topiclab_shared/meta.json, recreating: {e}")
+                meta = None
+            if meta is None or not isinstance(meta, dict):
+                meta = {}
+        else:
+            meta = {}
+        meta.setdefault("common_sections", "expert_common.md")
+        if not isinstance(meta.get("categories"), dict):
+            meta["categories"] = {}
+        meta["categories"].setdefault("topiclab", {
+            "id": "topiclab",
+            "name": "TopicLab",
+            "description": "User-shared experts from frontend",
+        })
+        experts_dict = meta.get("experts")
+        if not isinstance(experts_dict, dict):
+            experts_dict = {}
+            meta["experts"] = experts_dict
+        experts_dict[expert_name] = {
+            "id": expert_name,
+            "source": "topiclab_shared",
+            "name": expert_name,
+            "label": expert_meta.get("label", expert_name),
+            "description": expert_meta.get("description", ""),
+            "category": "topiclab",
+            "skill_file": skill_file_name,
+            "perspective": expert_meta.get("perspective", expert_name),
         }
-    meta.setdefault("experts", {})[expert_name] = {
-        "id": expert_name,
-        "source": "topiclab_shared",
-        "name": expert_name,
-        "label": expert_meta["label"],
-        "description": expert_meta["description"],
-        "category": "topiclab",
-        "skill_file": skill_file_name,
-        "perspective": expert_meta.get("perspective", expert_name),
-    }
-    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    # Reload EXPERT_SPECS so subsequent requests see the new expert
-    reload_expert_specs()
-    from app.core.libs_service import invalidate_libs_cache
-    invalidate_libs_cache()
+        # Ensure topiclab_shared is registered in main meta.json (required for reload to pick it up)
+        main_meta_path = experts_dir / "meta.json"
+        if main_meta_path.exists():
+            try:
+                main_meta = json.loads(main_meta_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                logger.warning(f"Invalid experts/meta.json: {e}")
+                main_meta = {}
+        else:
+            main_meta = {}
+        main_meta.setdefault("sources", {})["topiclab_shared"] = {
+            "id": "topiclab_shared",
+            "name": "TopicLab-共享",
+            "description": "User-shared experts from frontend",
+        }
+        main_meta_path.parent.mkdir(parents=True, exist_ok=True)
+        main_meta_path.write_text(json.dumps(main_meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    return {"message": "Expert shared to platform successfully", "expert_name": expert_name}
+        # Reload EXPERT_SPECS so subsequent requests see the new expert
+        reload_expert_specs()
+        from app.core.libs_service import invalidate_libs_cache
+        invalidate_libs_cache()
+
+        return {"message": "Expert shared to platform successfully", "expert_name": expert_name}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Expert share failed: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Share failed: {type(e).__name__}: {e}",
+        ) from e
 
 
 @router.post("/{topic_id}/experts/generate", response_model=GenerateExpertActionResponse)

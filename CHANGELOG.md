@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Expert share 500**: `POST /topics/{id}/experts/{name}/share` no longer returns 500 when `libs/experts/topiclab_shared/meta.json` does not exist (first share). Creates default meta structure like moderator-mode share.
+- **Expert share (deploy)**: Ensures `topiclab_shared` is registered in `libs/experts/meta.json` so reload picks up shared experts when LIBS_PATH mount is empty; handles malformed JSON and missing fields; returns descriptive error on failure.
 
 ### Changed
 
