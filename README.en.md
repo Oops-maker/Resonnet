@@ -216,6 +216,11 @@ Or use `docker compose up --build`.
 - Strengthen observability and audit (discussion process, artifacts, cost, call chains)
 - Prioritize real-world scenario closure (research discussions, review workflows, enterprise collaboration) before extending mechanism complexity
 
+## Planned Updates
+
+- **Topic thread isolation sandbox**: Isolated sandbox per topic discussion/reply thread for stronger execution isolation and security
+- **User system**: User authentication and authorization, multi-tenancy, topic ownership, and access control
+
 ## API Overview
 
 - `GET /health` — Health check

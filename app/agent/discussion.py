@@ -71,7 +71,7 @@ async def run_discussion(
     topic: str,
     num_rounds: int = 5,
     expert_names: list[str] | None = None,
-    max_turns: int = 60,
+    max_turns: int = 10000,
     max_budget_usd: float = 5.0,
     allowed_tools: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -159,7 +159,7 @@ async def run_discussion_for_topic(
     workspace_base: Path | str | None = None,
     num_rounds: int = 5,
     expert_names: list[str] | None = None,
-    max_turns: int = 60,
+    max_turns: int = 10000,
     max_budget_usd: float = 5.0,
     model: str | None = None,
     allowed_tools: list[str] | None = None,

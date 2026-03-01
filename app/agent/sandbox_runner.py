@@ -150,7 +150,7 @@ def _run_discussion_task(task: dict) -> dict:
             topic=task["topic_text"],
             num_rounds=task.get("num_rounds", 5),
             expert_names=task.get("expert_names"),
-            max_turns=task.get("max_turns", 60),
+            max_turns=task.get("max_turns", 10000),
             max_budget_usd=task.get("max_budget_usd", 5.0),
         )
     )

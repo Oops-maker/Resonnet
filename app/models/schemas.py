@@ -103,9 +103,9 @@ DEFAULT_ALLOWED_TOOLS = [
 
 
 class StartDiscussionRequest(BaseModel):
-    num_rounds: int = Field(default=5, ge=1, le=10)
-    max_turns: int = Field(default=60, ge=10, le=200)
-    max_budget_usd: float = Field(default=5.0, ge=0.1, le=50.0)
+    num_rounds: int = Field(default=5, ge=1, le=20)
+    max_turns: int = Field(default=10000, ge=10, le=10000)
+    max_budget_usd: float = Field(default=5.0, ge=0.1)  # no upper limit
     model: str | None = None
     allowed_tools: list[str] | None = Field(
         default=None,
@@ -182,12 +182,12 @@ class GenerateExpertRequest(BaseModel):
     """AI generate expert request."""
     expert_name: Optional[str] = Field(None, min_length=2, max_length=50, pattern=r"^[a-z_]+$")
     expert_label: str = Field(..., min_length=2, max_length=50)
-    description: str = Field(..., min_length=10, max_length=1000)
+    description: str = Field(..., min_length=1, max_length=1000)
 
 
 class GenerateModeratorModeRequest(BaseModel):
     """AI generate moderator mode request."""
-    prompt: str = Field(..., min_length=10, max_length=1000)
+    prompt: str = Field(..., min_length=1, max_length=1000)
 
 
 # --- Moderator mode models ---
@@ -204,7 +204,7 @@ class ModeratorModeInfo(BaseModel):
 class ModeratorModeConfig(BaseModel):
     """Topic moderator mode config."""
     mode_id: str
-    num_rounds: int = Field(default=5, ge=1, le=10)
+    num_rounds: int = Field(default=5, ge=1, le=20)
     custom_prompt: Optional[str] = None
     skill_list: list[str] = Field(default_factory=list, description="Selected skill ids for discussion")
     mcp_server_ids: list[str] = Field(default_factory=list, description="Selected MCP server ids for discussion")
@@ -214,7 +214,7 @@ class ModeratorModeConfig(BaseModel):
 class SetModeratorModeRequest(BaseModel):
     """Set moderator mode request."""
     mode_id: str
-    num_rounds: int = Field(default=5, ge=1, le=10)
+    num_rounds: int = Field(default=5, ge=1, le=20)
     custom_prompt: Optional[str] = None
     skill_list: Optional[list[str]] = None
     mcp_server_ids: Optional[list[str]] = None
