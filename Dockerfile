@@ -1,4 +1,5 @@
-FROM python:3.11-slim
+ARG PYTHON_BASE_IMAGE=python:3.11-slim
+FROM ${PYTHON_BASE_IMAGE}
 
 # 创建非 root 用户
 RUN useradd -m -u 1000 appuser

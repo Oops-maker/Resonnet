@@ -3,88 +3,94 @@ import json
 
 from app.services.profile_helper.llm_client import create_client, get_default_model
 from app.services.profile_helper.prompts import META_SYSTEM_PROMPT
-from app.services.profile_helper.tools import DOC_NAMES, SKILL_NAMES, read_doc, read_skill
+from app.services.profile_helper.tools import (
+    list_doc_names,
+    list_skill_names,
+    read_doc,
+    read_skill,
+)
 
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "read_skill",
-            "description": "读取指定 Skill 文件，获取具体任务的操作指南。执行任务前必须先调用此工具。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "skill_name": {
-                        "type": "string",
-                        "enum": SKILL_NAMES,
-                        "description": "Skill 名称",
-                    }
+def _build_tools() -> list[dict]:
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "read_skill",
+                "description": "读取指定 Skill 文件，获取具体任务的操作指南。执行任务前必须先调用此工具。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "skill_name": {
+                            "type": "string",
+                            "enum": list_skill_names(),
+                            "description": "Skill 名称",
+                        }
+                    },
+                    "required": ["skill_name"],
                 },
-                "required": ["skill_name"],
             },
         },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_doc",
-            "description": "读取参考文档（量表原题等）。施测时用此工具获取题目。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "doc_name": {
-                        "type": "string",
-                        "enum": DOC_NAMES,
-                        "description": "文档名称",
-                    }
+        {
+            "type": "function",
+            "function": {
+                "name": "read_doc",
+                "description": "读取参考文档（量表原题等）。施测时用此工具获取题目。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "doc_name": {
+                            "type": "string",
+                            "enum": list_doc_names(),
+                            "description": "文档名称",
+                        }
+                    },
+                    "required": ["doc_name"],
                 },
-                "required": ["doc_name"],
             },
         },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_profile",
-            "description": "获取当前会话中的画像内容。每次开始任务前先调用，了解当前填写进度和采集阶段。",
-            "parameters": {"type": "object", "properties": {}},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_profile",
-            "description": "将发展画像内容写入会话。采集到数据后必须调用此工具保存，不要只在对话中展示而不保存。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "content": {
-                        "type": "string",
-                        "description": "完整的发展画像 Markdown 内容",
-                    }
-                },
-                "required": ["content"],
+        {
+            "type": "function",
+            "function": {
+                "name": "read_profile",
+                "description": "获取当前会话中的画像内容。每次开始任务前先调用，了解当前填写进度和采集阶段。",
+                "parameters": {"type": "object", "properties": {}},
             },
         },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_forum_profile",
-            "description": "将论坛画像（数字分身）写入会话。当用户确认「生成论坛画像」并完成隐私设置后，用此工具保存论坛画像内容。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "content": {
-                        "type": "string",
-                        "description": "完整的论坛画像 Markdown（Identity/Expertise/Thinking Style/Discussion Style 四节格式）",
-                    }
+        {
+            "type": "function",
+            "function": {
+                "name": "write_profile",
+                "description": "将发展画像内容写入会话。采集到数据后必须调用此工具保存，不要只在对话中展示而不保存。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "content": {
+                            "type": "string",
+                            "description": "完整的发展画像 Markdown 内容",
+                        }
+                    },
+                    "required": ["content"],
                 },
-                "required": ["content"],
             },
         },
-    },
-]
+        {
+            "type": "function",
+            "function": {
+                "name": "write_forum_profile",
+                "description": "将论坛画像（数字分身）写入会话。当用户确认「生成论坛画像」并完成隐私设置后，用此工具保存论坛画像内容。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "content": {
+                            "type": "string",
+                            "description": "完整的论坛画像 Markdown（Identity/Expertise/Thinking Style/Discussion Style 四节格式）",
+                        }
+                    },
+                    "required": ["content"],
+                },
+            },
+        },
+    ]
 
 
 def _execute_tool(name: str, args: dict, session: dict) -> str:
@@ -132,7 +138,7 @@ def run_agent(
         response = client.chat.completions.create(
             model=model,
             messages=[{"role": "system", "content": META_SYSTEM_PROMPT}] + messages,
-            tools=TOOLS,
+            tools=_build_tools(),
             tool_choice="auto",
         )
 
