@@ -19,6 +19,7 @@ from app.api import (
     mcp as mcp_router,
     moderator_modes,
     posts,
+    profile_helper as profile_helper_router,
     skills as skills_router,
     topic_experts,
     topics,
@@ -76,6 +77,7 @@ app.include_router(skills_router.router, prefix="/skills", tags=["skills"])
 app.include_router(experts.router, prefix="/experts", tags=["experts"])
 app.include_router(mcp_router.router, prefix="/mcp", tags=["mcp"])
 app.include_router(libs_router.router, prefix="/libs", tags=["libs"])
+app.include_router(profile_helper_router.router, prefix="/profile-helper", tags=["profile-helper"])
 
 
 @app.get("/health")
