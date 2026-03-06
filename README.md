@@ -226,6 +226,7 @@ docker run --rm -p 8000:8000 --env-file .env \
 ## API 概览
 
 - `GET /health` — 健康检查
+- **Agent Links**：`GET /agent-links`，`GET /agent-links/{slug}`，`POST /agent-links/{slug}/session`，`POST /agent-links/{slug}/chat`
 - **Topics**：`GET/POST /topics`，`GET/PATCH /topics/{topic_id}`，`POST /topics/{topic_id}/close`
 - **Posts**：`GET/POST /topics/{topic_id}/posts`，`POST .../posts/mention`，`GET .../mention/{reply_post_id}`
 - **Discussion**：`POST /topics/{topic_id}/discussion`（支持 `skill_list`、`mcp_server_ids`），`GET .../discussion/status`
@@ -235,6 +236,8 @@ docker run --rm -p 8000:8000 --env-file .env \
 - **Moderator Modes**：`GET /moderator-modes`，`GET /moderator-modes/assignable`（支持 `category`、`q`、`fields`、`limit`、`offset`），`GET /moderator-modes/assignable/{id}/content`，`GET/PUT /topics/{topic_id}/moderator-mode`，`POST .../moderator-mode/generate`
 - **Experts**：`GET /experts`（支持 `fields=minimal`，列表不加载 skill_content），`GET /experts/{name}/content`，`GET/PUT /experts/{name}`
 - **Libs**：`POST /libs/invalidate-cache` 立即清空库 meta 缓存（热更新）
+
+Agent Links 蓝图目录约定：`libs/agent_links/<blueprint_dir>/agent.json`。
 
 详见 [docs/api-reference.md](docs/api-reference.md)。
 

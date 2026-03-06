@@ -12,6 +12,7 @@ This directory contains technical implementation details and design docs for Res
 | [mcp-config.md](mcp-config.md) | MCP config API, validation (npm/uvx/remote only, no local) |
 | [testing.md](testing.md) | Test layers (unit/integration), .env setup, CI notes |
 | [api-reference.md](api-reference.md) | API endpoint list and brief descriptions |
+| [agent-links-runtime.md](agent-links-runtime.md) | Agent link runtime lifecycle: per-session workspace, SSE chat, import limits |
 | [skills-generalization.md](skills-generalization.md) | Library design; experts in `libs/experts/`; discussion modes in `libs/moderator_modes/` |
 | [skills-submodule-guide.md](skills-submodule-guide.md) | Add/update skill libraries via submodule; points to Cursor skill |
 | [import-skill-repo.md](import-skill-repo.md) | One-click import script for external skill repos |

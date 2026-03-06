@@ -12,6 +12,100 @@
 |--------|------|-------------|
 | POST | `/libs/invalidate-cache` | Clear meta cache for skills/mcp/moderator_modes (hot-reload) |
 
+## Agent Links (Link as Agent)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/agent-links` | List shareable agent blueprints |
+| GET | `/agent-links/{slug}` | Get one blueprint detail |
+| POST | `/agent-links/import/preview` | Preview zip file list before import |
+| POST | `/agent-links/import` | Import a blueprint zip into `libs/agent_links` |
+| POST | `/agent-links/{slug}/session` | Start (or bind) a chat session from a blueprint |
+| POST | `/agent-links/{slug}/chat` | Stream chat via blueprint-defined agent (SSE) |
+| POST | `/agent-links/{slug}/files/upload` | Upload a file to current session workspace |
+
+### Blueprint Directory Convention
+
+Blueprints can be placed under `libs/agent_links/<blueprint_dir>/` with an `agent.json`:
+
+- `rule_file_path` points to the role/task rule file (for example: `.cursor/rules/profile-collector.mdc`)
+- `agent_workdir` in `agent.json` is the blueprint source directory
+- `welcome_message` is returned when a session starts
+
+Example layout:
+
+```text
+libs/agent_links/tashan-profile-helper_demo/
+├── agent.json
+├── .cursor/
+│   ├── rules/profile-collector.mdc
+│   └── skills/**/SKILL.md
+├── doc/*.md
+└── profiles/_template.md
+```
+
+### `POST /agent-links/{slug}/session` response highlights
+
+- `session_id`
+- `agent_link` (full blueprint metadata)
+- `welcome_message`
+- `agent_workdir` (runtime per-session workspace)
+
+### `POST /agent-links/{slug}/chat` behavior
+
+- Uses SSE (`text/event-stream`)
+- Runtime is Claude Agent SDK with per-session workspace copied from the blueprint
+- Response headers include:
+  - `X-Session-Id`
+  - `X-Agent-Link`
+  - `X-Agent-Workdir` (runtime per-session workspace)
+- System prompt is derived from the blueprint `rule_file_path` content
+- Stream payload supports structured events:
+  - `assistant_delta` (`content`)
+  - `thinking`
+  - `tool_call`
+  - `tool_result`
+  - `plan`
+  - `system`
+  - `result`
+- UI consumers may choose a subset (for example: dialogue + `plan`) and hide low-level events.
+
+### `POST /agent-links/import/preview` behavior
+
+- Accepts multipart zip file upload (`.zip` only)
+- Maximum zip size is `5MB`
+- Returns:
+  - `files`: first 300 file paths from zip
+  - `total`: total file count in zip
+
+### `POST /agent-links/import` behavior
+
+- Accepts multipart fields:
+  - `file` (`.zip`, required)
+  - `name` (required)
+  - `rule_file_path` (required)
+  - `welcome_message` (required)
+  - `slug`, `description`, `default_model`, `overwrite` (optional)
+- Maximum zip size is `5MB`
+- Validation:
+  - zip traversal is blocked (`Invalid zip structure`)
+  - `rule_file_path` must resolve to a file inside imported blueprint
+
+For runtime details, see [agent-links-runtime.md](agent-links-runtime.md).
+
+### `POST /agent-links/{slug}/files/upload` behavior
+
+- Accepts multipart fields:
+  - `file` (required)
+  - `session_id` (optional; if empty, backend creates a new bound session)
+  - `target_path` (optional, default `uploads`)
+- Maximum file size is `30MB`
+- `target_path` must be relative and inside session workspace
+- Response:
+  - `session_id`
+  - `path` (relative path in workspace)
+  - `size` (bytes)
+
 ## Topics
 
 | Method | Path | Description |
