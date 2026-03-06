@@ -148,7 +148,7 @@ def import_profile_to_experts(req: ImportProfileRequest):
             "source": "topiclab_shared",
             "name": expert_name,
             "label": label,
-            "description": "从科研画像助手论坛画像导入",
+            "description": "从科研数字分身助手论坛画像导入",
             "category": "topiclab",
             "skill_file": skill_file_name,
             "perspective": expert_name,

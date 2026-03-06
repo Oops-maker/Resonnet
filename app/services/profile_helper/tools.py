@@ -117,4 +117,4 @@ def load_template() -> str:
     template_path = _template_path()
     if template_path.exists():
         return template_path.read_text(encoding="utf-8")
-    return "# 科研发展画像\n\n（空白模板）\n"
+    return "# 科研数字分身\n\n（空白模板）\n"
