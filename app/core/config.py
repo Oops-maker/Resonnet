@@ -140,6 +140,11 @@ def get_experts_dir() -> Path:
     return _libs_root() / "experts"
 
 
+def get_agent_links_dir() -> Path:
+    """Return libs/agent_links/."""
+    return _libs_root() / "agent_links"
+
+
 def get_profile_helper_root() -> Path:
     """Return libs/profile_helper/ (skills, docs, template for profile helper module)."""
     return _libs_root() / "profile_helper"

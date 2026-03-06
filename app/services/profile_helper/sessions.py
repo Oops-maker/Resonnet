@@ -82,3 +82,9 @@ def reset(session_id: str) -> dict:
     """Reset session: clear messages and restore template profile."""
     _sessions[session_id] = _new_session()
     return _sessions[session_id]
+
+
+def list_ids() -> list[str]:
+    """List current active session IDs after best-effort cleanup."""
+    _cleanup()
+    return list(_sessions.keys())

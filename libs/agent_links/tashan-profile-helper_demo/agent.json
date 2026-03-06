@@ -1,0 +1,15 @@
+{
+  "slug": "tashan-profile-helper-demo",
+  "name": "Tashan Profile Helper Demo",
+  "description": "Research digital persona blueprint from predefined directory.",
+  "module": "profile_helper",
+  "entry_skill": "collect-basic-info",
+  "blueprint_root": "/app/libs/agent_links/tashan-profile-helper_demo",
+  "agent_workdir": "/app/libs/agent_links/tashan-profile-helper_demo",
+  "rule_file_path": "/app/libs/agent_links/tashan-profile-helper_demo/.cursor/rules/profile-collector.mdc",
+  "skills_path": "/app/libs/agent_links/tashan-profile-helper_demo/.cursor/skills",
+  "docs_path": "/app/libs/agent_links/tashan-profile-helper_demo/doc",
+  "template_path": "/app/libs/agent_links/tashan-profile-helper_demo/profiles/_template.md",
+  "welcome_message": "你好，我是科研数字分身采集助手。",
+  "default_model": ""
+}

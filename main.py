@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
+    agent_links as agent_links_router,
     discussion as discussion_router,
     experts,
     libs as libs_router,
@@ -78,6 +79,7 @@ app.include_router(experts.router, prefix="/experts", tags=["experts"])
 app.include_router(mcp_router.router, prefix="/mcp", tags=["mcp"])
 app.include_router(libs_router.router, prefix="/libs", tags=["libs"])
 app.include_router(profile_helper_router.router, prefix="/profile-helper", tags=["profile-helper"])
+app.include_router(agent_links_router.router, prefix="/agent-links", tags=["agent-links"])
 
 
 @app.get("/health")
