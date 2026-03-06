@@ -292,6 +292,7 @@ async def chat_via_agent_link(slug: str, req: LinkChatRequest):
     async def generate():
         try:
             async for chunk in agent_links_runtime.stream_chat(
+                session_id=session_id,
                 user_message=req.message,
                 workdir=session_workdir,
                 system_prompt=system_prompt,

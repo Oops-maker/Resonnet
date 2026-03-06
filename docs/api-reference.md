@@ -54,7 +54,8 @@ libs/agent_links/tashan-profile-helper_demo/
 ### `POST /agent-links/{slug}/chat` behavior
 
 - Uses SSE (`text/event-stream`)
-- Runtime is Claude Agent SDK with per-session workspace copied from the blueprint
+- Runtime maintains a **persistent `ClaudeSDKClient` subprocess per session**; the agent remembers conversation history natively across turns without prompt injection
+- Concurrent requests to the same session are serialised by an `asyncio.Lock`; the subprocess is reconnected automatically if it dies between turns
 - Response headers include:
   - `X-Session-Id`
   - `X-Agent-Link`
@@ -69,6 +70,8 @@ libs/agent_links/tashan-profile-helper_demo/
   - `system`
   - `result`
 - UI consumers may choose a subset (for example: dialogue + `plan`) and hide low-level events.
+
+For full runtime details (session lifecycle, client state tracking, memory mechanisms), see [agent-links-runtime.md](agent-links-runtime.md).
 
 ### `POST /agent-links/import/preview` behavior
 

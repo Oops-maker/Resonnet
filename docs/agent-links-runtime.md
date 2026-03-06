@@ -9,17 +9,65 @@ This document describes how `agent link` sessions run in the backend.
 
 ## Runtime Model
 
-`agent link` chat uses Claude Agent SDK and creates an isolated workspace per session.
+`agent link` chat uses a **persistent `ClaudeSDKClient` subprocess per session**.  
+Each session gets one long-lived Claude Code CLI process that is reused across all turns,
+so the agent retains full conversation history natively — no prompt-injection required.
 
-Flow:
+### Turn Flow
 
-1. Load blueprint metadata from `libs/agent_links/<slug>/agent.json`.
-2. Create or bind an in-memory session (`profile_helper.sessions`).
-3. Create a per-session working directory at:
-   - `WORKSPACE_BASE/agent_links_sessions/<session_id>`
-4. Copy full blueprint content into that directory (first use only).
-5. Build system prompt from blueprint `rule_file_path` content.
-6. Run Claude Agent SDK query stream and return SSE chunks.
+```
+POST /agent-links/{slug}/chat
+  → ensure session workspace exists (copy blueprint on first use)
+  → acquire per-session asyncio.Lock  (serialises concurrent turns)
+  → _get_or_create_client(session_id, options)
+       ├─ existing client alive & clean → reuse subprocess
+       └─ dead / dirty → disconnect, reconnect
+  → client.query(user_message)          → writes to subprocess stdin
+  → async for msg in client.receive_response()   → reads until ResultMessage
+  → yield SSE events
+  → mark turn complete, release lock
+```
+
+### Conversation Memory
+
+Memory is maintained by two complementary mechanisms:
+
+| Mechanism | How | Scope |
+|-----------|-----|-------|
+| **Subprocess conversation history** | `ClaudeSDKClient` keeps the Claude Code process alive between turns; the CLI process natively remembers prior messages | Within one uninterrupted subprocess lifetime |
+| **Workspace file state** | Agent reads/writes files in `WORKSPACE_BASE/agent_links_sessions/<session_id>/`; subsequent turns (even fresh subprocesses) read those files | Persistent for the session lifetime |
+
+### Session Lifecycle
+
+```
+Session starts
+  → ClaudeSDKClient.connect()           (subprocess spawned)
+  → subprocess idle, stdin open
+
+Turn N
+  → _turn_complete[session_id] = False  (dirty)
+  → client.query(msg)
+  → client.receive_response() → ... → ResultMessage
+  → _turn_complete[session_id] = True   (clean)
+
+Turn N+1 … (same subprocess, full history retained)
+
+Subprocess dies (idle timeout / crash)
+  → _get_or_create_client detects _query._closed == True or _turn_complete == False
+  → disconnect old, connect new subprocess
+  → conversation continues via workspace file state
+
+Session expires (TTL / max-count eviction)
+  → _cleanup_orphans() disconnects client, removes workspace directory
+```
+
+### Client State Tracking
+
+| Variable | Type | Purpose |
+|----------|------|---------|
+| `_sdk_clients` | `dict[session_id, ClaudeSDKClient]` | Persistent subprocess per session |
+| `_sdk_locks` | `dict[session_id, asyncio.Lock]` | Prevents concurrent turns on same session |
+| `_turn_complete` | `dict[session_id, bool]` | True after ResultMessage; False means subprocess may be in dirty state |
 
 Implementation files:
 
@@ -42,8 +90,9 @@ Implementation files:
 - Session cleanup is still controlled by in-memory session TTL and max-count:
   - `PROFILE_HELPER_SESSION_TTL_SECONDS`
   - `PROFILE_HELPER_SESSION_MAX_COUNT`
-- `agent_links_runtime.ensure_session_workspace(...)` performs best-effort orphan directory cleanup:
+- `agent_links_runtime.ensure_session_workspace(...)` performs best-effort orphan cleanup:
   - any directory under `WORKSPACE_BASE/agent_links_sessions/` whose name is not in active session IDs is removed.
+  - the corresponding `ClaudeSDKClient` subprocess is disconnected.
 
 ## Prompt and Model
 
@@ -83,6 +132,7 @@ Implementation files:
 - supports `target_path` (relative subdirectory; default `uploads`)
 - blocks path escape outside workspace
 - max file size is `30MB`
+- uploaded files appear in the workspace; the agent reads them automatically on the next turn
 
 ## SSE Format
 
@@ -101,6 +151,8 @@ Implementation files:
 - end marker:
   - `data: [DONE]`
 
+Nginx (frontend reverse proxy) must have `proxy_buffering off` on the `/topic-lab/api/` location block for SSE to stream through without buffering delay.
+
 ## Agent Link Chat UI Defaults
 
 Current `agent link` chat page is intentionally simplified for end users:
@@ -109,3 +161,5 @@ Current `agent link` chat page is intentionally simplified for end users:
 - by default only renders normal dialogue and `plan` blocks
 - hides low-level runtime events (`thinking`, `tool_call`, `tool_result`, `system`) in this page
 - Enter sends message, but IME composing Enter (Chinese input method candidate selection) does not send
+- input box remains enabled during agent output (only the send button is disabled while loading)
+- uploaded files are stored in the workspace `uploads/` subdirectory; file chips are read-only (paths are not injected into the chat input)
