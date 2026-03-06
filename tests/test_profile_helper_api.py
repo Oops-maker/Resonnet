@@ -8,6 +8,39 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 
+def test_profile_helper_session_expired_cleanup(monkeypatch):
+    from app.services.profile_helper import sessions as profile_sessions
+
+    profile_sessions._sessions.clear()
+    monkeypatch.setattr(profile_sessions, "SESSION_TTL_SECONDS", 60)
+
+    sid, session = profile_sessions.get_or_create("expired_session")
+    assert sid == "expired_session"
+    session["updated_at"] = profile_sessions._now() - 120
+
+    assert profile_sessions.get(sid) is None
+    assert sid not in profile_sessions._sessions
+
+
+def test_profile_helper_session_max_count_cleanup(monkeypatch):
+    from app.services.profile_helper import sessions as profile_sessions
+
+    profile_sessions._sessions.clear()
+    monkeypatch.setattr(profile_sessions, "SESSION_TTL_SECONDS", 3600)
+    monkeypatch.setattr(profile_sessions, "SESSION_MAX_COUNT", 2)
+
+    s1, _ = profile_sessions.get_or_create("s1")
+    profile_sessions._sessions[s1]["updated_at"] = profile_sessions._now() - 10
+    s2, _ = profile_sessions.get_or_create("s2")
+    profile_sessions._sessions[s2]["updated_at"] = profile_sessions._now() - 5
+    s3, _ = profile_sessions.get_or_create("s3")
+
+    assert s3 in profile_sessions._sessions
+    assert len(profile_sessions._sessions) == 2
+    assert "s1" not in profile_sessions._sessions
+    assert "s2" in profile_sessions._sessions
+
+
 def test_profile_helper_session_lifecycle_and_download(client: TestClient):
     create_resp = client.get("/profile-helper/session")
     assert create_resp.status_code == 200
