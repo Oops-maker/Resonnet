@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-03-07
+
+### Added
+
+- **Agent Links**: `GET /agent-links`, `GET /agent-links/{slug}`, `POST /agent-links/import/preview`, `POST /agent-links/import`, `POST /agent-links/{slug}/session`, `POST /agent-links/{slug}/chat` (SSE), `POST /agent-links/{slug}/files/upload`; blueprint dir convention `libs/agent_links/<blueprint_dir>/agent.json`
+- **Profile Helper**: `GET /profile-helper/session`, `POST /profile-helper/chat` (SSE), `GET /profile-helper/profile/{session_id}`, `GET /profile-helper/download/{session_id}`, `GET /profile-helper/download/{session_id}/forum`, `POST /profile-helper/session/reset/{session_id}`
+- **Experts import**: `POST /experts/import-profile` — import forum profile into `libs/experts/topiclab_shared/` as expert
+
+### Changed
+
+- api-reference.md: add Profile Helper, Experts import-profile docs
 
 ## [0.3.0] - 2026-03-01
 

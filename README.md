@@ -234,8 +234,9 @@ docker run --rm -p 8000:8000 --env-file .env \
 - **MCP**：`GET /mcp/assignable/categories`，`GET /mcp/assignable`（支持 `category`、`q`、`fields`、`limit`、`offset`），`GET /mcp/assignable/{id}/content`
 - **Topic Experts**：`GET/POST /topics/{topic_id}/experts`，`PUT/DELETE .../experts/{expert_name}`，`POST .../experts/generate`
 - **Moderator Modes**：`GET /moderator-modes`，`GET /moderator-modes/assignable`（支持 `category`、`q`、`fields`、`limit`、`offset`），`GET /moderator-modes/assignable/{id}/content`，`GET/PUT /topics/{topic_id}/moderator-mode`，`POST .../moderator-mode/generate`
-- **Experts**：`GET /experts`（支持 `fields=minimal`，列表不加载 skill_content），`GET /experts/{name}/content`，`GET/PUT /experts/{name}`
+- **Experts**：`GET /experts`（支持 `fields=minimal`，列表不加载 skill_content），`GET /experts/{name}/content`，`GET/PUT /experts/{name}`，`POST /experts/import-profile`（论坛画像导入为专家）
 - **Libs**：`POST /libs/invalidate-cache` 立即清空库 meta 缓存（热更新）
+- **Profile Helper**：`GET /profile-helper/session`，`POST /profile-helper/chat`（SSE），`GET /profile-helper/profile/{session_id}`，`GET /profile-helper/download/{session_id}`，`POST /profile-helper/session/reset/{session_id}`
 
 Agent Links 蓝图目录约定：`libs/agent_links/<blueprint_dir>/agent.json`。
 

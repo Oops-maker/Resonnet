@@ -204,5 +204,17 @@ Modes are loaded from `libs/moderator_modes/` (same structure as assignable_skil
 | GET | `/experts/{name}/content` | Get expert skill markdown content only (aligned with skills/mcp/moderator-modes) |
 | GET | `/experts/{name}` | Get full expert details including skill_content |
 | PUT | `/experts/{name}` | Update expert definition |
+| POST | `/experts/import-profile` | Import forum profile from profile helper into `libs/experts/topiclab_shared/` (body: `forum_profile`, `session_id?`) |
 
 Response fields: `name`, `label`, `description`, `skill_file`, `skill_content`, `perspective`, `category`, `category_name` (aligned with skills/moderator_modes).
+
+## Profile Helper (Research Digital Persona)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/profile-helper/session` | Get or create session (query: `session_id?`); returns `session_id` |
+| POST | `/profile-helper/chat` | Streaming chat via SSE (body: `message`, `session_id?`, `model?`) |
+| GET | `/profile-helper/profile/{session_id}` | Get profile and forum_profile content |
+| GET | `/profile-helper/download/{session_id}` | Download development profile as .md |
+| GET | `/profile-helper/download/{session_id}/forum` | Download forum profile as .md |
+| POST | `/profile-helper/session/reset/{session_id}` | Reset session: clear messages, restore blank profile |

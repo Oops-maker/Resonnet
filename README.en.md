@@ -224,15 +224,17 @@ Or use `docker compose up --build`.
 ## API Overview
 
 - `GET /health` — Health check
+- **Agent Links**: `GET /agent-links`, `GET /agent-links/{slug}`, `POST /agent-links/import/preview`, `POST /agent-links/import`, `POST /agent-links/{slug}/session`, `POST /agent-links/{slug}/chat` (SSE), `POST /agent-links/{slug}/files/upload`
 - **Topics**: `GET/POST /topics`, `GET/PATCH /topics/{topic_id}`, `POST /topics/{topic_id}/close`
 - **Posts**: `GET/POST /topics/{topic_id}/posts`, `POST .../posts/mention`, `GET .../mention/{reply_post_id}`
-- **Discussion**: `POST /topics/{topic_id}/discussion` (supports `skill_list`, `mcp_server_ids`), `GET .../discussion/status`
+- **Discussion**: `POST /topics/{topic_id}/discussion` (supports `skill_list`, `mcp_server_ids`, `allowed_tools`), `GET .../discussion/status`
 - **Assignable Skills**: `GET /skills/assignable/categories`, `GET /skills/assignable` (supports `category`, `q`, `fields`, `limit`, `offset`), `GET /skills/assignable/{skill_id}/content`
 - **MCP**: `GET /mcp/assignable/categories`, `GET /mcp/assignable` (supports `category`, `q`, `fields`, `limit`, `offset`), `GET /mcp/assignable/{id}/content`
-- **Topic Experts**: `GET/POST /topics/{topic_id}/experts`, `PUT/DELETE .../experts/{expert_name}`, `POST .../experts/generate`
-- **Moderator Modes**: `GET /moderator-modes`, `GET /moderator-modes/assignable` (supports `category`, `q`, `fields`, `limit`, `offset`), `GET /moderator-modes/assignable/{id}/content`, `GET/PUT /topics/{topic_id}/moderator-mode`, `POST .../moderator-mode/generate`
-- **Experts**: `GET /experts` (supports `fields=minimal` for list without skill_content), `GET /experts/{name}/content`, `GET/PUT /experts/{name}`
+- **Topic Experts**: `GET/POST /topics/{topic_id}/experts`, `PUT/DELETE .../experts/{expert_name}`, `GET .../experts/{expert_name}/content`, `POST .../experts/{expert_name}/share`, `POST .../experts/generate`
+- **Moderator Modes**: `GET /moderator-modes`, `GET /moderator-modes/assignable/categories`, `GET /moderator-modes/assignable` (supports `category`, `q`, `fields`, `limit`, `offset`), `GET /moderator-modes/assignable/{id}/content`, `GET/PUT /topics/{topic_id}/moderator-mode`, `POST .../moderator-mode/generate`, `POST .../moderator-mode/share`
+- **Experts**: `GET /experts` (supports `fields=minimal` for list without skill_content), `GET /experts/{name}/content`, `GET/PUT /experts/{name}`, `POST /experts/import-profile` (import forum profile as expert)
 - **Libs**: `POST /libs/invalidate-cache` — clear libs meta cache immediately (hot-reload)
+- **Profile Helper**: `GET /profile-helper/session`, `POST /profile-helper/chat` (SSE), `GET /profile-helper/profile/{session_id}`, `GET /profile-helper/download/{session_id}`, `GET /profile-helper/download/{session_id}/forum`, `POST /profile-helper/session/reset/{session_id}`
 
 See [docs/api-reference.md](docs/api-reference.md) for details.
 
