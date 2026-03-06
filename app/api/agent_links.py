@@ -254,7 +254,7 @@ def start_link_session(slug: str, req: StartLinkSessionRequest):
         sid,
         session,
         link,
-        active_session_ids=set(profile_sessions.list_ids()),
+        active_session_ids=agent_links_runtime.get_active_ids(),
     )
     welcome = link.get("welcome_message") or ""
     return StartLinkSessionResponse(
@@ -278,7 +278,7 @@ async def chat_via_agent_link(slug: str, req: LinkChatRequest):
         session_id,
         session,
         link,
-        active_session_ids=set(profile_sessions.list_ids()),
+        active_session_ids=agent_links_runtime.get_active_ids(),
     )
 
     model = req.model or link.get("default_model") or None
@@ -331,7 +331,7 @@ async def upload_workspace_file(
         sid,
         session,
         link,
-        active_session_ids=set(profile_sessions.list_ids()),
+        active_session_ids=agent_links_runtime.get_active_ids(),
     )
     filename = (file.filename or "").strip()
     if not filename:

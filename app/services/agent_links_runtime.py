@@ -12,6 +12,19 @@ from app.core.config import get_workspace_base
 from app.models.schemas import DEFAULT_ALLOWED_TOOLS
 from app.services.profile_helper.prompts import META_SYSTEM_PROMPT
 
+# Internal registry of active agent-link session IDs — independent from profile_helper.
+_active_session_ids: set[str] = set()
+
+
+def register_session(session_id: str) -> None:
+    """Mark a session as active so its workspace is not cleaned up."""
+    _active_session_ids.add(session_id)
+
+
+def get_active_ids() -> set[str]:
+    """Return the set of currently registered active session IDs."""
+    return set(_active_session_ids)
+
 
 def _session_root() -> Path:
     root = get_workspace_base() / "agent_links_sessions"
@@ -37,6 +50,7 @@ def ensure_session_workspace(
     active_session_ids: set[str] | None = None,
 ) -> str:
     """Ensure per-session workspace exists and return its absolute path."""
+    register_session(session_id)
     if active_session_ids is not None:
         _cleanup_orphans(active_session_ids)
 

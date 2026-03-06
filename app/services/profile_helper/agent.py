@@ -118,13 +118,11 @@ def run_agent(
     *,
     stream: bool = False,
     model: str | None = None,
-    system_prompt: str | None = None,
 ):
     """
     Run agent loop. session is from sessions.get().
     If stream=True, yield each chunk; else yield full reply.
     model: optional override for this request; defaults to AI_GENERATION_MODEL.
-    system_prompt: optional override for system prompt.
     """
     client = create_client()
     if not client:
@@ -132,7 +130,6 @@ def run_agent(
         return
 
     model = model or get_default_model()
-    prompt_text = system_prompt or META_SYSTEM_PROMPT
     messages = session["messages"].copy()
     messages.append({"role": "user", "content": user_message})
 
@@ -140,7 +137,7 @@ def run_agent(
     for _ in range(max_iterations):
         response = client.chat.completions.create(
             model=model,
-            messages=[{"role": "system", "content": prompt_text}] + messages,
+            messages=[{"role": "system", "content": META_SYSTEM_PROMPT}] + messages,
             tools=_build_tools(),
             tool_choice="auto",
         )
