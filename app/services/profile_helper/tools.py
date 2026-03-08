@@ -1,4 +1,4 @@
-"""Tools: read_skill, read_doc, read_profile, write_profile."""
+"""Tools: load profile-helper skills, docs, and template assets."""
 
 from __future__ import annotations
 
@@ -31,37 +31,71 @@ _DEFAULT_DOC_NAMES = [
 ]
 
 
-def _candidate_roots() -> list[Path]:
-    primary = get_profile_helper_root()
-    backend_root = Path(__file__).resolve().parents[3]
-    local = backend_root / "libs" / "profile_helper"
-    builtin = Path("/app/libs_builtin/profile_helper")
-    candidates = [primary, builtin, local]
+def _dedupe_paths(paths: list[Path]) -> list[Path]:
     deduped: list[Path] = []
-    for path in candidates:
-        path = path.resolve()
-        if path not in deduped:
-            deduped.append(path)
+    for path in paths:
+        resolved = path.resolve()
+        if resolved not in deduped:
+            deduped.append(resolved)
     return deduped
 
 
-def _resolve_profile_helper_root() -> Path:
-    for root in _candidate_roots():
-        if root.exists() and root.is_dir():
-            return root
-    return _candidate_roots()[0]
+def _project_root() -> Path:
+    return Path(__file__).resolve().parents[4]
+
+
+def _external_helper_repo() -> Path:
+    return _project_root().parent / "tashan-profile-helper"
+
+
+def _candidate_skill_dirs() -> list[Path]:
+    primary = get_profile_helper_root() / "skills"
+    builtin = Path("/app/libs_builtin/profile_helper/skills")
+    local = _project_root() / "backend" / "libs" / "profile_helper" / "skills"
+    external = _external_helper_repo() / "web" / "skills"
+    return _dedupe_paths([external, primary, builtin, local])
+
+
+def _candidate_doc_dirs() -> list[Path]:
+    primary = get_profile_helper_root() / "docs"
+    builtin = Path("/app/libs_builtin/profile_helper/docs")
+    local = _project_root() / "backend" / "libs" / "profile_helper" / "docs"
+    external = _external_helper_repo() / "doc"
+    return _dedupe_paths([external, primary, builtin, local])
+
+
+def _candidate_template_paths() -> list[Path]:
+    primary = get_profile_helper_root() / "_template.md"
+    builtin = Path("/app/libs_builtin/profile_helper/_template.md")
+    local = _project_root() / "backend" / "libs" / "profile_helper" / "_template.md"
+    external = _external_helper_repo() / "profiles" / "_template.md"
+    return _dedupe_paths([external, primary, builtin, local])
+
+
+def _resolve_existing_dir(candidates: list[Path]) -> Path:
+    for path in candidates:
+        if path.exists() and path.is_dir():
+            return path
+    return candidates[0]
+
+
+def _resolve_existing_file(candidates: list[Path]) -> Path:
+    for path in candidates:
+        if path.exists() and path.is_file():
+            return path
+    return candidates[0]
 
 
 def _skills_dir() -> Path:
-    return _resolve_profile_helper_root() / "skills"
+    return _resolve_existing_dir(_candidate_skill_dirs())
 
 
 def _docs_dir() -> Path:
-    return _resolve_profile_helper_root() / "docs"
+    return _resolve_existing_dir(_candidate_doc_dirs())
 
 
 def _template_path() -> Path:
-    return _resolve_profile_helper_root() / "_template.md"
+    return _resolve_existing_file(_candidate_template_paths())
 
 
 def list_skill_names() -> list[str]:

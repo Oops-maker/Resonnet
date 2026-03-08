@@ -71,9 +71,9 @@ def test_profile_helper_chat_stream_updates_profile(client: TestClient, monkeypa
     from app.services.profile_helper import sessions as profile_sessions
 
     def _fake_run_agent(user_message: str, session: dict, *, stream: bool = False, model: str | None = None):
-        # Simulate tool side-effects performed by the real agent
-        session["profile"] = f"profile updated: {user_message}"
-        session["forum_profile"] = "# Test Forum Profile\n\nGenerated forum profile"
+        # Simulate the real tool side-effects, including auto-save.
+        profile_sessions.save_profile(session, f"# 科研人员画像 — Test User\n\nprofile updated: {user_message}")
+        profile_sessions.save_forum_profile(session, "# Test Forum Profile\n\nGenerated forum profile")
         text = "OK"
         if stream:
             for ch in text:
@@ -99,12 +99,36 @@ def test_profile_helper_chat_stream_updates_profile(client: TestClient, monkeypa
     profile_resp = client.get(f"/profile-helper/profile/{session_id}")
     assert profile_resp.status_code == 200
     profile = profile_resp.json()
-    assert profile["profile"] == "profile updated: hello"
+    assert "profile updated: hello" in profile["profile"]
     assert profile["forum_profile"].startswith("# Test Forum Profile")
 
     forum_download = client.get(f"/profile-helper/download/{session_id}/forum")
     assert forum_download.status_code == 200
     assert "attachment; filename=\"forum-profile.md\"" in forum_download.headers.get("content-disposition", "")
+
+
+def test_profile_helper_auto_saves_profiles_to_workspace(isolated_workspace: Path):
+    from app.services.profile_helper import sessions as profile_sessions
+
+    profile_sessions._sessions.clear()
+    session_id, session = profile_sessions.get_or_create("persisted-session")
+
+    profile_path = profile_sessions.save_profile(
+        session,
+        "# 科研人员画像 — Test User\n\nAuto-saved profile",
+    )
+    forum_path = profile_sessions.save_forum_profile(
+        session,
+        "# Test Forum Profile\n\nAuto-saved forum profile",
+    )
+
+    expected_dir = isolated_workspace / "profile_helper" / "profiles"
+    assert profile_path.parent == expected_dir
+    assert forum_path.parent == expected_dir
+    assert profile_path.exists()
+    assert forum_path.exists()
+    assert "Auto-saved profile" in profile_path.read_text(encoding="utf-8")
+    assert "Auto-saved forum profile" in forum_path.read_text(encoding="utf-8")
 
 
 def test_profile_helper_chat_rejects_empty_message(client: TestClient):

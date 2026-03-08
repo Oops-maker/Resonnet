@@ -150,6 +150,11 @@ def get_profile_helper_root() -> Path:
     return _libs_root() / "profile_helper"
 
 
+def get_profile_helper_profiles_dir() -> Path:
+    """Return workspace-backed profile helper profiles directory."""
+    return get_workspace_base() / "profile_helper" / "profiles"
+
+
 def get_prompts_dir() -> Path:
     """Return prompts directory: builtin libs/prompts/ > primary (mount) > app/prompts/. Mount only supplement."""
     builtin = get_libs_builtin_root()
