@@ -14,6 +14,11 @@
       "id": "anthropics",
       "name": "Anthropics",
       "description": "Anthropic official skills"
+    },
+    "claude-scientific": {
+      "id": "claude-scientific",
+      "name": "Claude Scientific",
+      "description": ""
     }
   }
 }

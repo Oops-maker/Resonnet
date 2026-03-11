@@ -4,3 +4,6 @@
 [submodule "libs/assignable_skills/_submodules/anthropics"]
 	path = libs/assignable_skills/_submodules/anthropics
 	url = https://github.com/anthropics/skills.git
+[submodule "libs/assignable_skills/_submodules/claude-scientific"]
+	path = libs/assignable_skills/_submodules/claude-scientific
+	url = git@github.com:K-Dense-AI/claude-scientific-skills.git
