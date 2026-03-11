@@ -1,6 +1,7 @@
 """LLM tool calling + agentic loop for profile helper."""
 
 import json
+import os
 from datetime import date
 
 from app.services.profile_helper.llm_client import create_client, get_default_model
@@ -11,6 +12,10 @@ from app.services.profile_helper.tools import (
     list_skill_names,
     read_doc,
     read_skill,
+)
+
+MAX_TOOL_ITERATIONS = max(
+    5, int(os.getenv("PROFILE_HELPER_MAX_TOOL_ITERATIONS", "40"))
 )
 
 
@@ -142,7 +147,7 @@ def run_agent(
     messages = session["messages"].copy()
     messages.append({"role": "user", "content": user_message})
 
-    max_iterations = 20
+    max_iterations = MAX_TOOL_ITERATIONS
     for _ in range(max_iterations):
         response = client.chat.completions.create(
             model=model,
