@@ -33,10 +33,26 @@ def _is_local_path(s: str) -> bool:
 
 
 def validate_mcp_server(server_id: str, cfg: MCPServerConfig) -> None:
-    """Validate a single MCP server config. Raises ValueError if local/invalid."""
+    """Validate a single MCP server config. Supports stdio and streamableHttp types."""
+    # Check if this is a streamableHttp type server
+    if cfg.is_http():
+        # Validate baseUrl
+        if not cfg.baseUrl:
+            raise ValueError(f"MCP server '{server_id}': baseUrl is required for streamableHttp type")
+        if not REMOTE_URL_PATTERN.match(cfg.baseUrl):
+            raise ValueError(f"MCP server '{server_id}': baseUrl must be a valid https:// URL")
+        # Validate headers (if present, check for env variable patterns)
+        if cfg.headers:
+            for key, value in cfg.headers.items():
+                if not value.startswith("${") or not value.endswith("}"):
+                    # Allow non-env values too
+                    pass
+        return
+    
+    # Stdio type validation
     cmd = (cfg.command or "").strip().lower()
     if not cmd:
-        raise ValueError(f"MCP server '{server_id}': command is required")
+        raise ValueError(f"MCP server '{server_id}': command is required for stdio type")
 
     # Reject command that is a local path
     if _is_local_path(cfg.command):
@@ -106,16 +122,34 @@ def save_mcp_config(config: MCPConfig) -> None:
     validate_mcp_config(config)
     path = get_mcp_config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = {
-        "mcpServers": {
-            k: {
-                "command": v.command,
-                "args": v.args,
-                **({"env": v.env} if v.env else {}),
-            }
-            for k, v in config.mcpServers.items()
-        }
-    }
+    data = {"mcpServers": {}}
+    
+    for k, v in config.mcpServers.items():
+        server_data = {}
+        # Stdio type fields
+        if v.command:
+            server_data["command"] = v.command
+        if v.args:
+            server_data["args"] = v.args
+        if v.env:
+            server_data["env"] = v.env
+        
+        # StreamableHttp type fields
+        if v.type:
+            server_data["type"] = v.type
+        if v.baseUrl:
+            server_data["baseUrl"] = v.baseUrl
+        if v.headers:
+            server_data["headers"] = v.headers
+        if v.description:
+            server_data["description"] = v.description
+        if v.isActive is not None:
+            server_data["isActive"] = v.isActive
+        if v.name:
+            server_data["name"] = v.name
+        
+        data["mcpServers"][k] = server_data
+    
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 

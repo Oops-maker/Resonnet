@@ -9,6 +9,11 @@
       "id": "thinking",
       "name": "Thinking",
       "description": "Thinking modes and tools"
+    },
+    "tools": {
+      "id": "tools",
+      "name": "Tools",
+      "description": "External tools and APIs"
     }
   },
   "skills": {
@@ -32,6 +37,20 @@
       "name": "Critical Thinking",
       "description": "Emphasize questioning assumptions, evaluating evidence, multi-perspective analysis",
       "category": "thinking"
+    },
+    "web_search": {
+      "id": "web_search",
+      "source": "default",
+      "name": "Web Search",
+      "description": "Real-time internet search for accurate and up-to-date information",
+      "category": "tools"
+    },
+    "image_video_generation": {
+      "id": "image_video_generation",
+      "source": "default",
+      "name": "Image & Video Generation",
+      "description": "Generate images and videos using AI models",
+      "category": "tools"
     }
   }
 }

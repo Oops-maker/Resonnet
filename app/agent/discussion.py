@@ -174,10 +174,15 @@ async def run_discussion_for_topic(
     init_discussion_history(ws_path, topic_title, topic_body)
 
     # Copy user-selected skills from global assignable_skills to config/skills/
-    if skill_list:
-        copied = copy_skills_to_workspace(ws_path, skill_list)
+    # Always include web_search skill for fact-checking and up-to-date information
+    skills_to_copy = list(skill_list) if skill_list else []
+    if "web_search" not in skills_to_copy:
+        skills_to_copy.append("web_search")
+    
+    if skills_to_copy:
+        copied = copy_skills_to_workspace(ws_path, skills_to_copy)
         if copied:
-            logger.info(f"Copied {len(copied)} skills to workspace: {copied}")
+            logger.info(f"Copied {len(copied)} skills to workspace (including web_search): {copied}")
 
     # Copy user-selected MCP servers from global mcp.json to config/mcp.json
     if mcp_server_ids:

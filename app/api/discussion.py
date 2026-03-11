@@ -63,7 +63,7 @@ async def run_discussion_background(
             skill_list=skill_list or [],
             mcp_server_ids=mcp_server_ids or [],
         )
-        logger.info(f"Discussion completed for topic {topic_id}, result: {result}")
+        logger.info(f"Discussion completed for topic {topic_id} with MCPs: {mcp_server_ids}")
         typed_result = DiscussionResult(**result)
         update_topic_discussion(
             topic_id,
@@ -103,6 +103,17 @@ async def start_discussion_endpoint(topic_id: str, req: StartDiscussionRequest):
 
     # Start discussion in background
     tools = req.allowed_tools if req.allowed_tools else DEFAULT_ALLOWED_TOOLS
+    
+    # If mcp_server_ids is None (not provided), load all available MCPs from libs/mcps/
+    mcp_ids = req.mcp_server_ids
+    if mcp_ids is None:
+        from app.core.config import get_mcps_dir
+        from app.core.libs_service import get_cached_mcps_meta
+        base_dir = get_mcps_dir()
+        _, mcps_meta = get_cached_mcps_meta(base_dir)
+        mcp_ids = list(mcps_meta.keys())
+        logger.info(f"Auto-loading all MCP servers for discussion: {mcp_ids}")
+    
     asyncio.create_task(run_discussion_background(
         topic_id=topic_id,
         topic_title=topic.title,
@@ -114,7 +125,7 @@ async def start_discussion_endpoint(topic_id: str, req: StartDiscussionRequest):
         model=req.model,
         allowed_tools=tools,
         skill_list=req.skill_list or [],
-        mcp_server_ids=req.mcp_server_ids or [],
+        mcp_server_ids=mcp_ids,
     ))
 
     return DiscussionStatusResponse(

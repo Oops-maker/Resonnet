@@ -66,7 +66,7 @@ def list_assignable_mcps(
 
 @router.get("/assignable/{mcp_id}/content")
 def get_mcp_content(mcp_id: str):
-    """Return the MCP server config (command, args) as JSON."""
+    """Return the MCP server config (command, args, or streamableHttp fields) as JSON."""
     base_dir = get_mcps_dir()
     _, mcps_meta = get_cached_mcps_meta(base_dir)
 
@@ -75,10 +75,28 @@ def get_mcp_content(mcp_id: str):
     if not mcp_info:
         raise HTTPException(status_code=404, detail="MCP not found")
 
-    config = {
-        "command": mcp_info.get("command", ""),
-        "args": mcp_info.get("args", []),
-    }
+    config = {}
+    
+    # Stdio type fields
+    if mcp_info.get("command"):
+        config["command"] = mcp_info.get("command", "")
+    if mcp_info.get("args"):
+        config["args"] = mcp_info.get("args", [])
     if mcp_info.get("env"):
         config["env"] = mcp_info["env"]
+    
+    # StreamableHttp type fields
+    if mcp_info.get("type"):
+        config["type"] = mcp_info.get("type")
+    if mcp_info.get("baseUrl"):
+        config["baseUrl"] = mcp_info.get("baseUrl")
+    if mcp_info.get("headers"):
+        config["headers"] = mcp_info.get("headers")
+    if mcp_info.get("description"):
+        config["description"] = mcp_info.get("description")
+    if mcp_info.get("isActive") is not None:
+        config["isActive"] = mcp_info.get("isActive")
+    if mcp_info.get("name"):
+        config["name"] = mcp_info.get("name")
+    
     return {"content": json.dumps(config, indent=2, ensure_ascii=False)}

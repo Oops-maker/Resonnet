@@ -1,16 +1,17 @@
 {
   "categories": {
-    "tools": {"id": "tools", "name": "Tools", "description": "Development and debugging tools"},
-    "data": {"id": "data", "name": "Data", "description": "Memory, fetch, and data access"},
-    "remote": {"id": "remote", "name": "Remote", "description": "Remote MCP servers"}
+    "development": {"id": "development", "name": "开发工具", "description": "开发、调试和检查工具"},
+    "knowledge": {"id": "knowledge", "name": "知识管理", "description": "记忆、上下文和知识库管理"},
+    "web_content": {"id": "web_content", "name": "网络内容", "description": "网页抓取、内容提取和文章处理"},
+    "utilities": {"id": "utilities", "name": "实用工具", "description": "时间查询、技能管理等辅助工具"}
   },
   "mcps": {
     "inspector": {
       "id": "inspector",
       "source": "default",
       "name": "MCP Inspector",
-      "description": "Debug and inspect MCP servers",
-      "category": "tools",
+      "description": "调试和检查 MCP 服务器",
+      "category": "development",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/inspector"]
     },
@@ -18,8 +19,8 @@
       "id": "memory",
       "source": "default",
       "name": "MCP Memory",
-      "description": "Persistent knowledge graph for entities, relations, and observations",
-      "category": "data",
+      "description": "持久化知识图谱，存储实体、关系和观察",
+      "category": "knowledge",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-memory"]
     },
@@ -27,8 +28,8 @@
       "id": "fetch",
       "source": "default",
       "name": "MCP Fetch",
-      "description": "Fetch web content and convert HTML to markdown",
-      "category": "data",
+      "description": "获取网页内容并转换为 Markdown",
+      "category": "web_content",
       "command": "uvx",
       "args": ["mcp-server-fetch"]
     },
@@ -36,10 +37,52 @@
       "id": "time",
       "source": "default",
       "name": "MCP Time",
-      "description": "Get current time and timezone information",
-      "category": "tools",
+      "description": "获取当前时间和时区信息",
+      "category": "utilities",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-time"]
+    },
+    "crawl-mcp": {
+      "id": "crawl-mcp",
+      "source": "default",
+      "name": "Crawl MCP",
+      "description": "基于 LLM 的网页爬取和内容分析",
+      "category": "web_content",
+      "command": "uvx",
+      "args": ["crawl-mcp"],
+      "env": {
+        "OPENAI_API_KEY": "${MCP_API_KEY}",
+        "OPENAI_BASE_URL": "${MCP_BASE_URL}",
+        "LLM_MODEL": "${MCP_MODEL}"
+      }
+    },
+    "article-mcp": {
+      "id": "article-mcp",
+      "source": "default",
+      "name": "Article MCP",
+      "description": "从网页中提取和处理文章",
+      "category": "web_content",
+      "command": "uvx",
+      "args": ["article-mcp==0.1.8", "server"],
+      "env": {}
+    },
+    "context7": {
+      "id": "context7",
+      "source": "default",
+      "name": "Context7 MCP",
+      "description": "Upstash 上下文管理服务",
+      "category": "knowledge",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "skillhub": {
+      "id": "skillhub",
+      "source": "default",
+      "name": "SkillHub MCP",
+      "description": "技能发现和管理服务",
+      "category": "utilities",
+      "command": "npx",
+      "args": ["-y", "skillhub-mcp"]
     }
   }
 }

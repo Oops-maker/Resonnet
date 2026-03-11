@@ -115,9 +115,9 @@ class StartDiscussionRequest(BaseModel):
         default_factory=list,
         description="可选的 skill 列表（id），从全局 assignable_skills 拷贝到工作区 config/skills/，供主持人分配给专家",
     )
-    mcp_server_ids: list[str] = Field(
-        default_factory=list,
-        description="可选的 MCP 服务器 ID 列表，从全局 mcp.json 拷贝到话题工作区 config/mcp.json",
+    mcp_server_ids: list[str] | None = Field(
+        default=None,
+        description="MCP 服务器 ID 列表，不传则默认使用所有可用的 MCP 服务器",
     )
 
 
@@ -291,10 +291,27 @@ class GenerateModeratorModeResponse(BaseModel):
 # --- MCP models ---
 
 class MCPServerConfig(BaseModel):
-    """Single MCP server config. Only npm, uvx, remote allowed; no local paths."""
-    command: str = Field(..., min_length=1)
+    """Single MCP server config. Supports stdio (npm, uvx) and streamableHttp types."""
+    # Stdio type (npm, uvx, npx)
+    command: str | None = Field(None, min_length=1)
     args: list[str] = Field(default_factory=list)
     env: dict[str, str] | None = None
+    
+    # Remote HTTP type (streamableHttp)
+    type: str | None = Field(None, description="Connection type: 'stdio' or 'streamableHttp'")
+    baseUrl: str | None = Field(None, description="Base URL for streamableHttp type")
+    headers: dict[str, str] | None = Field(None, description="HTTP headers for streamableHttp type")
+    description: str | None = Field(None, description="Server description")
+    isActive: bool | None = Field(None, description="Whether the server is active")
+    name: str | None = Field(None, description="Display name")
+    
+    def is_stdio(self) -> bool:
+        """Check if this is a stdio type server."""
+        return self.type is None or self.type == "stdio" or self.command is not None
+    
+    def is_http(self) -> bool:
+        """Check if this is a streamableHttp type server."""
+        return self.type == "streamableHttp" and self.baseUrl is not None
 
 
 class MCPConfig(BaseModel):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -272,6 +273,34 @@ def copy_skills_to_workspace(ws_path: Path, skill_list: list[str]) -> list[str]:
     return copied
 
 
+def _replace_env_variables(env_dict: dict | None) -> dict | None:
+    """Replace ${VAR_NAME} patterns in env values with actual environment variables.
+    
+    Args:
+        env_dict: Dictionary of environment variables that may contain ${VAR} patterns
+        
+    Returns:
+        Dictionary with ${VAR} patterns replaced with actual env values, or None if input is None/empty
+    """
+    if not env_dict:
+        return None
+    
+    result = {}
+    pattern = re.compile(r'\$\{([^}]+)\}')
+    
+    for key, value in env_dict.items():
+        if isinstance(value, str):
+            # Replace all ${VAR} patterns with actual env values
+            def replacer(match):
+                var_name = match.group(1)
+                return os.environ.get(var_name, match.group(0))  # Keep original if not found
+            result[key] = pattern.sub(replacer, value)
+        else:
+            result[key] = value
+    
+    return result
+
+
 def copy_mcp_to_workspace(ws_path: Path, server_ids: list[str]) -> list[str]:
     """Copy selected MCP servers from libs/mcps/ to topic workspace config/mcp.json.
 
@@ -303,24 +332,43 @@ def copy_mcp_to_workspace(ws_path: Path, server_ids: list[str]) -> list[str]:
     mcp_servers: dict = {}
     for sid in server_ids:
         info = mcps_meta.get(sid, {}) if isinstance(mcps_meta.get(sid), dict) else {}
-        if not info or "command" not in info:
+        if not info:
             logger.warning(f"MCP not found in meta (skipped): {sid}")
             continue
+        
+        # Check if this is a streamableHttp type or stdio type
+        is_http = info.get("type") == "streamableHttp"
+        
+        # Skip HTTP type MCPs - Claude Agent SDK doesn't support streamableHttp yet
+        if is_http:
+            logger.info(f"MCP {sid} is streamableHttp type (skipped - not supported by Claude Agent SDK yet)")
+            continue
+        
+        # Stdio type: require command
+        if not info.get("command"):
+            logger.warning(f"MCP {sid}: command is required for stdio type")
+            continue
+        
         try:
+            # Replace environment variables in env dict
+            resolved_env = _replace_env_variables(info.get("env"))
             cfg = MCPServerConfig(
                 command=info.get("command", ""),
                 args=info.get("args", []),
-                env=info.get("env"),
+                env=resolved_env,
             )
+            
             from app.core.mcp_config import validate_mcp_server
             validate_mcp_server(sid, cfg)
         except ValueError as e:
             logger.warning(f"MCP {sid} validation failed (skipped): {e}")
             continue
+        
+        # Build the server config dict
         mcp_servers[sid] = {
             "command": info.get("command", ""),
             "args": info.get("args", []),
-            **({"env": info["env"]} if info.get("env") else {}),
+            **({"env": resolved_env} if resolved_env else {}),
         }
 
     if not mcp_servers:

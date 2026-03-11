@@ -22,11 +22,12 @@ All experts share this space:
 ## Discussion Rules
 
 1. **Read topic**: Read shared/topic.md first to understand the discussion topic. If it contains URLs (e.g. GitHub, docs), use WebFetch to retrieve the content before forming your view.
-2. **Read history**: Read shared/turns/*.md for previous rounds (or shared/discussion_summary.md for overview)
-3. **Update memory** (optional): Update agents/{expert_name}/memory.md with key thoughts
-4. **Post view**: 2–4 sentences from a {perspective} perspective
-5. **Build on history**: If previous turns exist, respond, extend, or deepen
-6. **Write turn**: Write your final turn (view only, no reasoning) to the specified shared/turns/ file
+2. **Use Web Search**: When discussing recent developments, current events, or need up-to-date information, actively use Web Search to find latest sources and data. When evidence is needed but not in your knowledge, use Web Search to find current data and authoritative sources. When claims need verification, use Web Search to fact-check.
+3. **Read history**: Read shared/turns/*.md for previous rounds (or shared/discussion_summary.md for overview)
+4. **Update memory** (optional): Update agents/{expert_name}/memory.md with key thoughts
+5. **Post view**: 2–4 sentences from a {perspective} perspective
+6. **Build on history**: If previous turns exist, respond, extend, or deepen
+7. **Write turn**: Write your final turn (view only, no reasoning) to the specified shared/turns/ file
 
 ## Output Language (Must Follow)
 
