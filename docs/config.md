@@ -93,6 +93,26 @@ Default: `backend/workspace/`. For Docker, see volume mounts above.
 
 ---
 
+### 6. Profile Helper Auth Modes
+
+Profile Helper supports pluggable auth modes:
+
+```bash
+# none | jwt | proxy
+AUTH_MODE=none
+AUTH_REQUIRED=false
+AUTH_SERVICE_BASE_URL=http://topiclab-backend:8000
+ACCOUNT_SYNC_ENABLED=false
+```
+
+- `AUTH_MODE=none`: default open-source mode; no account dependency.
+- `AUTH_MODE=jwt`: validate bearer token via `topiclab-backend /auth/me`.
+- `AUTH_MODE=proxy`: trust upstream gateway headers (`X-User-Id`, optional `X-Tenant-Id`, `X-User-Scopes`).
+- `AUTH_REQUIRED`: in `jwt` mode, reject missing token when set to `true`.
+- `ACCOUNT_SYNC_ENABLED`: whether `/profile-helper/publish-to-library` should sync records to external `digital_twins`.
+
+---
+
 ## Rules
 
 1. **Do not mix the two configs**

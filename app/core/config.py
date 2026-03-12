@@ -72,6 +72,29 @@ def get_workspace_base() -> Path:
     return Path(__file__).resolve().parent.parent.parent / "workspace"
 
 
+def get_auth_service_base_url() -> str:
+    """Auth service base URL for token introspection via topiclab-backend."""
+    return os.getenv("AUTH_SERVICE_BASE_URL", "http://topiclab-backend:8000")
+
+
+def get_auth_mode() -> str:
+    """Auth mode selector: none | jwt | proxy."""
+    mode = os.getenv("AUTH_MODE", "none").strip().lower()
+    if mode in {"none", "jwt", "proxy"}:
+        return mode
+    return "none"
+
+
+def is_auth_required() -> bool:
+    """Whether missing/invalid auth should be rejected."""
+    return os.getenv("AUTH_REQUIRED", "false").strip().lower() == "true"
+
+
+def is_account_sync_enabled() -> bool:
+    """Whether to sync published twins into external account system."""
+    return os.getenv("ACCOUNT_SYNC_ENABLED", "false").strip().lower() == "true"
+
+
 def get_libs_cache_ttl_seconds() -> int:
     """Libs meta cache TTL. 0 = no cache (always fresh, hot-reload). Default 60."""
     raw = os.getenv("LIBS_CACHE_TTL_SECONDS", "60")
@@ -153,6 +176,26 @@ def get_profile_helper_root() -> Path:
 def get_profile_helper_profiles_dir() -> Path:
     """Return workspace-backed profile helper profiles directory."""
     return get_workspace_base() / "profile_helper" / "profiles"
+
+
+def get_user_workspace(user_id: int | str) -> Path:
+    """Return workspace directory for a specific user: workspace/users/{user_id}/."""
+    return get_workspace_base() / "users" / str(user_id)
+
+
+def get_user_profile_dir(user_id: int | str) -> Path:
+    """Return profile directory for a user: workspace/users/{user_id}/profile/."""
+    return get_user_workspace(user_id) / "profile"
+
+
+def get_user_agents_dir(user_id: int | str) -> Path:
+    """Return agents directory for a user: workspace/users/{user_id}/agents/."""
+    return get_user_workspace(user_id) / "agents"
+
+
+def get_public_agents_dir() -> Path:
+    """Return public agents plaza directory: workspace/public_agents/."""
+    return get_workspace_base() / "public_agents"
 
 
 def get_prompts_dir() -> Path:

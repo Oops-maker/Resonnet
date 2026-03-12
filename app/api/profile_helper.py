@@ -3,13 +3,12 @@
 import json
 import re
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
-from app.api.auth_bridge import get_current_auth_context, get_current_user_from_auth_service
-from app.core.config import get_auth_service_base_url
+from app.api.auth_bridge import get_current_auth_context
+from app.integrations.account_sync import sync_twin_record
 from app.services.profile_helper import agent as profile_agent
 from app.services.profile_helper import sessions as profile_sessions
 
@@ -38,8 +37,12 @@ class PublishRequest(BaseModel):
     display_name: str | None = None
 
 
-def _get_uid(user: dict) -> int:
-    return int(user["id"])
+def _get_uid(auth_ctx: dict) -> str:
+    auth_context = auth_ctx.get("auth_context")
+    if auth_context is not None:
+        return str(auth_context.subject)
+    user = auth_ctx.get("user") or {}
+    return str(user.get("id", "anonymous"))
 
 
 def _normalize_session_id(session_id: str | None) -> str | None:
@@ -51,13 +54,13 @@ def _normalize_session_id(session_id: str | None) -> str | None:
     return sid
 
 
-def _get_session_for_user(session_id: str, uid: int) -> dict:
+def _get_session_for_user(session_id: str, uid: str) -> dict:
     session = profile_sessions.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在或已过期")
 
     existing_uid = session.get("user_id")
-    if existing_uid and int(existing_uid) != uid:
+    if existing_uid and str(existing_uid) != str(uid):
         raise HTTPException(status_code=404, detail="会话不存在或已过期")
     if not existing_uid:
         session["user_id"] = uid
@@ -166,37 +169,17 @@ def _generate_brief_from_profile(parsed: dict, name: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-async def _record_twin_to_account_service(token: str, payload: dict) -> None:
-    auth_base = get_auth_service_base_url().rstrip("/")
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.post(
-                f"{auth_base}/auth/digital-twins/upsert",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-            )
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"账号系统记录分身失败: {exc}") from exc
-
-    if resp.status_code != 200:
-        detail = f"{resp.status_code}"
-        try:
-            detail = resp.json().get("detail", detail)
-        except Exception:
-            pass
-        raise HTTPException(status_code=503, detail=f"账号系统记录分身失败: {detail}")
+async def _record_twin_to_account_service(token: str | None, payload: dict) -> dict:
+    return await sync_twin_record(token, payload)
 
 
 @router.post("/chat", response_class=StreamingResponse)
 async def chat_stream(
     req: ChatRequest,
-    user: dict = Depends(get_current_user_from_auth_service),
+    auth_ctx: dict = Depends(get_current_auth_context),
 ):
     """Streaming chat: SSE response."""
-    uid = _get_uid(user)
+    uid = _get_uid(auth_ctx)
     normalized_session_id = _normalize_session_id(req.session_id)
     session_id, session = profile_sessions.get_or_create(
         normalized_session_id,
@@ -229,10 +212,10 @@ async def chat_stream(
 @router.get("/profile/{session_id}")
 async def get_profile(
     session_id: str,
-    user: dict = Depends(get_current_user_from_auth_service),
+    auth_ctx: dict = Depends(get_current_auth_context),
 ):
     """Get development and forum profile content for session."""
-    uid = _get_uid(user)
+    uid = _get_uid(auth_ctx)
     session = _get_session_for_user(session_id, uid)
     return {
         "profile": session["profile"],
@@ -243,9 +226,9 @@ async def get_profile(
 @router.get("/profile/{session_id}/structured")
 async def get_structured_profile(
     session_id: str,
-    user: dict = Depends(get_current_user_from_auth_service),
+    auth_ctx: dict = Depends(get_current_auth_context),
 ):
-    uid = _get_uid(user)
+    uid = _get_uid(auth_ctx)
     session = _get_session_for_user(session_id, uid)
     from app.services.profile_helper.profile_parser import parse_profile
 
@@ -255,10 +238,10 @@ async def get_structured_profile(
 @router.get("/download/{session_id}")
 async def download_profile(
     session_id: str,
-    user: dict = Depends(get_current_user_from_auth_service),
+    auth_ctx: dict = Depends(get_current_auth_context),
 ):
     """Download development profile as .md."""
-    uid = _get_uid(user)
+    uid = _get_uid(auth_ctx)
     session = _get_session_for_user(session_id, uid)
     return Response(
         content=session["profile"].encode("utf-8"),
@@ -270,10 +253,10 @@ async def download_profile(
 @router.get("/download/{session_id}/forum")
 async def download_forum_profile(
     session_id: str,
-    user: dict = Depends(get_current_user_from_auth_service),
+    auth_ctx: dict = Depends(get_current_auth_context),
 ):
     """Download forum profile as .md."""
-    uid = _get_uid(user)
+    uid = _get_uid(auth_ctx)
     session = _get_session_for_user(session_id, uid)
     content = session.get("forum_profile", "")
     if not content:
@@ -288,9 +271,9 @@ async def download_forum_profile(
 @router.post("/scales/submit")
 async def submit_scale(
     req: ScaleSubmitRequest,
-    user: dict = Depends(get_current_user_from_auth_service),
+    auth_ctx: dict = Depends(get_current_auth_context),
 ):
-    uid = _get_uid(user)
+    uid = _get_uid(auth_ctx)
     session = _get_session_for_user(req.session_id, uid)
     profile_sessions.save_scales(
         session,
@@ -307,9 +290,9 @@ async def submit_scale(
 @router.get("/scales/{session_id}")
 async def get_scales(
     session_id: str,
-    user: dict = Depends(get_current_user_from_auth_service),
+    auth_ctx: dict = Depends(get_current_auth_context),
 ):
-    uid = _get_uid(user)
+    uid = _get_uid(auth_ctx)
     session = _get_session_for_user(session_id, uid)
     return {"scales": session.get("scales", {})}
 
@@ -324,9 +307,8 @@ async def publish_to_library(
     if req.exposure not in ("brief", "full"):
         raise HTTPException(status_code=400, detail="exposure 必须是 brief 或 full")
 
-    user = auth_ctx["user"]
-    token = auth_ctx["token"]
-    uid = _get_uid(user)
+    token = auth_ctx.get("token")
+    uid = _get_uid(auth_ctx)
     session = _get_session_for_user(req.session_id, uid)
     full_profile = session.get("profile", "")
     forum_profile = session.get("forum_profile", "")
@@ -397,7 +379,7 @@ async def publish_to_library(
 
     twin_record_name = f"my_twin_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
 
-    await _record_twin_to_account_service(
+    sync_result = await _record_twin_to_account_service(
         token,
         {
             "agent_name": twin_record_name,
@@ -410,6 +392,8 @@ async def publish_to_library(
             "role_content": role_content,
         },
     )
+    if not isinstance(sync_result, dict):
+        sync_result = {"status": "unknown"}
 
     return {
         "ok": True,
@@ -417,16 +401,17 @@ async def publish_to_library(
         "display_name": display_name,
         "visibility": req.visibility,
         "exposure": req.exposure,
+        "sync_status": sync_result.get("status", "unknown"),
     }
 
 
 @router.post("/session/reset/{session_id}")
 async def session_reset(
     session_id: str,
-    user: dict = Depends(get_current_user_from_auth_service),
+    auth_ctx: dict = Depends(get_current_auth_context),
 ):
     """Reset session: clear messages, restore blank profile."""
-    uid = _get_uid(user)
+    uid = _get_uid(auth_ctx)
     _ = _get_session_for_user(session_id, uid)
     profile_sessions.reset(session_id)
     new_session = profile_sessions.get(session_id)
@@ -438,10 +423,10 @@ async def session_reset(
 @router.get("/session")
 async def session_get(
     session_id: str | None = None,
-    user: dict = Depends(get_current_user_from_auth_service),
+    auth_ctx: dict = Depends(get_current_auth_context),
 ):
     """Get or create session, return session_id."""
-    uid = _get_uid(user)
+    uid = _get_uid(auth_ctx)
     sid, _ = profile_sessions.get_or_create(
         _normalize_session_id(session_id),
         user_id=uid,

@@ -9,7 +9,11 @@ import uuid
 from datetime import date
 from pathlib import Path
 
-from app.core.config import get_profile_helper_profiles_dir
+from app.core.config import (
+    get_profile_helper_profiles_dir,
+    get_user_agents_dir,
+    get_user_profile_dir,
+)
 from app.services.profile_helper.tools import load_template
 
 _sessions: dict[str, dict] = {}
@@ -64,7 +68,9 @@ def _normalize_existing_path(path_value: str | None) -> Path | None:
     return Path(path_value)
 
 
-def _profiles_dir() -> Path:
+def _profiles_dir(user_id: int | str | None = None) -> Path:
+    if user_id:
+        return get_user_profile_dir(user_id)
     return get_profile_helper_profiles_dir()
 
 
@@ -77,11 +83,18 @@ def _session_suffix(session: dict) -> str:
 
 def _target_profile_path(content: str, session: dict) -> Path:
     identifier = _extract_profile_identifier(content)
+    user_id = session.get("user_id")
+    profiles_dir = _profiles_dir(user_id)
+    if user_id:
+        return profiles_dir / "profile.md"
     suffix = _session_suffix(session)
-    return _profiles_dir() / f"{identifier}-{suffix}.md"
+    return profiles_dir / f"{identifier}-{suffix}.md"
 
 
 def _target_forum_profile_path(session: dict) -> Path:
+    user_id = session.get("user_id")
+    if user_id:
+        return _profiles_dir(user_id) / "forum_profile.md"
     profile_path = _normalize_existing_path(session.get("profile_path"))
     if not profile_path:
         profile_path = _target_profile_path(session.get("profile", ""), session)
@@ -98,15 +111,42 @@ def _relocate_file_if_needed(current_path: Path | None, target_path: Path) -> No
     current_path.rename(target_path)
 
 
-def _new_session(session_id: str) -> dict:
+def _new_session(session_id: str, user_id: int | str | None = None) -> dict:
     now = _now()
+    profile = _load_template_with_date()
+    forum_profile = ""
+    profile_path = None
+    forum_profile_path = None
+    scales = {}
+
+    if user_id:
+        pdir = _profiles_dir(user_id)
+        pf = pdir / "profile.md"
+        ff = pdir / "forum_profile.md"
+        sf = pdir / "scales.json"
+        if pf.exists():
+            profile = pf.read_text(encoding="utf-8")
+            profile_path = str(pf)
+        if ff.exists():
+            forum_profile = ff.read_text(encoding="utf-8")
+            forum_profile_path = str(ff)
+        if sf.exists():
+            try:
+                import json
+
+                scales = json.loads(sf.read_text(encoding="utf-8"))
+            except Exception:
+                scales = {}
+
     return {
         "session_id": session_id,
+        "user_id": user_id,
         "messages": [],
-        "profile": _load_template_with_date(),
-        "forum_profile": "",
-        "profile_path": None,
-        "forum_profile_path": None,
+        "profile": profile,
+        "forum_profile": forum_profile,
+        "profile_path": profile_path,
+        "forum_profile_path": forum_profile_path,
+        "scales": scales,
         "created_at": now,
         "updated_at": now,
     }
@@ -140,7 +180,7 @@ def _cleanup() -> None:
 
 def save_profile(session: dict, content: str) -> Path:
     """Persist the development profile to disk and session memory."""
-    profiles_dir = _profiles_dir()
+    profiles_dir = _profiles_dir(session.get("user_id"))
     profiles_dir.mkdir(parents=True, exist_ok=True)
 
     target_path = _target_profile_path(content, session)
@@ -159,13 +199,14 @@ def save_profile(session: dict, content: str) -> Path:
         forum_target_path.write_text(forum_content, encoding="utf-8")
         session["forum_profile_path"] = str(forum_target_path)
 
+    _sync_twin_agent(session)
     _touch(session)
     return target_path
 
 
 def save_forum_profile(session: dict, content: str) -> Path:
     """Persist the forum profile to disk and session memory."""
-    profiles_dir = _profiles_dir()
+    profiles_dir = _profiles_dir(session.get("user_id"))
     profiles_dir.mkdir(parents=True, exist_ok=True)
 
     profile_content = session.get("profile", "")
@@ -179,28 +220,95 @@ def save_forum_profile(session: dict, content: str) -> Path:
 
     session["forum_profile"] = content
     session["forum_profile_path"] = str(target_path)
+    _sync_twin_agent(session)
     _touch(session)
     return target_path
 
 
-def get_or_create(session_id: str | None = None) -> tuple[str, dict]:
+def _sync_twin_agent(session: dict) -> None:
+    """When forum profile exists, auto-generate user's my_twin agent files."""
+    user_id = session.get("user_id")
+    forum_content = session.get("forum_profile", "")
+    if not user_id or not forum_content:
+        return
+
+    import json as _json
+
+    twin_dir = get_user_agents_dir(user_id) / "my_twin"
+    twin_dir.mkdir(parents=True, exist_ok=True)
+    (twin_dir / "role.md").write_text(forum_content, encoding="utf-8")
+
+    meta_path = twin_dir / "meta.json"
+    existing_meta = {}
+    if meta_path.exists():
+        try:
+            existing_meta = _json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            existing_meta = {}
+
+    owner_user_id: int | str
+    try:
+        owner_user_id = int(user_id)
+    except (TypeError, ValueError):
+        owner_user_id = str(user_id)
+
+    meta = {
+        "owner_user_id": owner_user_id,
+        "visibility": existing_meta.get("visibility", "private"),
+        "source": "profile_twin",
+        "description": "基于科研画像自动生成的数字分身",
+        "created_at": existing_meta.get("created_at", date.today().strftime("%Y-%m-%d")),
+        "updated_at": date.today().strftime("%Y-%m-%d"),
+    }
+    meta_path.write_text(_json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def get_or_create(
+    session_id: str | None = None,
+    user_id: int | str | None = None,
+) -> tuple[str, dict]:
     """Get or create session. Returns (session_id, session_data)."""
     _cleanup()
     if session_id and session_id in _sessions:
         s = _sessions[session_id]
         s["session_id"] = session_id
+        if user_id and not s.get("user_id"):
+            s["user_id"] = user_id
         if "forum_profile" not in s:
             s["forum_profile"] = ""
         if "profile_path" not in s:
             s["profile_path"] = None
         if "forum_profile_path" not in s:
             s["forum_profile_path"] = None
+        if "scales" not in s:
+            s["scales"] = {}
         _touch(s)
         return session_id, s
     sid = session_id or str(uuid.uuid4())
-    _sessions[sid] = _new_session(sid)
+    _sessions[sid] = _new_session(sid, user_id=user_id)
     _cleanup()
     return sid, _sessions[sid]
+
+
+def save_scales(session: dict, scale_name: str, data: dict) -> None:
+    """Save scale results to session and disk."""
+    import json
+
+    if "scales" not in session:
+        session["scales"] = {}
+    data["completed_at"] = date.today().strftime("%Y-%m-%d")
+    session["scales"][scale_name] = data
+
+    user_id = session.get("user_id")
+    if user_id:
+        pdir = _profiles_dir(user_id)
+        pdir.mkdir(parents=True, exist_ok=True)
+        scales_path = pdir / "scales.json"
+        scales_path.write_text(
+            json.dumps(session["scales"], ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    _touch(session)
 
 
 def get(session_id: str) -> dict | None:
@@ -215,7 +323,14 @@ def get(session_id: str) -> dict | None:
     return s
 
 
+def list_ids() -> list[str]:
+    """List active session IDs (used by agent-links runtime/tests)."""
+    _cleanup()
+    return list(_sessions.keys())
+
+
 def reset(session_id: str) -> dict:
     """Reset session: clear messages and restore template profile."""
-    _sessions[session_id] = _new_session(session_id)
+    user_id = _sessions.get(session_id, {}).get("user_id")
+    _sessions[session_id] = _new_session(session_id, user_id=user_id)
     return _sessions[session_id]

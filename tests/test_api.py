@@ -532,6 +532,57 @@ def test_expert_share_rejects_builtin(client: TestClient, isolated_workspace: Pa
     assert "built-in" in resp.json().get("detail", "").lower()
 
 
+def test_topic_expert_import_public_twin_keeps_full_content(client: TestClient):
+    topic = _create_topic(client)
+    topic_id = topic["id"]
+    add_resp = client.post(
+        f"/topics/{topic_id}/experts",
+        json={
+            "source": "custom",
+            "name": "twin_public_expert",
+            "label": "公开分身",
+            "description": "公开导入",
+            "role_content": "# 公开分身\n\n这是完整内容",
+            "origin_type": "digital_twin",
+            "origin_visibility": "public",
+            "masked": False,
+        },
+    )
+    assert add_resp.status_code == 201
+
+    content_resp = client.get(f"/topics/{topic_id}/experts/twin_public_expert/content")
+    assert content_resp.status_code == 200
+    body = content_resp.json()
+    assert body["masked"] is False
+    assert "这是完整内容" in body["role_content"]
+
+
+def test_topic_expert_import_private_twin_forces_masked_content(client: TestClient):
+    topic = _create_topic(client)
+    topic_id = topic["id"]
+    add_resp = client.post(
+        f"/topics/{topic_id}/experts",
+        json={
+            "source": "custom",
+            "name": "twin_private_expert",
+            "label": "私密分身",
+            "description": "私密导入",
+            "role_content": "# 私密分身\n\nSECRET_CONTENT_SHOULD_NOT_LEAK",
+            "origin_type": "digital_twin",
+            "origin_visibility": "private",
+            "masked": False,
+        },
+    )
+    assert add_resp.status_code == 201
+
+    content_resp = client.get(f"/topics/{topic_id}/experts/twin_private_expert/content")
+    assert content_resp.status_code == 200
+    body = content_resp.json()
+    assert body["masked"] is True
+    assert "SECRET_CONTENT_SHOULD_NOT_LEAK" not in body["role_content"]
+    assert "内容已脱敏" in body["role_content"]
+
+
 def test_moderator_mode_share_to_topiclab_shared(client: TestClient, isolated_workspace: Path):
     """POST /topics/{id}/moderator-mode/share writes custom mode to topiclab_shared."""
     from app.core.config import get_moderator_modes_dir

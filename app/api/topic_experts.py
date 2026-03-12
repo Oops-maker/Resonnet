@@ -14,6 +14,7 @@ from app.agent.generation import generate_expert
 from app.agent.workspace import (
     add_expert_metadata,
     get_topic_experts,
+    load_experts_metadata,
     remove_expert_metadata,
 )
 from app.core.config import get_experts_dir, get_workspace_base
@@ -29,6 +30,24 @@ from app.models.schemas import TopicUpdate
 from app.models.store import get_topic, update_topic
 
 router = APIRouter()
+
+
+def _build_private_twin_masked_content(label: str, description: str) -> str:
+    return "\n".join(
+        [
+            f"# {label}",
+            "",
+            "> 此角色来源于私密数字分身，内容已脱敏。",
+            "",
+            "## 可公开信息",
+            "",
+            f"- 简介：{description or '未提供'}",
+            "",
+            "## 使用说明",
+            "",
+            "- 可参与话题讨论，但不暴露原始私密分身全文。",
+        ]
+    )
 
 
 @router.get("/{topic_id}/experts", response_model=list[TopicExpert])
@@ -123,7 +142,16 @@ def add_expert_to_topic(topic_id: str, req: AddExpertRequest):
 
         expert_dir.mkdir(parents=True, exist_ok=True)
         role_file = expert_dir / "role.md"
-        role_file.write_text(req.role_content, encoding="utf-8")
+        is_private_twin = (
+            req.origin_type == "digital_twin"
+            and req.origin_visibility == "private"
+        )
+        role_content_to_write = req.role_content
+        masked = bool(req.masked)
+        if is_private_twin:
+            role_content_to_write = _build_private_twin_masked_content(req.label, req.description)
+            masked = True
+        role_file.write_text(role_content_to_write, encoding="utf-8")
 
         # Add metadata
         add_expert_metadata(
@@ -133,6 +161,9 @@ def add_expert_to_topic(topic_id: str, req: AddExpertRequest):
             description=req.description,
             source="custom",
             is_from_topic_creation=False,
+            origin_type=req.origin_type,
+            origin_visibility=req.origin_visibility,
+            masked=masked,
         )
 
         # Sync expert_names in topic
@@ -216,7 +247,18 @@ def get_topic_expert_content(topic_id: str, expert_name: str):
     if not role_file.exists():
         raise HTTPException(status_code=404, detail=f"Expert not found: {expert_name}")
 
-    return {"role_content": role_file.read_text(encoding="utf-8")}
+    role_content = role_file.read_text(encoding="utf-8")
+    metadata = load_experts_metadata(ws_path)
+    meta_map = {
+        e.get("name"): e
+        for e in metadata.get("experts", [])
+        if isinstance(e, dict)
+    }
+    expert_meta = meta_map.get(expert_name, {})
+    if bool(expert_meta.get("masked")):
+        return {"role_content": role_content, "masked": True}
+
+    return {"role_content": role_content, "masked": False}
 
 
 @router.post("/{topic_id}/experts/{expert_name}/share", response_model=TopicExpertResponse)

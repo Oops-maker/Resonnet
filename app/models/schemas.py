@@ -163,6 +163,9 @@ class TopicExpert(BaseModel):
     role_file: str                      # agents/physicist/role.md
     added_at: str                       # When added
     is_from_topic_creation: bool = False  # From topic creation selection
+    origin_type: Optional[str] = None
+    origin_visibility: Optional[str] = None
+    masked: bool = False
 
 
 class AddExpertRequest(BaseModel):
@@ -177,6 +180,10 @@ class AddExpertRequest(BaseModel):
     role_content: Optional[str] = None
     # AI-generated
     user_prompt: Optional[str] = None
+    # Origin metadata (used by digital-twin import flow)
+    origin_type: Optional[str] = None
+    origin_visibility: Optional[str] = None
+    masked: Optional[bool] = None
 
 
 class GenerateExpertRequest(BaseModel):

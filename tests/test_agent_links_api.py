@@ -47,7 +47,15 @@ def test_agent_links_list_and_get(client: TestClient, monkeypatch):
 def test_agent_link_start_session_and_chat_stream(client: TestClient, monkeypatch):
     from app.services.profile_helper import sessions as profile_sessions
 
-    async def _fake_stream_chat(*, user_message: str, workdir: str, system_prompt: str, model: str | None = None):
+    async def _fake_stream_chat(
+        *,
+        session_id: str,
+        user_message: str,
+        workdir: str,
+        system_prompt: str,
+        model: str | None = None,
+    ):
+        assert session_id
         assert system_prompt is not None
         assert "profile-collector.mdc" in system_prompt
         assert workdir == "/tmp/session-ws"

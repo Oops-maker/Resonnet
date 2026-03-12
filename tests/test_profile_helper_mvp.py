@@ -31,7 +31,9 @@ def auth_override():
     app.dependency_overrides.pop(get_current_auth_context, None)
 
 
-def test_profile_helper_requires_auth(client):
+def test_profile_helper_requires_auth(client, monkeypatch):
+    monkeypatch.setenv("AUTH_MODE", "jwt")
+    monkeypatch.setenv("AUTH_REQUIRED", "true")
     resp = client.get("/profile-helper/session")
     assert resp.status_code == 401
 

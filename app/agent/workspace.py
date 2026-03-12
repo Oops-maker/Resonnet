@@ -338,17 +338,26 @@ def copy_mcp_to_workspace(ws_path: Path, server_ids: list[str]) -> list[str]:
         
         # Check if this is a streamableHttp type or stdio type
         is_http = info.get("type") == "streamableHttp"
-        
-        # Skip HTTP type MCPs - Claude Agent SDK doesn't support streamableHttp yet
+
         if is_http:
-            logger.info(f"MCP {sid} is streamableHttp type (skipped - not supported by Claude Agent SDK yet)")
+            headers = _replace_env_variables(info.get("headers")) or {}
+            if not info.get("baseUrl"):
+                logger.warning(f"MCP {sid}: baseUrl is required for streamableHttp type")
+                continue
+            mcp_servers[sid] = {
+                "type": "streamableHttp",
+                "baseUrl": info.get("baseUrl"),
+                **({"headers": headers} if headers else {}),
+                **({"description": info.get("description")} if info.get("description") else {}),
+                "isActive": bool(info.get("isActive", True)),
+            }
             continue
-        
+
         # Stdio type: require command
         if not info.get("command"):
             logger.warning(f"MCP {sid}: command is required for stdio type")
             continue
-        
+
         try:
             # Replace environment variables in env dict
             resolved_env = _replace_env_variables(info.get("env"))
@@ -357,13 +366,13 @@ def copy_mcp_to_workspace(ws_path: Path, server_ids: list[str]) -> list[str]:
                 args=info.get("args", []),
                 env=resolved_env,
             )
-            
+
             from app.core.mcp_config import validate_mcp_server
             validate_mcp_server(sid, cfg)
         except ValueError as e:
             logger.warning(f"MCP {sid} validation failed (skipped): {e}")
             continue
-        
+
         # Build the server config dict
         mcp_servers[sid] = {
             "command": info.get("command", ""),
@@ -564,13 +573,26 @@ def get_topic_experts(ws_path: Path) -> list[dict]:
             "role_file": f"agents/{expert_name}/role.md",
             "added_at": meta.get("added_at", ""),
             "is_from_topic_creation": meta.get("is_from_topic_creation", False),
+            "origin_type": meta.get("origin_type"),
+            "origin_visibility": meta.get("origin_visibility"),
+            "masked": bool(meta.get("masked", False)),
         })
 
     return experts
 
 
-def add_expert_metadata(ws_path: Path, expert_name: str, label: str, description: str,
-                        source: str, is_from_topic_creation: bool = False):
+def add_expert_metadata(
+    ws_path: Path,
+    expert_name: str,
+    label: str,
+    description: str,
+    source: str,
+    is_from_topic_creation: bool = False,
+    *,
+    origin_type: str | None = None,
+    origin_visibility: str | None = None,
+    masked: bool | None = None,
+):
     """Add or update expert metadata entry."""
     metadata = load_experts_metadata(ws_path)
     experts = metadata.get("experts", [])
@@ -586,6 +608,9 @@ def add_expert_metadata(ws_path: Path, expert_name: str, label: str, description
         "source": source,
         "added_at": datetime.now(timezone.utc).isoformat(),
         "is_from_topic_creation": is_from_topic_creation,
+        "origin_type": origin_type,
+        "origin_visibility": origin_visibility,
+        "masked": bool(masked) if masked is not None else False,
     })
 
     metadata["experts"] = experts

@@ -173,6 +173,15 @@ For runtime details, see [agent-links-runtime.md](agent-links-runtime.md).
 | POST | `/topics/{topic_id}/experts/{expert_name}/share` | Share expert to platform |
 | POST | `/topics/{topic_id}/experts/generate` | AI-generate expert role |
 
+`POST /topics/{topic_id}/experts` (custom source) accepts optional digital-twin import fields:
+- `origin_type` (e.g. `digital_twin`)
+- `origin_visibility` (`public`/`private`)
+- `masked` (boolean)
+
+`GET /topics/{topic_id}/experts/{expert_name}/content` returns:
+- `role_content`: markdown content
+- `masked`: whether the returned content is privacy-masked
+
 ## Moderator Modes (Discussion Modes)
 
 | Method | Path | Description |
@@ -215,6 +224,12 @@ Response fields: `name`, `label`, `description`, `skill_file`, `skill_content`, 
 | GET | `/profile-helper/session` | Get or create session (query: `session_id?`); returns `session_id` |
 | POST | `/profile-helper/chat` | Streaming chat via SSE (body: `message`, `session_id?`, `model?`) |
 | GET | `/profile-helper/profile/{session_id}` | Get profile and forum_profile content |
+| GET | `/profile-helper/profile/{session_id}/structured` | Parse profile markdown into structured JSON |
 | GET | `/profile-helper/download/{session_id}` | Download development profile as .md |
 | GET | `/profile-helper/download/{session_id}/forum` | Download forum profile as .md |
+| POST | `/profile-helper/scales/submit` | Save scales answers/scores into session and user workspace |
+| GET | `/profile-helper/scales/{session_id}` | Get saved scales for session |
+| POST | `/profile-helper/publish-to-library` | Publish profile/forum profile to expert library and create `my_twin` agent |
 | POST | `/profile-helper/session/reset/{session_id}` | Reset session: clear messages, restore blank profile |
+
+All `/profile-helper/*` endpoints require `Authorization: Bearer <token>`. Token is validated by forwarding to `topiclab-backend /auth/me`.
