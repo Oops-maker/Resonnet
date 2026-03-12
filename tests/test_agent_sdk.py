@@ -171,7 +171,7 @@ async def test_run_expert_reply_mocked_enables_skill_auto_discovery(expert_reply
     captured_options: list[Any] = []
     skills_dir = expert_reply_workspace / "config" / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
-    (skills_dir / "web_search.md").write_text("# web search", encoding="utf-8")
+    (skills_dir / "critical_thinking.md").write_text("# critical", encoding="utf-8")
 
     async def mock_query_with_options(prompt: str = "", options=None, **kwargs):
         from claude_agent_sdk import ResultMessage
@@ -207,7 +207,7 @@ async def test_run_expert_reply_mocked_enables_skill_auto_discovery(expert_reply
     opts = captured_options[0]
     assert opts is not None
     assert opts.setting_sources == ["project", "local"]
-    assert (expert_reply_workspace / ".claude" / "skills" / "web_search" / "SKILL.md").exists()
+    assert (expert_reply_workspace / ".claude" / "skills" / "critical_thinking" / "SKILL.md").exists()
 
 
 # --- run_discussion (mocked) ---
@@ -320,6 +320,79 @@ async def test_run_discussion_mocked_passes_mcp_to_sdk(discussion_workspace: Pat
 
 
 @pytest.mark.asyncio
+async def test_run_discussion_mocked_passes_http_mcp_to_sdk(discussion_workspace: Path):
+    """When mcp.json contains http server, run_discussion passes HTTP fields to SDK."""
+    from app.agent.discussion import run_discussion
+    from claude_agent_sdk import ResultMessage
+
+    captured_options: list[Any] = []
+
+    async def mock_query(prompt: str = "", options=None, **kwargs):
+        captured_options.append(options)
+        yield ResultMessage(
+            subtype="success",
+            duration_ms=100,
+            duration_api_ms=80,
+            is_error=False,
+            num_turns=1,
+            session_id="test-session",
+            total_cost_usd=0.001,
+            usage=None,
+            result=None,
+        )
+
+    mcp_json = discussion_workspace / "config" / "mcp.json"
+    mcp_json.write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                    "Wan26Media": {
+                        "type": "http",
+                        "description": "Aliyun Wan 2.6 media generation",
+                        "isActive": True,
+                        "name": "Aliyun Wan 2.6",
+                        "url": "https://dashscope.aliyuncs.com/api/v1/mcps/Wan26Media/mcp",
+                        "headers": {
+                            "Authorization": "Bearer ${DASHSCOPE_API_KEY}",
+                        },
+                    }
+                }
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    with (
+        patch("app.agent.discussion.query", side_effect=mock_query),
+        patch("app.agent.discussion.build_experts_from_workspace") as mock_build,
+    ):
+        mock_build.return_value = {}
+        await run_discussion(
+            workspace_dir=discussion_workspace,
+            config={"api_key": "test", "model": None},
+            topic="Test",
+            num_rounds=1,
+            expert_names=["physicist"],
+            max_turns=10,
+            max_budget_usd=1.0,
+        )
+
+    assert len(captured_options) == 1
+    opts = captured_options[0]
+    assert opts is not None
+    assert hasattr(opts, "mcp_servers")
+    assert opts.mcp_servers == {
+        "Wan26Media": {
+            "type": "http",
+            "url": "https://dashscope.aliyuncs.com/api/v1/mcps/Wan26Media/mcp",
+            "headers": {"Authorization": "Bearer ${DASHSCOPE_API_KEY}"},
+        }
+    }
+    assert "mcp__Wan26Media__*" in opts.allowed_tools
+
+
+@pytest.mark.asyncio
 async def test_run_discussion_mocked_no_mcp_when_config_missing(discussion_workspace: Path):
     """When config/mcp.json does not exist, run_discussion does not pass mcp_servers."""
     from app.agent.discussion import run_discussion
@@ -374,7 +447,7 @@ async def test_run_discussion_mocked_enables_skill_auto_discovery(discussion_wor
     captured_options: list[Any] = []
     skills_dir = discussion_workspace / "config" / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
-    (skills_dir / "web_search.md").write_text("# web search", encoding="utf-8")
+    (skills_dir / "critical_thinking.md").write_text("# critical", encoding="utf-8")
 
     async def mock_query(prompt: str = "", options=None, **kwargs):
         captured_options.append(options)
@@ -409,7 +482,7 @@ async def test_run_discussion_mocked_enables_skill_auto_discovery(discussion_wor
     opts = captured_options[0]
     assert opts is not None
     assert opts.setting_sources == ["project", "local"]
-    assert (discussion_workspace / ".claude" / "skills" / "web_search" / "SKILL.md").exists()
+    assert (discussion_workspace / ".claude" / "skills" / "critical_thinking" / "SKILL.md").exists()
     assert (
         discussion_workspace / ".claude" / "skills" / "moderator_orchestrator" / "SKILL.md"
     ).exists()
@@ -455,6 +528,15 @@ def test_mention_api_mocked_returns_202_and_completes(client: TestClient, isolat
 def _has_real_api_key() -> bool:
     key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
     return bool(key and key != "test")
+
+
+def _has_dashscope_api_key() -> bool:
+    key = (os.environ.get("DASHSCOPE_API_KEY") or "").strip()
+    return bool(key and key != "test")
+
+
+def _wan26_integration_enabled() -> bool:
+    return (os.environ.get("RUN_WAN26_MCP_TEST") or "").strip() == "1"
 
 
 def _print_section(title: str):
@@ -707,3 +789,95 @@ def test_discussion_mcp_time_integration(
     }
     # 必选：MCP 传参链路（copy + config）；可选：历史含时间（取决于 agent 是否写出 turn）
     _assert_evidence("mcp_time", evidence, ["scenario", "status_completed", "mcp_json_written", "mcp_time_in_config"])
+
+
+@pytest.mark.integration
+@pytest.mark.slow
+@pytest.mark.skipif(
+    not (_wan26_integration_enabled() and _has_real_api_key() and _has_dashscope_api_key()),
+    reason=(
+        "需要设置 RUN_WAN26_MCP_TEST=1，且 .env 中提供真实 "
+        "ANTHROPIC_API_KEY 和 DASHSCOPE_API_KEY 才能执行 Wan26Media 集成测试"
+    ),
+)
+def test_discussion_mcp_wan26media_forced_call_integration(
+    client: TestClient,
+    isolated_workspace: Path,
+):
+    """Integration: import Wan26Media MCP into topic and force agent to call it for image output."""
+    _print_section("Wan26Media MCP integration: 强制调用图像生成工具")
+
+    create = client.post(
+        "/topics",
+        json={
+            "title": "Wan26Media MCP 强制调用测试",
+            "body": (
+                "你必须调用 Wan26Media MCP 的图像生成工具，产出一张关于“多学科协作讨论流程”的示意图。"
+                "输出必须包含至少一个 Markdown 图片链接（![alt](url)）。"
+                "如果工具调用失败，请明确写出失败原因与错误信息。"
+            ),
+        },
+    )
+    assert create.status_code == 201
+    topic_id = create.json()["id"]
+
+    client.patch(f"/topics/{topic_id}", json={"expert_names": ["physicist"]})
+    start_resp = client.post(
+        f"/topics/{topic_id}/discussion",
+        json={
+            "num_rounds": 1,
+            "max_turns": 40,
+            "max_budget_usd": 2.0,
+            "mcp_server_ids": ["Wan26Media"],
+        },
+    )
+    assert start_resp.status_code == 202, start_resp.text
+    assert start_resp.json()["status"] == "running"
+
+    final = _poll_discussion_until_done(client, topic_id, timeout_sec=240)
+    assert final["status"] == "completed", f"Wan26Media 讨论运行失败: {final}"
+    result = final.get("result")
+    assert result is not None
+
+    ws_topic = isolated_workspace / "topics" / topic_id
+    mcp_path = ws_topic / "config" / "mcp.json"
+    assert mcp_path.exists(), "copy_mcp_to_workspace 应已写入 config/mcp.json"
+    mcp_data = json.loads(mcp_path.read_text(encoding="utf-8"))
+    wan_cfg = (mcp_data.get("mcpServers") or {}).get("Wan26Media")
+    assert isinstance(wan_cfg, dict), "mcp.json 应包含 Wan26Media server"
+    assert wan_cfg.get("type") == "http"
+    assert wan_cfg.get("url") == "https://dashscope.aliyuncs.com/api/v1/mcps/Wan26Media/mcp"
+
+    history = (result.get("discussion_history") or "").strip()
+    if not history:
+        turns_dir = ws_topic / "shared" / "turns"
+        if turns_dir.exists():
+            turn_files = sorted(turns_dir.glob("*.md"))
+            history = "\n\n".join(f.read_text(encoding="utf-8") for f in turn_files).strip()
+
+    image_markdown_pattern = re.compile(r"!\[[^\]]*\]\(([^)\s]+)\)")
+    image_link_found = bool(history and image_markdown_pattern.search(history))
+    forced_call_ack = bool(
+        history
+        and re.search(r"Wan26Media|图像生成|图片链接|markdown\s*图片", history, re.IGNORECASE)
+    )
+
+    evidence = {
+        "scenario": "mcp_wan26media",
+        "status_completed": final["status"] == "completed",
+        "mcp_json_written": mcp_path.exists(),
+        "mcp_wan26media_in_config": isinstance(wan_cfg, dict),
+        "mcp_type_http": wan_cfg.get("type") == "http",
+        "forced_call_ack_or_image_link": forced_call_ack or image_link_found,
+    }
+    _assert_evidence(
+        "mcp_wan26media",
+        evidence,
+        [
+            "scenario",
+            "status_completed",
+            "mcp_json_written",
+            "mcp_wan26media_in_config",
+            "mcp_type_streamable_http",
+        ],
+    )

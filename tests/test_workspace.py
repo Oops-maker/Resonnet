@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.agent.workspace import (
+    _sanitize_turn_source_links,
     _parse_skill_id,
     _resolve_skill_path,
     _skill_dest_filename,
@@ -101,14 +102,12 @@ class TestSyncClaudeSkillDiscoveryFiles:
         ws = tmp_path / "topic_ws"
         skills_dir = ws / "config" / "skills"
         skills_dir.mkdir(parents=True)
-        (skills_dir / "web_search.md").write_text("# web search", encoding="utf-8")
         (skills_dir / "critical_thinking.md").write_text("# critical", encoding="utf-8")
         (ws / "config" / "moderator_skill.md").write_text("# moderator", encoding="utf-8")
 
         synced = sync_claude_skill_discovery_files(ws)
 
-        assert sorted(synced) == ["critical_thinking", "moderator_orchestrator", "web_search"]
-        assert (ws / ".claude" / "skills" / "web_search" / "SKILL.md").read_text(encoding="utf-8") == "# web search"
+        assert sorted(synced) == ["critical_thinking", "moderator_orchestrator"]
         assert (ws / ".claude" / "skills" / "critical_thinking" / "SKILL.md").read_text(encoding="utf-8") == "# critical"
         assert (ws / ".claude" / "skills" / "moderator_orchestrator" / "SKILL.md").read_text(
             encoding="utf-8"
@@ -117,7 +116,7 @@ class TestSyncClaudeSkillDiscoveryFiles:
     def test_removes_stale_skill_directories(self, tmp_path: Path):
         ws = tmp_path / "topic_ws"
         (ws / "config" / "skills").mkdir(parents=True)
-        (ws / "config" / "skills" / "web_search.md").write_text("# web search", encoding="utf-8")
+        (ws / "config" / "skills" / "critical_thinking.md").write_text("# critical", encoding="utf-8")
         stale = ws / ".claude" / "skills" / "legacy_skill"
         stale.mkdir(parents=True)
         (stale / "SKILL.md").write_text("# stale", encoding="utf-8")
@@ -125,3 +124,28 @@ class TestSyncClaudeSkillDiscoveryFiles:
         sync_claude_skill_discovery_files(ws)
 
         assert not stale.exists()
+
+
+class TestSourceCitationGuardrails:
+    """Tests for source citation filtering in discussion turns."""
+
+    def test_sanitize_turn_source_links_filters_non_verifiable_links(self):
+        raw = (
+            "1. 方案 A（来源：[芯片白皮书](/api/2026-chip-6789)）\n"
+            "2. 方案 B（来源：[ArXiv](https://arxiv.org/abs/2501.00001)）"
+        )
+
+        sanitized, filtered = _sanitize_turn_source_links(raw)
+
+        assert filtered == 1
+        assert "/api/2026-chip-6789" not in sanitized
+        assert "https://arxiv.org/abs/2501.00001" in sanitized
+        assert "来源链接已过滤：非可核验URL" in sanitized
+
+    def test_sanitize_turn_source_links_ignores_non_citation_lines(self):
+        raw = "[项目看板](/api/topics/demo/assets/generated_images/figure.png)"
+
+        sanitized, filtered = _sanitize_turn_source_links(raw)
+
+        assert sanitized == raw
+        assert filtered == 0

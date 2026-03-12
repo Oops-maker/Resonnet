@@ -24,6 +24,7 @@ from .workspace import (
     init_discussion_history,
     read_discussion_history,
     read_discussion_summary,
+    sanitize_discussion_turn_sources,
     sync_claude_skill_discovery_files,
 )
 from app.core.mcp_config import load_mcp_config_from_path
@@ -51,7 +52,9 @@ def _load_mcp_servers_for_sdk(workspace_dir: Path) -> dict[str, dict]:
     """Load MCP config from workspace config/mcp.json and convert to SDK format.
 
     Returns dict suitable for ClaudeAgentOptions(mcp_servers=...).
-    Each server: {"command": str, "args": list, "env": dict | None}
+    Supports both:
+    - stdio: {"command": str, "args": list, "env": dict | None}
+    - http: {"type": "http", "url": str, "headers": dict | None}
     """
     path = workspace_dir / "config" / "mcp.json"
     cfg = load_mcp_config_from_path(path)
@@ -59,10 +62,26 @@ def _load_mcp_servers_for_sdk(workspace_dir: Path) -> dict[str, dict]:
         return {}
     result: dict[str, dict] = {}
     for sid, srv in cfg.mcpServers.items():
-        entry: dict = {"command": srv.command, "args": srv.args or []}
-        if srv.env:
-            entry["env"] = srv.env
-        result[sid] = entry
+        if srv.is_http():
+            # Emit Claude Code style HTTP MCP config
+            url = srv.url
+            if not url:
+                logger.warning("MCP %s is marked as HTTP type but has no url; skipping", sid)
+                continue
+            entry: dict[str, Any] = {
+                "type": "http",
+                "url": url,
+            }
+            if srv.headers:
+                entry["headers"] = srv.headers
+            result[sid] = entry
+            continue
+
+        if srv.command:
+            entry = {"command": srv.command, "args": srv.args or []}
+            if srv.env:
+                entry["env"] = srv.env
+            result[sid] = entry
     return result
 
 
@@ -185,15 +204,11 @@ async def run_discussion_for_topic(
     init_discussion_history(ws_path, topic_title, topic_body)
 
     # Copy user-selected skills from global assignable_skills to config/skills/
-    # Always include web_search skill for fact-checking and up-to-date information
     skills_to_copy = list(skill_list) if skill_list else []
-    if "web_search" not in skills_to_copy:
-        skills_to_copy.append("web_search")
-    
     if skills_to_copy:
         copied = copy_skills_to_workspace(ws_path, skills_to_copy)
         if copied:
-            logger.info(f"Copied {len(copied)} skills to workspace (including web_search): {copied}")
+            logger.info(f"Copied {len(copied)} skills to workspace: {copied}")
 
     # Copy user-selected MCP servers from global mcp.json to config/mcp.json
     if mcp_server_ids:
@@ -220,6 +235,13 @@ async def run_discussion_for_topic(
             max_budget_usd=max_budget_usd,
             allowed_tools=allowed_tools,
         )
+        filtered_sources = sanitize_discussion_turn_sources(ws_path)
+        if filtered_sources:
+            logger.warning(
+                "Filtered %d non-verifiable source links for topic %s",
+                filtered_sources,
+                topic_id,
+            )
 
     return {
         "discussion_history": read_discussion_history(ws_path),

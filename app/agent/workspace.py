@@ -88,6 +88,13 @@ FALLBACK_LANGUAGE_INSTRUCTION = (
     "for all output and communication."
 )
 
+_CITATION_LINE_PATTERN = re.compile(r"(来源|source|reference|citation|参考)", re.IGNORECASE)
+_MARKDOWN_LINK_PATTERN = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)")
+_VERIFIABLE_SOURCE_URL_PATTERN = re.compile(
+    r"^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:[/:?#].*)?$",
+    re.IGNORECASE,
+)
+
 
 def build_output_language_instruction(ws_path: Path) -> str:
     """Build the Output Language skill section for prompts.
@@ -105,6 +112,58 @@ def build_output_language_instruction(ws_path: Path) -> str:
             f"Do not switch to another language unless the user explicitly requests it."
         )
     return FALLBACK_LANGUAGE_INSTRUCTION
+
+
+def _sanitize_turn_source_links(content: str) -> tuple[str, int]:
+    """Filter non-verifiable markdown source links from a turn content.
+
+    Rules:
+    - Only process lines that look like citation/source statements.
+    - Keep markdown links when they are full verifiable external http(s) URLs.
+    - Replace other links with plain text marker so fake/internal sources are visible.
+    """
+    filtered_count = 0
+    output_lines: list[str] = []
+    for line in content.splitlines():
+        if not _CITATION_LINE_PATTERN.search(line):
+            output_lines.append(line)
+            continue
+
+        def _replace_link(match: re.Match[str]) -> str:
+            nonlocal filtered_count
+            label = match.group(1).strip()
+            url = match.group(2).strip()
+            if _VERIFIABLE_SOURCE_URL_PATTERN.match(url):
+                return match.group(0)
+            filtered_count += 1
+            return f"{label}（来源链接已过滤：非可核验URL）"
+
+        output_lines.append(_MARKDOWN_LINK_PATTERN.sub(_replace_link, line))
+
+    sanitized = "\n".join(output_lines)
+    if filtered_count > 0 and "[source-guardrail]" not in sanitized:
+        sanitized = (
+            sanitized.rstrip()
+            + "\n\n"
+            + f"> [source-guardrail] 已过滤 {filtered_count} 条不可核验来源链接；来源仅允许完整 `https://` 外部地址。\n"
+        )
+    return sanitized, filtered_count
+
+
+def sanitize_discussion_turn_sources(ws_path: Path) -> int:
+    """Sanitize source links in shared/turns/*.md and return filtered link count."""
+    turns_dir = ws_path / "shared" / "turns"
+    if not turns_dir.exists():
+        return 0
+
+    filtered_total = 0
+    for turn_file in sorted(turns_dir.glob("*.md")):
+        original = turn_file.read_text(encoding="utf-8")
+        sanitized, filtered = _sanitize_turn_source_links(original)
+        if filtered > 0 and sanitized != original:
+            turn_file.write_text(sanitized, encoding="utf-8")
+        filtered_total += filtered
+    return filtered_total
 
 
 def validate_topic_id(topic_id: str) -> str:
@@ -375,17 +434,18 @@ def copy_mcp_to_workspace(ws_path: Path, server_ids: list[str]) -> list[str]:
             logger.warning(f"MCP not found in meta (skipped): {sid}")
             continue
         
-        # Check if this is a streamableHttp type or stdio type
-        is_http = info.get("type") == "streamableHttp"
+        # Check if this is an HTTP type or stdio type
+        is_http = info.get("type") == "http"
 
         if is_http:
             headers = _replace_env_variables(info.get("headers")) or {}
-            if not info.get("baseUrl"):
-                logger.warning(f"MCP {sid}: baseUrl is required for streamableHttp type")
+            url = info.get("url")
+            if not url:
+                logger.warning(f"MCP {sid}: url is required for HTTP type")
                 continue
             mcp_servers[sid] = {
-                "type": "streamableHttp",
-                "baseUrl": info.get("baseUrl"),
+                "type": "http",
+                "url": url,
                 **({"headers": headers} if headers else {}),
                 **({"description": info.get("description")} if info.get("description") else {}),
                 "isActive": bool(info.get("isActive", True)),
