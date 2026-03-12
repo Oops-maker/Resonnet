@@ -238,6 +238,10 @@ docker run --rm -p 8000:8000 --env-file .env \
 - **Libs**：`POST /libs/invalidate-cache` 立即清空库 meta 缓存（热更新）
 - **Profile Helper**：`GET /profile-helper/session`，`POST /profile-helper/chat`（SSE），`GET /profile-helper/profile/{session_id}`，`GET /profile-helper/download/{session_id}`，`POST /profile-helper/session/reset/{session_id}`
 
+> Profile Helper 认证模式：`AUTH_MODE=none|jwt|proxy`（默认 `none`）。发布后的账号库同步由 `ACCOUNT_SYNC_ENABLED` 控制，失败不会阻断主发布流程。
+>
+> 数字分身导入话题角色时：`public` 分身可导入完整内容；`private` 分身会以 `masked=true` 方式脱敏导入，`GET /topics/{topic_id}/experts/{expert_name}/content` 不返回原始私密正文。
+
 Agent Links 蓝图目录约定：`libs/agent_links/<blueprint_dir>/agent.json`。
 
 详见 [docs/api-reference.md](docs/api-reference.md)。

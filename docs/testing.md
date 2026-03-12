@@ -53,6 +53,14 @@ bash scripts/ci_local.sh
 | `test_api.py` | Unit | API endpoints (topics/posts validation and persistence) |
 | `test_agent_sdk.py` | Unit + Integration | Agent SDK: unit (mock, CI) + integration (real API, requires ANTHROPIC_API_KEY) |
 
+### Privacy Masking Regression
+
+When changing topic experts or digital-twin import logic, verify these API expectations:
+
+- `public` digital twin import -> `GET /topics/{topic_id}/experts/{expert_name}/content` returns full `role_content` with `masked=false`
+- `private` digital twin import -> same endpoint returns masked content with `masked=true`
+- Existing expert create/edit/delete flows remain compatible
+
 ## AgentSDK Integration Checklist
 
 - Run `test_agent_sdk.py -m integration` with real `.env` (no placeholders)

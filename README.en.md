@@ -236,6 +236,10 @@ Or use `docker compose up --build`.
 - **Libs**: `POST /libs/invalidate-cache` — clear libs meta cache immediately (hot-reload)
 - **Profile Helper**: `GET /profile-helper/session`, `POST /profile-helper/chat` (SSE), `GET /profile-helper/profile/{session_id}`, `GET /profile-helper/download/{session_id}`, `GET /profile-helper/download/{session_id}/forum`, `POST /profile-helper/session/reset/{session_id}`
 
+> Profile Helper auth modes: `AUTH_MODE=none|jwt|proxy` (default `none`). Account sync after publish is optional via `ACCOUNT_SYNC_ENABLED` and does not block the main publish flow on failure.
+>
+> For digital twin import into topic experts: `public` twins can be imported with full content; `private` twins are imported as `masked=true`, and `GET /topics/{topic_id}/experts/{expert_name}/content` does not expose the original private role body.
+
 See [docs/api-reference.md](docs/api-reference.md) for details.
 
 ## Contributing
