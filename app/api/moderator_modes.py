@@ -25,7 +25,7 @@ from app.models.schemas import (
     SetModeratorModeRequest,
     ShareModeratorModeRequest,
 )
-from app.models.store import get_topic
+from app.models.store import get_topic, set_topic_moderator_mode_fields
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -164,6 +164,8 @@ def set_topic_moderator_mode(topic_id: str, req: SetModeratorModeRequest):
     }
 
     save_moderator_mode_config(ws_path, config)
+    mode_name = "自定义模式" if req.mode_id == "custom" else PRESET_MODES.get(req.mode_id, {}).get("name", req.mode_id)
+    set_topic_moderator_mode_fields(topic_id, mode_id=req.mode_id, mode_name=mode_name)
 
     return ModeratorModeConfig(**config)
 
@@ -195,6 +197,7 @@ async def generate_moderator_mode_endpoint(topic_id: str, req: GenerateModerator
     }
 
     save_moderator_mode_config(ws_path, config)
+    set_topic_moderator_mode_fields(topic_id, mode_id="custom", mode_name="自定义模式")
 
     return {
         "message": "Moderator mode generated successfully",

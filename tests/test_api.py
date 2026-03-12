@@ -49,6 +49,25 @@ def test_topic_list_contains_created_topics(client: TestClient):
     assert "列表B" in titles
 
 
+def test_topic_list_is_lightweight_and_contains_preview_image(client: TestClient):
+    topic = _create_topic(
+        client,
+        title="轻量列表",
+        body="封面图 ![预览](../generated_images/list_preview.png)",
+    )
+    topic_id = topic["id"]
+
+    response = client.get("/topics")
+    assert response.status_code == 200
+    topics = response.json()
+    matched = next(t for t in topics if t["id"] == topic_id)
+
+    assert matched["preview_image"] == "../generated_images/list_preview.png"
+    assert "discussion_result" not in matched
+    assert "expert_names" not in matched
+    assert "num_rounds" not in matched
+
+
 def test_topic_update_and_close(client: TestClient):
     topic = _create_topic(client, title="待更新", body="old")
     topic_id = topic["id"]

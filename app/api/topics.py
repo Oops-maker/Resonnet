@@ -1,6 +1,7 @@
 """Topics API endpoints."""
 
 from pathlib import Path
+import re
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -20,6 +21,7 @@ from app.models.schemas import (
     DiscussionStatus,
     Topic,
     TopicCreate,
+    TopicListItem,
     TopicUpdate,
 )
 from app.models.store import (
@@ -27,10 +29,12 @@ from app.models.store import (
     create_topic,
     get_topic,
     list_topics,
+    set_topic_moderator_mode_fields,
     update_topic,
 )
 
 router = APIRouter()
+_MARKDOWN_IMAGE_PATTERN = re.compile(r"!\[[^\]]*]\(([^)\s]+(?:\s+\"[^\"]*\")?)\)")
 
 
 def _resolve_generated_image_path(topic_id: str, asset_path: str) -> Path:
@@ -62,12 +66,44 @@ def _augment_topic_with_moderator_mode(topic: Topic) -> Topic:
     return topic
 
 
-@router.get("", response_model=list[Topic])
+def _extract_first_markdown_image(markdown: str | None) -> str:
+    if not markdown:
+        return ""
+    match = _MARKDOWN_IMAGE_PATTERN.search(markdown)
+    if not match:
+        return ""
+    raw = match.group(1).strip()
+    path_only = raw.split('"')[0].strip() if '"' in raw else raw
+    if path_only.startswith("<") and path_only.endswith(">"):
+        return path_only[1:-1].strip()
+    return path_only
+
+
+def _build_topic_list_item(topic: Topic) -> TopicListItem:
+    preview_image = _extract_first_markdown_image(topic.body)
+    if not preview_image and topic.discussion_result:
+        preview_image = _extract_first_markdown_image(topic.discussion_result.discussion_summary)
+    if not preview_image and topic.discussion_result:
+        preview_image = _extract_first_markdown_image(topic.discussion_result.discussion_history)
+
+    return TopicListItem(
+        id=topic.id,
+        session_id=topic.session_id,
+        title=topic.title,
+        body=topic.body,
+        status=topic.status,
+        discussion_status=topic.discussion_status,
+        created_at=topic.created_at,
+        updated_at=topic.updated_at,
+        moderator_mode_id=topic.moderator_mode_id,
+        moderator_mode_name=topic.moderator_mode_name,
+        preview_image=preview_image or None,
+    )
+
+
+@router.get("", response_model=list[TopicListItem])
 def get_topics():
-    topics = list_topics()
-    for t in topics:
-        _augment_topic_with_moderator_mode(t)
-    return topics
+    return [_build_topic_list_item(topic) for topic in list_topics()]
 
 
 @router.post("", response_model=Topic, status_code=201)
@@ -86,6 +122,11 @@ def post_topic(data: TopicCreate):
         "mcp_server_ids": [],
         "model": None,
     })
+    set_topic_moderator_mode_fields(
+        topic.id,
+        mode_id="standard",
+        mode_name=PRESET_MODES.get("standard", {}).get("name", "Standard Round Table"),
+    )
 
     for expert_name in DEFAULT_TOPIC_EXPERT_NAMES:
         spec = EXPERT_SPECS.get(expert_name)

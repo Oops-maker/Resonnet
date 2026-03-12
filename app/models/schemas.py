@@ -74,6 +74,24 @@ class Topic(BaseModel):
     # Populated by API from config/moderator_mode.json (not in topic.json)
     moderator_mode_id: Optional[str] = None
     moderator_mode_name: Optional[str] = None
+    # Optional lightweight preview for topic list.
+    preview_image: Optional[str] = None
+
+
+class TopicListItem(BaseModel):
+    """Lightweight topic list item for polling /topics."""
+
+    id: str
+    session_id: str = ""
+    title: str
+    body: str
+    status: TopicStatus
+    discussion_status: DiscussionStatus = DiscussionStatus.PENDING
+    created_at: str
+    updated_at: str
+    moderator_mode_id: Optional[str] = None
+    moderator_mode_name: Optional[str] = None
+    preview_image: Optional[str] = None
 
 
 # --- Comment models ---

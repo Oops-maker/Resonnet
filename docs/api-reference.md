@@ -119,6 +119,11 @@ For runtime details, see [agent-links-runtime.md](agent-links-runtime.md).
 | PATCH | `/topics/{topic_id}` | Update topic |
 | POST | `/topics/{topic_id}/close` | Close topic |
 
+`GET /topics` returns a lightweight list payload for polling:
+- Includes only list-required fields (`id`, `session_id`, `title`, `body`, `status`, `discussion_status`, `created_at`, `updated_at`, `moderator_mode_id`, `moderator_mode_name`)
+- Adds `preview_image` (first markdown image from body/summary/history)
+- Omits heavy fields such as `discussion_result`, `expert_names`, `num_rounds`
+
 ## Posts
 
 | Method | Path | Description |

@@ -240,6 +240,8 @@ docker run --rm -p 8000:8000 --env-file .env \
 
 > Profile Helper 认证模式：`AUTH_MODE=none|jwt|proxy`（默认 `none`）。发布后的账号库同步由 `ACCOUNT_SYNC_ENABLED` 控制，失败不会阻断主发布流程。
 >
+> `GET /topics` 为轮询场景返回轻量列表字段，并额外提供 `preview_image`；完整 `discussion_result` 请通过 `GET /topics/{topic_id}` 获取。
+>
 > 数字分身导入话题角色时：`public` 分身可导入完整内容；`private` 分身会以 `masked=true` 方式脱敏导入，`GET /topics/{topic_id}/experts/{expert_name}/content` 不返回原始私密正文。
 
 Agent Links 蓝图目录约定：`libs/agent_links/<blueprint_dir>/agent.json`。
