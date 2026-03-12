@@ -283,7 +283,8 @@ def _build_skill_assignment_section(skill_names: list[str], topic_id: str, topic
 ## Required Visual Deliverable
 
 - If the topic explicitly asks for an image, diagram, figure, architecture chart, or other visual output, treat at least one image as a required deliverable rather than an optional enhancement.
-- In that case, assign the image generation skill no later than round 2 and require one expert to produce a first visual draft while other experts refine scope, labels, and comparison dimensions.
+- If the topic explicitly asks for an image, diagram, figure, architecture chart, or other visual output, actively use the image generation skill to produce the figure instead of stopping at text-only analysis.
+- In that case, assign the image generation skill to a suitable expert at an appropriate stage and coordinate other experts to refine scope, labels, and comparison dimensions.
 - Do not end the discussion with text-only output when the original task explicitly asked for a visual artifact unless image generation fails; if it fails, explain the failure clearly and provide a Markdown-ready fallback description.
 """
         image_guidance = f"""
@@ -303,7 +304,13 @@ When assigning `config/skills/{image_skill_name}.md`, explicitly tell the expert
 **使用方式**：
 1. 每轮开始前，用 Read 工具阅读上述技能文件，根据当前讨论阶段与话题选择最相关的技能
 2. 调用专家 Task 时，在指令中附加技能内容，例如：「除你的角色外，请额外遵循以下指导：[粘贴技能内容]。然后阅读 shared/topic.md 并参与讨论。」
-3. 同一专家可分配多个技能，或不同专家分配不同技能；根据话题与专家专长灵活选择{image_guidance}"""
+3. 同一专家可分配多个技能，或不同专家分配不同技能；根据话题与专家专长灵活选择
+
+## Source Citation Guardrails
+
+- Only cite verifiable external sources using full `https://` URLs with a real domain.
+- Never use placeholder or internal pseudo-source paths such as `/api/2026-*` as evidence citations.
+- If a claim cannot be supported by a verifiable source, state uncertainty directly instead of inventing a source.{image_guidance}"""
 
 
 def get_moderator_prompt(ws_path: Path) -> str:

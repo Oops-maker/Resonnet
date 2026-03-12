@@ -33,6 +33,8 @@ DISCUSSION_IMAGE_GUIDANCE_TEMPLATE = """
 - Save generated images under `shared/generated_images/` using descriptive filenames such as `shared/generated_images/round2_concept_map.png`.
 - When you reference an image in your turn, embed it in Markdown using the topic asset URL, for example:
   `![图示说明]({markdown_image_example})`
+- Do not return raw temporary DashScope URLs (for example `dashscope-result-*.oss-*.aliyuncs.com`) directly to users.
+- If an external image URL is returned by a generation tool, download/save it to `shared/generated_images/` first, then reference only the local topic asset URL in your final answer.
 - The surrounding text must explain why the image matters and what insight the reader should take from it.
 """
 

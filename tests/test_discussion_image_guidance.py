@@ -26,11 +26,12 @@ def test_prepare_moderator_skill_includes_image_guidance_when_skill_present(
     assert "学术讨论风格" in content
     assert "shared/generated_images/" in content
     assert "![图示说明](/api/topics/discussion-image-guidance/assets/generated_images/" in content
+    assert "Do not return raw temporary DashScope URLs" in content
     assert "config/skills/image_generation.md" in content
     assert "Required Visual Deliverable" not in content
 
 
-def test_prepare_moderator_skill_requires_image_delivery_for_explicit_image_topics(
+def test_prepare_moderator_skill_requires_image_delivery_without_first_round_force(
     isolated_workspace: Path,
 ):
     ws_path = ensure_topic_workspace(isolated_workspace, "discussion-image-required")
@@ -47,8 +48,26 @@ def test_prepare_moderator_skill_requires_image_delivery_for_explicit_image_topi
 
     content = skill_file.read_text(encoding="utf-8")
     assert "treat at least one image as a required deliverable" in content
-    assert "assign the image generation skill no later than round 2" in content
+    assert "assign the image generation skill in round 1" not in content
+    assert "produce a first visual draft in round 1" not in content
     assert "Do not end the discussion with text-only output" in content
+
+
+def test_prepare_moderator_skill_includes_source_citation_guardrails(
+    isolated_workspace: Path,
+):
+    ws_path = ensure_topic_workspace(isolated_workspace, "discussion-source-guardrails")
+    skill_file = prepare_moderator_skill(
+        ws_path=ws_path,
+        topic="芯片架构设计方案",
+        expert_names=["physicist"],
+        num_rounds=2,
+    )
+
+    content = skill_file.read_text(encoding="utf-8")
+    assert "Source Citation Guardrails" in content
+    assert "Only cite verifiable external sources using full `https://`" in content
+    assert "Never use placeholder or internal pseudo-source paths such as `/api/2026-" in content
 
 
 def test_build_experts_from_workspace_includes_discussion_image_guidance(
@@ -69,6 +88,7 @@ def test_build_experts_from_workspace_includes_discussion_image_guidance(
     assert "学术讨论风格" in prompt_text
     assert "shared/generated_images/" in prompt_text
     assert "![图示说明](/api/topics/discussion-image-expert-prompt/assets/generated_images/" in prompt_text
+    assert "Do not return raw temporary DashScope URLs" in prompt_text
 
 
 def test_topic_generated_image_asset_is_served(client, isolated_workspace: Path):
