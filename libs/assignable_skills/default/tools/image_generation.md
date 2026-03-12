@@ -1,12 +1,11 @@
-# Image & Video Generation Skill
+# Image Generation Skill
 
-Generate images and videos using Alibaba DashScope models.
+Generate images using Alibaba DashScope models.
 
 ## When to Use
 
 - Create visual content for explanations
 - Generate diagrams or illustrations
-- Produce video content from descriptions
 - Edit existing images
 
 ## Recommended: Text to Image with Qwen-Image 2.0 Pro

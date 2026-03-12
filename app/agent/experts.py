@@ -21,6 +21,21 @@ logger = logging.getLogger(__name__)
 # 专家默认工具：与主持人一致但排除 Task（Task 仅主持人用于调用子 agent）
 DEFAULT_EXPERT_TOOLS = [t for t in DEFAULT_ALLOWED_TOOLS if t != "Task"]
 
+DISCUSSION_IMAGE_GUIDANCE_TEMPLATE = """
+
+## Discussion Image Generation (When Available)
+
+- If the moderator assigns you an image generation skill, you may generate images when they genuinely improve the discussion.
+- Good triggers: explaining mechanisms, structures, experiment setups, workflow steps, concept comparisons, timelines, or other content that is clearer with a figure than with prose alone.
+- Do **not** generate an image in every round. Skip image generation when plain text is already sufficient.
+- Use an **academic discussion style（学术讨论风格）**: clean scientific diagrams, schematic illustrations, restrained colors, readable labels, and presentation-ready composition.
+- Avoid flashy poster styles, marketing visuals, entertainment aesthetics, cluttered layouts, or decorative images that do not add reasoning value.
+- Save generated images under `shared/generated_images/` using descriptive filenames such as `shared/generated_images/round2_concept_map.png`.
+- When you reference an image in your turn, embed it in Markdown using the topic asset URL, for example:
+  `![图示说明]({markdown_image_example})`
+- The surrounding text must explain why the image matters and what insight the reader should take from it.
+"""
+
 # Load expert specifications from libs/experts/ (merged builtin + primary)
 _EXPERTS_CATEGORIES, _EXPERT_SPECS_RAW, _SOURCE_COMMON = load_aggregated_experts_meta()
 EXPERT_SPECS = _EXPERT_SPECS_RAW
@@ -75,6 +90,17 @@ def build_workspace_boundary(ws_abs: str) -> str:
     )
 
 
+def get_discussion_image_guidance(topic_id: str | None = None) -> str:
+    """Return shared guidance for discussion-time image generation."""
+    topic_segment = topic_id or "<topic_id>"
+    markdown_image_example = (
+        f"/api/topics/{topic_segment}/assets/generated_images/round2_concept_map.png"
+    )
+    return DISCUSSION_IMAGE_GUIDANCE_TEMPLATE.format(
+        markdown_image_example=markdown_image_example,
+    )
+
+
 def _load_common_content(source_id: str) -> str:
     """Load common expert sections (Workspace, Discussion Rules, Language)."""
     common_file = _SOURCE_COMMON.get(source_id, "expert_common.md")
@@ -118,6 +144,7 @@ def build_experts(
         prompt_text = _build_expert_prompt_from_global(name, spec)
         if not prompt_text:
             prompt_text = spec["description"]
+        prompt_text += get_discussion_image_guidance()
         prompt_text += EXPERT_SECURITY_SUFFIX
         experts[name] = AgentDefinition(
             description=spec["description"],
@@ -194,6 +221,7 @@ def build_experts_from_workspace(
                 prompt_text = spec["description"]
 
         # Add per-expert security suffix
+        prompt_text += get_discussion_image_guidance(workspace_dir.name)
         prompt_text += EXPERT_SECURITY_SUFFIX
 
         # Add topic-level workspace boundary (sandbox isolation)

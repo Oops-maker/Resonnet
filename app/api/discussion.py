@@ -5,6 +5,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
+from app.agent.moderator_modes import load_moderator_mode_config
 from app.agent.discussion import run_discussion_for_topic
 from app.agent.workspace import (
     copy_skills_to_workspace,
@@ -101,6 +102,9 @@ async def start_discussion_endpoint(topic_id: str, req: StartDiscussionRequest):
     # Mark as running
     update_topic_discussion(topic_id, DiscussionStatus.RUNNING)
 
+    ws_path = get_workspace_base() / "topics" / topic_id
+    topic_mode_config = load_moderator_mode_config(ws_path)
+
     # Start discussion in background
     tools = req.allowed_tools if req.allowed_tools else DEFAULT_ALLOWED_TOOLS
     
@@ -124,7 +128,7 @@ async def start_discussion_endpoint(topic_id: str, req: StartDiscussionRequest):
         max_budget_usd=req.max_budget_usd,
         model=req.model,
         allowed_tools=tools,
-        skill_list=req.skill_list or [],
+        skill_list=req.skill_list if req.skill_list is not None else topic_mode_config.get("skill_list", []),
         mcp_server_ids=mcp_ids,
     ))
 

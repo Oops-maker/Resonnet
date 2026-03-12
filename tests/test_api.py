@@ -174,6 +174,29 @@ def test_workspace_is_created_with_default_agents(client: TestClient, isolated_w
     assert len(experts) > 0
 
 
+def test_topic_create_sets_builtin_scholars_and_default_skills(client: TestClient, isolated_workspace: Path):
+    topic = _create_topic(client, title="默认配置测试")
+    topic_id = topic["id"]
+    ws_path = isolated_workspace / "topics" / topic_id
+
+    assert topic["expert_names"] == ["physicist", "biologist", "computer_scientist", "ethicist"]
+
+    experts_resp = client.get(f"/topics/{topic_id}/experts")
+    assert experts_resp.status_code == 200
+    experts = experts_resp.json()
+    assert [expert["name"] for expert in experts] == ["biologist", "computer_scientist", "ethicist", "physicist"]
+    assert all(expert["is_from_topic_creation"] is True for expert in experts)
+
+    mode_resp = client.get(f"/topics/{topic_id}/moderator-mode")
+    assert mode_resp.status_code == 200
+    mode_cfg = mode_resp.json()
+    assert mode_cfg["skill_list"] == ["web_search", "image_generation"]
+
+    skills_dir = ws_path / "config" / "skills"
+    assert (skills_dir / "web_search.md").exists()
+    assert (skills_dir / "image_generation.md").exists()
+
+
 def test_posts_create_list_and_persistence(client: TestClient, isolated_workspace: Path):
     topic = _create_topic(client)
     topic_id = topic["id"]

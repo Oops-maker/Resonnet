@@ -1,10 +1,20 @@
 """Topics API endpoints."""
 
-from fastapi import APIRouter, HTTPException
+from pathlib import Path
 
-from app.agent.moderator_modes import PRESET_MODES, load_moderator_mode_config
-from app.agent.workspace import ensure_topic_workspace, read_discussion_history
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
+
+from app.agent.experts import EXPERT_SPECS
+from app.agent.moderator_modes import PRESET_MODES, load_moderator_mode_config, save_moderator_mode_config
+from app.agent.workspace import (
+    add_expert_metadata,
+    copy_skills_to_workspace,
+    ensure_topic_workspace,
+    read_discussion_history,
+)
 from app.core.config import get_workspace_base
+from app.core.topic_defaults import DEFAULT_TOPIC_EXPERT_NAMES, DEFAULT_TOPIC_SKILL_IDS
 from app.models.schemas import (
     DiscussionResult,
     DiscussionStatus,
@@ -21,6 +31,17 @@ from app.models.store import (
 )
 
 router = APIRouter()
+
+
+def _resolve_generated_image_path(topic_id: str, asset_path: str) -> Path:
+    """Resolve a generated image path under shared/generated_images/ safely."""
+    generated_dir = (get_workspace_base() / "topics" / topic_id / "shared" / "generated_images").resolve()
+    target = (generated_dir / asset_path).resolve()
+    if generated_dir != target and generated_dir not in target.parents:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="Asset not found")
+    return target
 
 
 def _augment_topic_with_moderator_mode(topic: Topic) -> Topic:
@@ -54,7 +75,30 @@ def post_topic(data: TopicCreate):
     topic = create_topic(data)
     # Create full workspace layout immediately (shared/ + agents/)
     ws_base = get_workspace_base()
-    ensure_topic_workspace(ws_base, topic.id)
+    ws_path = ensure_topic_workspace(ws_base, topic.id)
+
+    copied_skills = copy_skills_to_workspace(ws_path, DEFAULT_TOPIC_SKILL_IDS)
+    save_moderator_mode_config(ws_path, {
+        "mode_id": "standard",
+        "num_rounds": topic.num_rounds,
+        "custom_prompt": None,
+        "skill_list": copied_skills,
+        "mcp_server_ids": [],
+        "model": None,
+    })
+
+    for expert_name in DEFAULT_TOPIC_EXPERT_NAMES:
+        spec = EXPERT_SPECS.get(expert_name)
+        if not spec:
+            continue
+        add_expert_metadata(
+            ws_path,
+            expert_name=expert_name,
+            label=spec.get("label", expert_name),
+            description=spec.get("description", ""),
+            source="preset",
+            is_from_topic_creation=True,
+        )
     return topic
 
 
@@ -87,6 +131,12 @@ def get_topic_detail(topic_id: str):
             pass
 
     return topic
+
+
+@router.get("/{topic_id}/assets/generated_images/{asset_path:path}")
+def get_topic_generated_image(topic_id: str, asset_path: str):
+    """Serve generated discussion images from shared/generated_images/."""
+    return FileResponse(_resolve_generated_image_path(topic_id, asset_path))
 
 
 @router.patch("/{topic_id}", response_model=Topic)

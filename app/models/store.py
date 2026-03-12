@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from app.core.config import WORKSPACE_BASE
+from app.core.topic_defaults import DEFAULT_TOPIC_EXPERT_NAMES
 from .schemas import (
     DiscussionResult,
     DiscussionStatus,
@@ -113,7 +114,7 @@ def create_topic(data: TopicCreate) -> Topic:
         status=TopicStatus.OPEN,
         mode=TopicMode.DISCUSSION,  # default discussion mode
         num_rounds=5,  # default 5 rounds
-        expert_names=[],  # empty by default; user adds experts after entering topic
+        expert_names=list(DEFAULT_TOPIC_EXPERT_NAMES),
         discussion_result=None,
         discussion_status=DiscussionStatus.PENDING,
         created_at=now,

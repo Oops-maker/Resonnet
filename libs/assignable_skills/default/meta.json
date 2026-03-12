@@ -45,11 +45,11 @@
       "description": "Real-time internet search for accurate and up-to-date information",
       "category": "tools"
     },
-    "image_video_generation": {
-      "id": "image_video_generation",
+    "image_generation": {
+      "id": "image_generation",
       "source": "default",
-      "name": "Image & Video Generation",
-      "description": "Generate images and videos using AI models",
+      "name": "Image Generation",
+      "description": "Generate and edit images using AI models",
       "category": "tools"
     }
   }

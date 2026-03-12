@@ -9,6 +9,8 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.core.topic_defaults import DEFAULT_TOPIC_EXPERT_NAMES, normalize_skill_id
+
 logger = logging.getLogger(__name__)
 
 # --- Workspace config (config/workspace.json) ---
@@ -138,8 +140,8 @@ def ensure_topic_workspace(workspace_base: Path | str, topic_id: str) -> Path:
     (ws / "shared" / "turns").mkdir(parents=True, exist_ok=True)
     (ws / "config").mkdir(exist_ok=True)  # Create config directory
 
-    # Create agents/ structure with default roles
-    _ensure_agents_structure(ws)
+    # Create only the built-in default scholars for a new topic.
+    _ensure_agents_structure(ws, DEFAULT_TOPIC_EXPERT_NAMES)
 
     # Initialize topic sandbox metadata (idempotent)
     from .topic_sandbox import init_sandbox_meta
@@ -249,7 +251,7 @@ def copy_skills_to_workspace(ws_path: Path, skill_list: list[str]) -> list[str]:
 
     copied: list[str] = []
     for skill_id in skill_list:
-        raw = skill_id.removesuffix(".md") if skill_id.endswith(".md") else skill_id
+        raw = normalize_skill_id(skill_id)
         if not id_pattern.match(raw):
             logger.warning(f"Invalid skill id (skipped): {skill_id}")
             continue
@@ -456,7 +458,7 @@ def read_discussion_summary(ws_path: Path) -> str:
     return f.read_text(encoding="utf-8")
 
 
-def _ensure_agents_structure(ws_path: Path):
+def _ensure_agents_structure(ws_path: Path, expert_names: list[str] | None = None):
     """Create agents/<name>/ directories and copy default role.md if not exists.
 
     For each system-supported expert, creates an agents/<name>/ directory.
@@ -469,7 +471,12 @@ def _ensure_agents_structure(ws_path: Path):
     agents_dir = ws_path / "agents"
     agents_dir.mkdir(exist_ok=True)
 
-    for expert_name, spec in EXPERT_SPECS.items():
+    selected = expert_names or list(EXPERT_SPECS.keys())
+    for expert_name in selected:
+        spec = EXPERT_SPECS.get(expert_name)
+        if not spec:
+            logger.warning(f"Unknown expert '{expert_name}' when creating topic workspace")
+            continue
         expert_dir = agents_dir / expert_name
         expert_dir.mkdir(exist_ok=True)
 
