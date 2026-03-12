@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -273,6 +274,42 @@ def copy_skills_to_workspace(ws_path: Path, skill_list: list[str]) -> list[str]:
         logger.info(f"Copied skill {raw} to {dest}")
 
     return copied
+
+
+def sync_claude_skill_discovery_files(ws_path: Path) -> list[str]:
+    """Mirror workspace skills to .claude/skills for SDK auto-discovery.
+
+    Sources:
+    - config/skills/*.md  -> .claude/skills/{slug}/SKILL.md
+    - config/moderator_skill.md -> .claude/skills/moderator_orchestrator/SKILL.md
+    """
+    source_items: list[tuple[str, Path]] = []
+    skills_dir = ws_path / "config" / "skills"
+    if skills_dir.exists():
+        for p in sorted(skills_dir.glob("*.md")):
+            source_items.append((p.stem, p))
+
+    moderator_skill = ws_path / "config" / "moderator_skill.md"
+    if moderator_skill.exists():
+        source_items.append(("moderator_orchestrator", moderator_skill))
+
+    dest_root = ws_path / ".claude" / "skills"
+    dest_root.mkdir(parents=True, exist_ok=True)
+    expected_dirs: set[str] = set()
+
+    for slug, src in source_items:
+        expected_dirs.add(slug)
+        dest_dir = dest_root / slug
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / "SKILL.md"
+        dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+
+    # Keep discovery directory in sync and avoid stale skills from previous runs.
+    for child in dest_root.iterdir():
+        if child.is_dir() and child.name not in expected_dirs:
+            shutil.rmtree(child, ignore_errors=True)
+
+    return sorted(expected_dirs)
 
 
 def _replace_env_variables(env_dict: dict | None) -> dict | None:

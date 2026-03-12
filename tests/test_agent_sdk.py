@@ -165,6 +165,51 @@ async def test_run_expert_reply_mocked_extracts_json_body(expert_reply_workspace
     assert reply_post["body"] == "Extracted from JSON response"
 
 
+@pytest.mark.asyncio
+async def test_run_expert_reply_mocked_enables_skill_auto_discovery(expert_reply_workspace: Path):
+    """run_expert_reply mirrors skills for SDK auto-discovery and sets setting_sources."""
+    captured_options: list[Any] = []
+    skills_dir = expert_reply_workspace / "config" / "skills"
+    skills_dir.mkdir(parents=True, exist_ok=True)
+    (skills_dir / "web_search.md").write_text("# web search", encoding="utf-8")
+
+    async def mock_query_with_options(prompt: str = "", options=None, **kwargs):
+        from claude_agent_sdk import ResultMessage
+
+        captured_options.append(options)
+        yield ResultMessage(
+            subtype="success",
+            duration_ms=100,
+            duration_api_ms=80,
+            is_error=False,
+            num_turns=1,
+            session_id="test-session",
+            total_cost_usd=0.001,
+            usage=None,
+            result="Mocked expert reply.",
+        )
+
+    with patch("app.agent.expert_reply.query", side_effect=mock_query_with_options):
+        await run_expert_reply(
+            ws_path=expert_reply_workspace,
+            topic_id="t1",
+            topic_title="Test Topic",
+            expert_name="physicist",
+            expert_label="Physicist",
+            user_post_id="user-1",
+            user_author="alice",
+            user_question="What is 2+2?",
+            reply_post_id="reply-1-auto-discovery",
+            reply_created_at="2025-01-01T00:00:00Z",
+        )
+
+    assert len(captured_options) == 1
+    opts = captured_options[0]
+    assert opts is not None
+    assert opts.setting_sources == ["project", "local"]
+    assert (expert_reply_workspace / ".claude" / "skills" / "web_search" / "SKILL.md").exists()
+
+
 # --- run_discussion (mocked) ---
 
 
@@ -318,6 +363,56 @@ async def test_run_discussion_mocked_no_mcp_when_config_missing(discussion_works
     assert mcp is None or mcp == {}
     mcp_tools = [t for t in opts.allowed_tools if t.startswith("mcp__")]
     assert not mcp_tools
+
+
+@pytest.mark.asyncio
+async def test_run_discussion_mocked_enables_skill_auto_discovery(discussion_workspace: Path):
+    """run_discussion mirrors workspace skills to .claude/skills and enables setting sources."""
+    from app.agent.discussion import run_discussion
+    from claude_agent_sdk import ResultMessage
+
+    captured_options: list[Any] = []
+    skills_dir = discussion_workspace / "config" / "skills"
+    skills_dir.mkdir(parents=True, exist_ok=True)
+    (skills_dir / "web_search.md").write_text("# web search", encoding="utf-8")
+
+    async def mock_query(prompt: str = "", options=None, **kwargs):
+        captured_options.append(options)
+        yield ResultMessage(
+            subtype="success",
+            duration_ms=100,
+            duration_api_ms=80,
+            is_error=False,
+            num_turns=1,
+            session_id="test-session",
+            total_cost_usd=0.001,
+            usage=None,
+            result=None,
+        )
+
+    with (
+        patch("app.agent.discussion.query", side_effect=mock_query),
+        patch("app.agent.discussion.build_experts_from_workspace") as mock_build,
+    ):
+        mock_build.return_value = {}
+        await run_discussion(
+            workspace_dir=discussion_workspace,
+            config={"api_key": "test", "model": None},
+            topic="Test",
+            num_rounds=1,
+            expert_names=["physicist"],
+            max_turns=10,
+            max_budget_usd=1.0,
+        )
+
+    assert len(captured_options) == 1
+    opts = captured_options[0]
+    assert opts is not None
+    assert opts.setting_sources == ["project", "local"]
+    assert (discussion_workspace / ".claude" / "skills" / "web_search" / "SKILL.md").exists()
+    assert (
+        discussion_workspace / ".claude" / "skills" / "moderator_orchestrator" / "SKILL.md"
+    ).exists()
 
 
 # --- API mention flow (mocked) ---

@@ -24,6 +24,7 @@ from .workspace import (
     init_discussion_history,
     read_discussion_history,
     read_discussion_summary,
+    sync_claude_skill_discovery_files,
 )
 from app.core.mcp_config import load_mcp_config_from_path
 
@@ -117,6 +118,13 @@ async def run_discussion(
     # Write formatted skill to config/moderator_skill.md, then pass a short
     # "read your skill file" instruction as the user prompt.
     prepare_moderator_skill(workspace_dir, topic, expert_names or EXPERT_ORDER, num_rounds=num_rounds)
+    discovered_skills = sync_claude_skill_discovery_files(workspace_dir)
+    if discovered_skills:
+        logger.info(
+            "Synced %d auto-discoverable skills to .claude/skills: %s",
+            len(discovered_skills),
+            discovered_skills,
+        )
     prompt = get_moderator_prompt(workspace_dir)
 
     options_kw: dict[str, Any] = {
@@ -130,6 +138,9 @@ async def run_discussion(
         "max_budget_usd": max_budget_usd,
         "env": env,
         "model": model,
+        # Load project/local settings so Claude Code can auto-discover
+        # skills under workspace/.claude/skills.
+        "setting_sources": ["project", "local"],
     }
     if mcp_servers:
         options_kw["mcp_servers"] = mcp_servers

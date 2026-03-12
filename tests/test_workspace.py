@@ -8,6 +8,7 @@ from app.agent.workspace import (
     _parse_skill_id,
     _resolve_skill_path,
     _skill_dest_filename,
+    sync_claude_skill_discovery_files,
 )
 
 
@@ -91,3 +92,36 @@ class TestResolveSkillPath:
         path = _resolve_skill_path(base, "flat_skill", skill_info)
         assert path is not None
         assert path == base / "default" / "flat_skill.md"
+
+
+class TestSyncClaudeSkillDiscoveryFiles:
+    """Tests for sync_claude_skill_discovery_files."""
+
+    def test_syncs_config_skills_and_moderator_skill(self, tmp_path: Path):
+        ws = tmp_path / "topic_ws"
+        skills_dir = ws / "config" / "skills"
+        skills_dir.mkdir(parents=True)
+        (skills_dir / "web_search.md").write_text("# web search", encoding="utf-8")
+        (skills_dir / "critical_thinking.md").write_text("# critical", encoding="utf-8")
+        (ws / "config" / "moderator_skill.md").write_text("# moderator", encoding="utf-8")
+
+        synced = sync_claude_skill_discovery_files(ws)
+
+        assert sorted(synced) == ["critical_thinking", "moderator_orchestrator", "web_search"]
+        assert (ws / ".claude" / "skills" / "web_search" / "SKILL.md").read_text(encoding="utf-8") == "# web search"
+        assert (ws / ".claude" / "skills" / "critical_thinking" / "SKILL.md").read_text(encoding="utf-8") == "# critical"
+        assert (ws / ".claude" / "skills" / "moderator_orchestrator" / "SKILL.md").read_text(
+            encoding="utf-8"
+        ) == "# moderator"
+
+    def test_removes_stale_skill_directories(self, tmp_path: Path):
+        ws = tmp_path / "topic_ws"
+        (ws / "config" / "skills").mkdir(parents=True)
+        (ws / "config" / "skills" / "web_search.md").write_text("# web search", encoding="utf-8")
+        stale = ws / ".claude" / "skills" / "legacy_skill"
+        stale.mkdir(parents=True)
+        (stale / "SKILL.md").write_text("# stale", encoding="utf-8")
+
+        sync_claude_skill_discovery_files(ws)
+
+        assert not stale.exists()

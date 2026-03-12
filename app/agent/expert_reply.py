@@ -15,6 +15,7 @@ from app.core.config import get_prompts_dir
 from .config import get_agent_config
 from .experts import EXPERT_SECURITY_SUFFIX, build_workspace_boundary
 from .workspace import build_output_language_instruction
+from .workspace import sync_claude_skill_discovery_files
 from .posts import make_post, save_post
 from .topic_sandbox import tracked_topic_sandbox
 
@@ -160,6 +161,14 @@ async def run_expert_reply(
         user_question=user_question,
     )
 
+    discovered_skills = sync_claude_skill_discovery_files(ws_path)
+    if discovered_skills:
+        logger.info(
+            "Synced %d auto-discoverable skills to .claude/skills for expert reply: %s",
+            len(discovered_skills),
+            discovered_skills,
+        )
+
     env = {"ANTHROPIC_API_KEY": config["api_key"]}
     if config.get("base_url"):
         env["ANTHROPIC_BASE_URL"] = config["base_url"]
@@ -179,6 +188,7 @@ async def run_expert_reply(
         max_budget_usd=max_budget_usd,
         env=env,
         model=model,
+        setting_sources=["project", "local"],
     )
 
     result_info: dict[str, Any] = {"num_turns": 0, "total_cost_usd": None}

@@ -34,6 +34,8 @@ sequenceDiagram
     Workspace->>Workspace: meta.json → source, category
     Workspace->>Workspace: assignable_skills/{source}/{category}/{id}.md
     Workspace->>Workspace: → config/skills/{id}.md
+    Discussion->>Workspace: sync_claude_skill_discovery_files()
+    Workspace->>Workspace: config/skills/*.md → .claude/skills/{slug}/SKILL.md
     Discussion->>Discussion: prepare_moderator_skill() + Skill Assignment
     Discussion->>Discussion: run_discussion()
 ```
@@ -123,7 +125,25 @@ flowchart LR
 
 **Implementation**: `app/agent/workspace.py` → `copy_skills_to_workspace()`
 
-### 2.3 Directory Structure
+### 2.3 Claude Agent SDK Auto-Discovery Mirror
+
+Before `run_discussion()` and `run_expert_reply()` start querying the SDK, backend mirrors topic workspace skills
+to Claude Code's project skill directory:
+
+- `config/skills/*.md` -> `.claude/skills/{slug}/SKILL.md`
+- `config/moderator_skill.md` -> `.claude/skills/moderator_orchestrator/SKILL.md`
+
+This enables SDK-level skill auto-discovery in addition to prompt-level assignment.
+Both discussion and mention-reply flows set `ClaudeAgentOptions.setting_sources=["project", "local"]`
+so project/local settings are loaded and discovered skills become available.
+
+**Implementation**:
+
+- `app/agent/workspace.py` -> `sync_claude_skill_discovery_files()`
+- `app/agent/discussion.py` -> `run_discussion()` (calls sync + sets `setting_sources`)
+- `app/agent/expert_reply.py` -> `run_expert_reply()` (calls sync + sets `setting_sources`)
+
+### 2.4 Directory Structure
 
 ```mermaid
 flowchart TB
