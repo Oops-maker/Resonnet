@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 import json
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from main import app
 
@@ -66,6 +68,71 @@ def test_topic_list_is_lightweight_and_contains_preview_image(client: TestClient
     assert "discussion_result" not in matched
     assert "expert_names" not in matched
     assert "num_rounds" not in matched
+
+
+def test_generated_image_preview_variant_returns_resized_webp(
+    client: TestClient,
+    isolated_workspace: Path,
+):
+    topic = _create_topic(
+        client,
+        title="缩略图测试",
+        body="封面图 ![预览](../generated_images/list_preview.png)",
+    )
+    topic_id = topic["id"]
+    source_path = (
+        isolated_workspace
+        / "topics"
+        / topic_id
+        / "shared"
+        / "generated_images"
+        / "list_preview.png"
+    )
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (1200, 800), color=(220, 80, 80)).save(source_path, format="PNG")
+    original_size = source_path.stat().st_size
+
+    response = client.get(f"/topics/{topic_id}/assets/generated_images/list_preview.png?w=192&h=192&q=72")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/webp"
+    assert response.headers["cache-control"] == "public, max-age=300"
+    assert len(response.content) < original_size
+
+    with Image.open(BytesIO(response.content)) as preview:
+        assert preview.width <= 192
+        assert preview.height <= 192
+
+
+def test_generated_image_can_be_served_as_webp_without_resize(
+    client: TestClient,
+    isolated_workspace: Path,
+):
+    topic = _create_topic(
+        client,
+        title="WebP 展示测试",
+        body="封面图 ![预览](../generated_images/detail_preview.png)",
+    )
+    topic_id = topic["id"]
+    source_path = (
+        isolated_workspace
+        / "topics"
+        / topic_id
+        / "shared"
+        / "generated_images"
+        / "detail_preview.png"
+    )
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (640, 360), color=(80, 120, 220)).save(source_path, format="PNG")
+
+    response = client.get(f"/topics/{topic_id}/assets/generated_images/detail_preview.png?q=82&fm=webp")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/webp"
+
+    with Image.open(BytesIO(response.content)) as preview:
+        assert preview.width == 640
+        assert preview.height == 360
 
 
 def test_topic_update_and_close(client: TestClient):

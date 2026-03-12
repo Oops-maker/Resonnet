@@ -1,10 +1,13 @@
 """Topics API endpoints."""
 
+from hashlib import sha256
 from pathlib import Path
 import re
+import tempfile
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from app.agent.experts import EXPERT_SPECS
 from app.agent.moderator_modes import PRESET_MODES, load_moderator_mode_config, save_moderator_mode_config
@@ -35,6 +38,10 @@ from app.models.store import (
 
 router = APIRouter()
 _MARKDOWN_IMAGE_PATTERN = re.compile(r"!\[[^\]]*]\(([^)\s]+(?:\s+\"[^\"]*\")?)\)")
+_PREVIEW_CACHE_DIRNAME = ".generated_image_previews"
+_PREVIEW_DEFAULT_QUALITY = 72
+_PREVIEW_MAX_DIMENSION = 2048
+_PREVIEW_DEFAULT_FORMAT = "webp"
 
 
 def _resolve_generated_image_path(topic_id: str, asset_path: str) -> Path:
@@ -46,6 +53,92 @@ def _resolve_generated_image_path(topic_id: str, asset_path: str) -> Path:
     if not target.exists() or not target.is_file():
         raise HTTPException(status_code=404, detail="Asset not found")
     return target
+
+
+def _preview_cache_dir(topic_id: str) -> Path:
+    cache_dir = get_workspace_base() / "topics" / topic_id / "shared" / _PREVIEW_CACHE_DIRNAME
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
+
+
+def _build_preview_cache_path(
+    topic_id: str,
+    asset_key: str,
+    source_path: Path,
+    *,
+    width: int | None,
+    height: int | None,
+    quality: int,
+    output_format: str,
+) -> Path:
+    stat = source_path.stat()
+    cache_key = sha256(
+        f"{asset_key}|{stat.st_mtime_ns}|{stat.st_size}|{width}|{height}|{quality}|{output_format}".encode("utf-8")
+    ).hexdigest()[:20]
+    width_part = width if width is not None else "auto"
+    height_part = height if height is not None else "auto"
+    filename = f"{source_path.stem}.{cache_key}.{width_part}x{height_part}.q{quality}.{output_format}"
+    return _preview_cache_dir(topic_id) / filename
+
+
+def _create_generated_image_preview(
+    topic_id: str,
+    asset_path: str,
+    *,
+    width: int | None,
+    height: int | None,
+    quality: int,
+    output_format: str,
+) -> Path:
+    source_path = _resolve_generated_image_path(topic_id, asset_path)
+    cache_path = _build_preview_cache_path(
+        topic_id,
+        asset_path,
+        source_path,
+        width=width,
+        height=height,
+        quality=quality,
+        output_format=output_format,
+    )
+    if cache_path.exists():
+        return cache_path
+
+    max_size = (
+        width if width is not None else _PREVIEW_MAX_DIMENSION,
+        height if height is not None else _PREVIEW_MAX_DIMENSION,
+    )
+
+    try:
+        with Image.open(source_path) as image:
+            preview = ImageOps.exif_transpose(image)
+            preview.load()
+            preview = preview.copy()
+            preview.thumbnail(max_size, Image.Resampling.LANCZOS)
+            if preview.mode not in {"RGB", "RGBA"}:
+                preview = preview.convert("RGBA" if "A" in preview.getbands() else "RGB")
+
+            with tempfile.NamedTemporaryFile(
+                dir=cache_path.parent,
+                prefix=f"{cache_path.stem}.",
+                suffix=".tmp",
+                delete=False,
+            ) as tmp_file:
+                tmp_path = Path(tmp_file.name)
+            try:
+                preview.save(
+                    tmp_path,
+                    format=output_format.upper(),
+                    quality=quality,
+                    method=6,
+                )
+                tmp_path.replace(cache_path)
+            finally:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+    except UnidentifiedImageError as exc:
+        raise HTTPException(status_code=415, detail="Unsupported image format") from exc
+
+    return cache_path
 
 
 def _augment_topic_with_moderator_mode(topic: Topic) -> Topic:
@@ -175,9 +268,34 @@ def get_topic_detail(topic_id: str):
 
 
 @router.get("/{topic_id}/assets/generated_images/{asset_path:path}")
-def get_topic_generated_image(topic_id: str, asset_path: str):
+def get_topic_generated_image(
+    topic_id: str,
+    asset_path: str,
+    w: int | None = Query(default=None, ge=1, le=_PREVIEW_MAX_DIMENSION),
+    h: int | None = Query(default=None, ge=1, le=_PREVIEW_MAX_DIMENSION),
+    q: int = Query(default=_PREVIEW_DEFAULT_QUALITY, ge=30, le=95),
+    fm: str | None = Query(default=None, pattern="^webp$"),
+):
     """Serve generated discussion images from shared/generated_images/."""
-    return FileResponse(_resolve_generated_image_path(topic_id, asset_path))
+    if w is None and h is None and fm is None:
+        return FileResponse(
+            _resolve_generated_image_path(topic_id, asset_path),
+            headers={"Cache-Control": "public, max-age=300"},
+        )
+
+    output_format = fm or _PREVIEW_DEFAULT_FORMAT
+    return FileResponse(
+        _create_generated_image_preview(
+            topic_id,
+            asset_path,
+            width=w,
+            height=h,
+            quality=q,
+            output_format=output_format,
+        ),
+        media_type=f"image/{output_format}",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
 
 
 @router.patch("/{topic_id}", response_model=Topic)
