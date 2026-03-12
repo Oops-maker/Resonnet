@@ -54,6 +54,10 @@ def _expert_tools_from_moderator_tools(moderator_tools: list[str]) -> list[str]:
 def _load_mcp_servers_for_sdk(workspace_dir: Path) -> dict[str, dict]:
     """Load MCP config from workspace config/mcp.json and convert to SDK format.
 
+    When sandbox-runtime (srt) is available and enabled, each MCP server
+    command is wrapped with ``srt --settings <config>`` so the server runs
+    inside its own filesystem sandbox.
+
     Returns dict suitable for ClaudeAgentOptions(mcp_servers=...).
     Supports both:
     - stdio: {"command": str, "args": list, "env": dict | None}
@@ -63,10 +67,30 @@ def _load_mcp_servers_for_sdk(workspace_dir: Path) -> dict[str, dict]:
     cfg = load_mcp_config_from_path(path)
     if not cfg.mcpServers:
         return {}
+
+    from app.agent.sandbox_exec import SRT_AVAILABLE
+    from app.core.config import get_sandbox_use_srt
+
+    use_srt = SRT_AVAILABLE and get_sandbox_use_srt()
+    mcp_srt_settings_path: str | None = None
+
+    if use_srt:
+        from app.agent.srt_config import build_mcp_srt_settings, write_srt_settings_file
+
+        ws_abs = str(workspace_dir.resolve())
+        mcp_settings = build_mcp_srt_settings(topic_workspace=ws_abs)
+        # Write to workspace config/ dir — cleaned up with the workspace.
+        config_dir = str(workspace_dir / "config")
+        os.makedirs(config_dir, exist_ok=True)
+        mcp_srt_settings_path = write_srt_settings_file(
+            mcp_settings, target_dir=config_dir,
+        )
+        logger.info("[Discussion] MCP servers will be sandboxed with srt")
+
     result: dict[str, dict] = {}
     for sid, srv in cfg.mcpServers.items():
+        # HTTP type MCP server (Claude CLI style)
         if srv.is_http():
-            # Emit Claude Code style HTTP MCP config
             url = srv.url
             if not url:
                 logger.warning("MCP %s is marked as HTTP type but has no url; skipping", sid)
@@ -80,8 +104,16 @@ def _load_mcp_servers_for_sdk(workspace_dir: Path) -> dict[str, dict]:
             result[sid] = entry
             continue
 
+        # Stdio type with optional SRT sandbox
         if srv.command:
-            entry = {"command": srv.command, "args": srv.args or []}
+            if use_srt and mcp_srt_settings_path:
+                entry = {
+                    "command": "srt",
+                    "args": ["--settings", mcp_srt_settings_path, srv.command]
+                    + (srv.args or []),
+                }
+            else:
+                entry = {"command": srv.command, "args": srv.args or []}
             if srv.env:
                 entry["env"] = srv.env
             result[sid] = entry
@@ -175,7 +207,7 @@ async def run_discussion(
             if isinstance(message, ResultMessage):
                 logger.info(f"Finished: turns={message.num_turns}, cost={message.total_cost_usd}, usage={message.usage}")
                 result_info["num_turns"] = message.num_turns
-                # Use custom per-model pricing if configured, otherwise fall back to SDK value
+                # Use custom per-model pricing if configured
                 custom_cost = calculate_cost_from_usage(model or "", message.usage) if model else None
                 result_info["total_cost_usd"] = custom_cost if custom_cost is not None else message.total_cost_usd
     except Exception as e:
@@ -227,8 +259,6 @@ async def run_discussion_for_topic(
     topic_text = f"{topic_title}\n\n{topic_body}"
 
     # Acquire exclusive topic sandbox lock for the duration of the discussion.
-    # This prevents concurrent discussion runs and blocks new expert @mentions
-    # from starting while the topic workspace is being written to.
     with exclusive_topic_sandbox(topic_id, ws_path, "discussion"):
         result_info = await run_discussion(
             workspace_dir=ws_path,
@@ -238,7 +268,6 @@ async def run_discussion_for_topic(
             expert_names=expert_names,
             max_turns=max_turns,
             max_budget_usd=max_budget_usd,
-            allowed_tools=allowed_tools,
         )
         filtered_sources = sanitize_discussion_turn_sources(ws_path)
         if filtered_sources:

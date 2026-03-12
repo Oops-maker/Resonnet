@@ -1,8 +1,18 @@
 """OS-level sandbox execution for agent operations.
 
-Wraps agent subprocess execution under macOS sandbox-exec (Apple Seatbelt) or
-Linux bubblewrap (bwrap), physically restricting filesystem access to the
-topic workspace directory.
+Wraps agent subprocess execution under Anthropic's sandbox-runtime (srt),
+or falls back to macOS sandbox-exec (Apple Seatbelt) / Linux bubblewrap
+(bwrap), physically restricting filesystem access to the topic workspace
+directory.
+
+Backend selection priority (highest first):
+  1. **srt** (sandbox-runtime) — preferred; Anthropic-maintained, supports
+     filesystem *and* network isolation via JSON config.  Requires Node.js
+     and ``npm install -g @anthropic-ai/sandbox-runtime``.
+  2. **sandbox-exec** — macOS legacy; custom Seatbelt profile.
+  3. **bwrap** — Linux legacy; custom bubblewrap command.
+
+Set ``SANDBOX_USE_SRT=false`` to skip srt and use the legacy backend.
 
 Design doc: docs/sandbox-isolation-design.md
 
@@ -13,7 +23,7 @@ way to apply OS-level filesystem restrictions to the `claude` process is to run
 its parent (sandbox_runner.py) inside the OS sandbox — all child processes
 inherit the sandbox restrictions automatically.
 
-## macOS Seatbelt profile
+## macOS Seatbelt profile (legacy fallback)
 
 The Seatbelt profile uses `(deny default)` then allowlists:
 - macOS system paths (/usr, /System, /Library) — read-only
@@ -177,17 +187,26 @@ def is_linux_bwrap_available() -> bool:
         return False
 
 
+def is_srt_available() -> bool:
+    """Check if Anthropic sandbox-runtime (srt) CLI is installed."""
+    return shutil.which("srt") is not None
+
+
 # Check at import time (cached for performance)
+SRT_AVAILABLE: bool = is_srt_available()
 MACOS_SANDBOX: bool = is_macos_sandbox_available()
 LINUX_BWRAP: bool = is_linux_bwrap_available()
-SANDBOX_AVAILABLE: bool = MACOS_SANDBOX or LINUX_BWRAP
+SANDBOX_AVAILABLE: bool = SRT_AVAILABLE or MACOS_SANDBOX or LINUX_BWRAP
 
-if SANDBOX_AVAILABLE:
-    sandbox_type = "macos-sandbox-exec" if MACOS_SANDBOX else "linux-bwrap"
-    logger.info("[SandboxExec] OS sandbox available: %s", sandbox_type)
+if SRT_AVAILABLE:
+    logger.info("[SandboxExec] sandbox-runtime (srt) available — preferred sandbox backend")
+elif MACOS_SANDBOX:
+    logger.info("[SandboxExec] OS sandbox available: macos-sandbox-exec (legacy)")
+elif LINUX_BWRAP:
+    logger.info("[SandboxExec] OS sandbox available: linux-bwrap (legacy)")
 else:
     logger.warning(
-        "[SandboxExec] No OS sandbox available (sandbox-exec/bwrap not found). "
+        "[SandboxExec] No OS sandbox available (srt/sandbox-exec/bwrap not found). "
         "Agent isolation will use soft prompt constraints only."
     )
 
@@ -334,16 +353,38 @@ def run_in_os_sandbox(task_config: dict[str, Any]) -> dict[str, Any]:
         )
 
         # Build the sandboxed command
-        if MACOS_SANDBOX:
+        from app.core.config import get_sandbox_use_srt
+
+        use_srt = SRT_AVAILABLE and get_sandbox_use_srt()
+        srt_settings_path: str | None = None
+
+        if use_srt:
+            from app.agent.srt_config import build_srt_settings, write_srt_settings_file
+
+            srt_settings = build_srt_settings(
+                topic_workspace=ws_abs,
+                ipc_dir=ipc_dir,
+            )
+            srt_settings_path = write_srt_settings_file(
+                srt_settings, target_dir=ipc_dir,
+            )
+            cmd = [
+                "srt", "--settings", srt_settings_path,
+                python_exec, runner_path, input_path, output_path,
+            ]
+            logger.info("[SandboxExec] Using sandbox-runtime (srt) backend")
+        elif MACOS_SANDBOX:
             profile = build_macos_profile(ws_abs, ipc_dir)
             cmd = [
                 "sandbox-exec", "-p", profile,
                 python_exec, runner_path, input_path, output_path,
             ]
+            logger.info("[SandboxExec] Using legacy macOS sandbox-exec backend")
         else:
             cmd = _build_linux_bwrap_cmd(
                 ws_abs, ipc_dir, python_exec, runner_path, input_path, output_path
             )
+            logger.info("[SandboxExec] Using legacy Linux bwrap backend")
 
         logger.info(
             "[SandboxExec] Launching sandboxed subprocess: task_type=%s ws=%s",

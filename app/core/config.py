@@ -122,6 +122,16 @@ def get_libs_cache_ttl_seconds() -> int:
         return 60
 
 
+def get_sandbox_use_srt() -> bool:
+    """Whether to prefer sandbox-runtime (srt) for OS-level sandboxing.
+
+    When True (default), the system uses ``srt`` if it is installed on the
+    host.  Set to ``false`` to fall back to the legacy bwrap / sandbox-exec
+    code path.
+    """
+    return os.getenv("SANDBOX_USE_SRT", "true").lower() in ("true", "1", "yes")
+
+
 def _libs_root() -> Path:
     """Return primary libs/ root (mount point in Docker; where we write topiclab_shared)."""
     return Path(__file__).resolve().parent.parent.parent / "libs"
