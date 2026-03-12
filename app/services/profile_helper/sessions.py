@@ -334,3 +334,9 @@ def reset(session_id: str) -> dict:
     user_id = _sessions.get(session_id, {}).get("user_id")
     _sessions[session_id] = _new_session(session_id, user_id=user_id)
     return _sessions[session_id]
+
+
+def list_ids() -> list[str]:
+    """Return all active session IDs (after expiry cleanup)."""
+    _cleanup()
+    return list(_sessions.keys())
