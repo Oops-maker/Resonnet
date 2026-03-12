@@ -83,8 +83,8 @@ def test_copy_mcp_to_workspace_with_env(tmp_path):
                 "source": "default",
                 "name": "Test HTTP MCP",
                 "category": "remote",
-                "type": "streamableHttp",
-                "baseUrl": "https://api.example.com/mcp",
+                "type": "http",
+                "url": "https://api.example.com/mcp",
                 "headers": {
                     "Authorization": "${MCP_API_KEY}"
                 },
@@ -119,8 +119,8 @@ def test_copy_mcp_to_workspace_with_env(tmp_path):
                         "source": "default",
                         "name": "Test HTTP MCP",
                         "category": "remote",
-                        "type": "streamableHttp",
-                        "baseUrl": "https://api.example.com/mcp",
+                        "type": "http",
+                        "url": "https://api.example.com/mcp",
                         "headers": {
                             "Authorization": "${MCP_API_KEY}"
                         },
@@ -143,8 +143,8 @@ def test_copy_mcp_to_workspace_with_env(tmp_path):
                 assert result == ["test-http-mcp"]
                 
                 config_data = json.loads(config_file.read_text())
-                assert config_data["mcpServers"]["test-http-mcp"]["type"] == "streamableHttp"
-                assert config_data["mcpServers"]["test-http-mcp"]["baseUrl"] == "https://api.example.com/mcp"
+                assert config_data["mcpServers"]["test-http-mcp"]["type"] == "http"
+                assert config_data["mcpServers"]["test-http-mcp"]["url"] == "https://api.example.com/mcp"
                 assert config_data["mcpServers"]["test-http-mcp"]["headers"]["Authorization"] == "sk-123"
                 assert config_data["mcpServers"]["test-http-mcp"]["description"] == "Test HTTP MCP server"
                 assert config_data["mcpServers"]["test-http-mcp"]["isActive"] == True

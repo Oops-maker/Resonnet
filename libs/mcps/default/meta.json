@@ -66,6 +66,32 @@
       "args": ["article-mcp==0.1.8", "server"],
       "env": {}
     },
+    "Wan26Media": {
+      "id": "Wan26Media",
+      "source": "default",
+      "name": "Image Generation",
+      "description": "阿里云百炼_万相2.6-图像视频生成",
+      "category": "web_content",
+      "type": "http",
+      "url": "https://dashscope.aliyuncs.com/api/v1/mcps/Wan26Media/mcp",
+      "headers": {
+        "Authorization": "Bearer ${DASHSCOPE_API_KEY}"
+      },
+      "isActive": true
+    },
+    "market-cmapi00069848": {
+      "id": "market-cmapi00069848",
+      "source": "default",
+      "name": "Web Search",
+      "description": "博查是一款专为AI应用打造的世界知识搜索引擎，通过多模态混合搜索与语义排序技术，为AI Agents、Chatbots及RAG场景提供干净、准确、高质量的实时搜索结果。",
+      "category": "web_content",
+      "type": "http",
+      "url": "https://dashscope.aliyuncs.com/api/v1/mcps/market-cmapi00069848/mcp",
+      "headers": {
+        "Authorization": "Bearer ${DASHSCOPE_API_KEY}"
+      },
+      "isActive": true
+    },
     "context7": {
       "id": "context7",
       "source": "default",

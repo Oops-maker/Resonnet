@@ -23,7 +23,7 @@ libs/mcps/
 |--------|------|-------------|
 | GET | `/mcp/assignable/categories` | List MCP categories |
 | GET | `/mcp/assignable` | List assignable MCPs |
-| GET | `/mcp/assignable/{id}/content` | Get MCP config JSON (command, args) |
+| GET | `/mcp/assignable/{id}/content` | Get MCP config JSON for frontend (stdio: command/args/env; http: type/url **without headers**) |
 
 ## meta.json Format
 
@@ -75,9 +75,12 @@ API mcp_server_ids
 - **Copy to workspace**: `app/agent/workspace.copy_mcp_to_workspace()`
 - **Load for SDK**: `app/agent/discussion._load_mcp_servers_for_sdk()`
 - **Validation**: `app/core/mcp_config.validate_mcp_server()` (npm/uvx/remote only)
+- **Frontend safety**: `app/api/mcp.get_mcp_content()` 返回给前端的 http MCP 不包含 `headers` 字段，避免泄露密钥
 
 ## Tests
 
 - **Unit**: `test_run_discussion_mocked_passes_mcp_to_sdk` — 存在 mcp.json 时 options 含 mcp_servers 与 mcp__* 工具
+- **Unit**: `test_run_discussion_mocked_passes_http_mcp_to_sdk` — http MCP 会透传 type/url/headers
 - **Unit**: `test_run_discussion_mocked_no_mcp_when_config_missing` — 无 mcp.json 时不传 mcp_servers
 - **Integration**: `test_discussion_mcp_time_integration` — 使用 MCP time，通过提示词触发调用并验证返回含时间信息
+- **Integration**: `test_discussion_mcp_wan26media_forced_call_integration` — 导入 `Wan26Media` 并强制图像生成调用（需 `RUN_WAN26_MCP_TEST=1` + `DASHSCOPE_API_KEY`）

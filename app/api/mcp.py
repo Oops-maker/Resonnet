@@ -66,7 +66,7 @@ def list_assignable_mcps(
 
 @router.get("/assignable/{mcp_id}/content")
 def get_mcp_content(mcp_id: str):
-    """Return the MCP server config (command, args, or streamableHttp fields) as JSON."""
+    """Return the MCP server config (command/args/env or http fields) as JSON."""
     base_dir = get_mcps_dir()
     _, mcps_meta = get_cached_mcps_meta(base_dir)
 
@@ -85,13 +85,11 @@ def get_mcp_content(mcp_id: str):
     if mcp_info.get("env"):
         config["env"] = mcp_info["env"]
     
-    # StreamableHttp type fields
+    # HTTP type fields
     if mcp_info.get("type"):
         config["type"] = mcp_info.get("type")
-    if mcp_info.get("baseUrl"):
-        config["baseUrl"] = mcp_info.get("baseUrl")
-    if mcp_info.get("headers"):
-        config["headers"] = mcp_info.get("headers")
+    if mcp_info.get("url"):
+        config["url"] = mcp_info.get("url")
     if mcp_info.get("description"):
         config["description"] = mcp_info.get("description")
     if mcp_info.get("isActive") is not None:

@@ -33,14 +33,15 @@ def _is_local_path(s: str) -> bool:
 
 
 def validate_mcp_server(server_id: str, cfg: MCPServerConfig) -> None:
-    """Validate a single MCP server config. Supports stdio and streamableHttp types."""
-    # Check if this is a streamableHttp type server
+    """Validate a single MCP server config. Supports stdio and http types."""
+    # Check if this is an http type server
     if cfg.is_http():
-        # Validate baseUrl
-        if not cfg.baseUrl:
-            raise ValueError(f"MCP server '{server_id}': baseUrl is required for streamableHttp type")
-        if not REMOTE_URL_PATTERN.match(cfg.baseUrl):
-            raise ValueError(f"MCP server '{server_id}': baseUrl must be a valid https:// URL")
+        # Validate URL
+        url = (cfg.url or "").strip()
+        if not url:
+            raise ValueError(f"MCP server '{server_id}': URL is required for HTTP type")
+        if not REMOTE_URL_PATTERN.match(url):
+            raise ValueError(f"MCP server '{server_id}': URL must be a valid https:// URL")
         # Validate headers (if present, check for env variable patterns)
         if cfg.headers:
             for key, value in cfg.headers.items():
@@ -134,11 +135,11 @@ def save_mcp_config(config: MCPConfig) -> None:
         if v.env:
             server_data["env"] = v.env
         
-        # StreamableHttp type fields
+        # HTTP type fields
         if v.type:
             server_data["type"] = v.type
-        if v.baseUrl:
-            server_data["baseUrl"] = v.baseUrl
+        if v.url:
+            server_data["url"] = v.url
         if v.headers:
             server_data["headers"] = v.headers
         if v.description:

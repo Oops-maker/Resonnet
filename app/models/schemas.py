@@ -298,16 +298,16 @@ class GenerateModeratorModeResponse(BaseModel):
 # --- MCP models ---
 
 class MCPServerConfig(BaseModel):
-    """Single MCP server config. Supports stdio (npm, uvx) and streamableHttp types."""
+    """Single MCP server config. Supports stdio (npm, uvx) and http types."""
     # Stdio type (npm, uvx, npx)
     command: str | None = Field(None, min_length=1)
     args: list[str] = Field(default_factory=list)
     env: dict[str, str] | None = None
     
-    # Remote HTTP type (streamableHttp)
-    type: str | None = Field(None, description="Connection type: 'stdio' or 'streamableHttp'")
-    baseUrl: str | None = Field(None, description="Base URL for streamableHttp type")
-    headers: dict[str, str] | None = Field(None, description="HTTP headers for streamableHttp type")
+    # Remote HTTP type
+    type: str | None = Field(None, description="Connection type: 'stdio' or 'http'")
+    url: str | None = Field(None, description="HTTP MCP URL (Claude CLI style)")
+    headers: dict[str, str] | None = Field(None, description="HTTP headers for http type")
     description: str | None = Field(None, description="Server description")
     isActive: bool | None = Field(None, description="Whether the server is active")
     name: str | None = Field(None, description="Display name")
@@ -317,8 +317,8 @@ class MCPServerConfig(BaseModel):
         return self.type is None or self.type == "stdio" or self.command is not None
     
     def is_http(self) -> bool:
-        """Check if this is a streamableHttp type server."""
-        return self.type == "streamableHttp" and self.baseUrl is not None
+        """Check if this is an HTTP-type server."""
+        return self.type == "http" and self.url is not None
 
 
 class MCPConfig(BaseModel):
