@@ -1,86 +1,70 @@
 # Image Generation Skill
 
-Generate images using Alibaba DashScope models.
+Generate images via the `Wan26Media` MCP server only.
 
 ## When to Use
 
-- Create visual content for explanations
-- Generate diagrams or illustrations
-- Edit existing images
+- Create illustrations for explanations
+- Generate concept images or visual references
+- Produce image assets from prompts
 
-## Recommended: Text to Image with Qwen-Image 2.0 Pro
+## Required Method (MCP Only)
 
-Use the DashScope **multimodal-generation** endpoint with `qwen-image-2.0-pro`.
+- Always use MCP tools under `mcp__Wan26Media__*`.
+- Do not use direct HTTP `curl` calls to DashScope in this project.
+- Treat MCP as the single integration path for image generation/editing/video generation.
 
-```bash
-curl --location 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation' \
-  --header 'Content-Type: application/json' \
-  --header "Authorization: Bearer ${DASHSCOPE_API_KEY}" \
-  --data '{
-    "model": "qwen-image-2.0-pro",
-    "input": {
-      "messages": [
-        {
-          "role": "user",
-          "content": [
-            {
-              "text": "一副典雅庄重的对联悬挂于厅堂之中，房间是个安静古典的中式布置，桌子上放着一些青花瓷，对联上左书“义本生知人机同道善思新”，右书“通云赋智乾坤启数高志远”，横批“智启千问”，字体飘逸，在中间挂着一幅中国风的画作，内容是岳阳楼。"
-            }
-          ]
-        }
-      ]
-    },
-    "parameters": {
-      "size": "1024*1024",
-      "negative_prompt": "低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感，构图混乱，文字模糊，扭曲。",
-      "prompt_extend": true,
-      "watermark": false
-    }
-  }'
-```
+## Recommended MCP Workflow
 
-### Important Parameters
+1. **Select tool**  
+   Choose the proper `Wan26Media` MCP tool for your task (text-to-image, image edit, text-to-video, image-to-video).
+2. **Submit request**  
+   Provide a clear prompt and required parameters (style, size/resolution, count, seed if needed).
+3. **Handle async job**  
+   If tool returns a task id, poll with the MCP status tool until `SUCCEEDED` or `FAILED`.
+4. **Download immediately**  
+   If a temporary external URL is returned, download it immediately.
+5. **Persist to workspace**  
+   Save files to `shared/generated_images/` with descriptive filenames.
+6. **Return local asset URL**  
+   In discussion output, only return topic asset URLs.
 
-- `size`: Image resolution, e.g. `"1024*1024"`, `"768*1344"`.
-- `negative_prompt`: Things you **do not** want in the image.
-- `prompt_extend`: `true` to let the model automatically expand your prompt.
-- `watermark`: `false` to disable visible watermarks if the service allows.
+## Output Rule for Discussions (Must Follow)
 
-### Simpler English Example
+- Never return raw DashScope OSS links directly in final discussion replies.
+- After obtaining a result URL, download to `shared/generated_images/` immediately.
+- In final markdown, use topic asset URLs only, e.g.:
+  `![图示说明](/api/topics/<topic_id>/assets/generated_images/round2_concept_map.png)`
+- If download fails repeatedly (e.g. `NoSuchBucket`, `AccessDenied`, timeout), retry MCP flow; if still failing, clearly report failure and provide text fallback.
 
-```bash
-curl --location 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation' \
-  --header 'Content-Type: application/json' \
-  --header "Authorization: Bearer ${DASHSCOPE_API_KEY}" \
-  --data '{
-    "model": "qwen-image-2.0-pro",
-    "input": {
-      "messages": [
-        {
-          "role": "user",
-          "content": [
-            {
-              "text": "A photorealistic portrait of a scientist working in a modern AI lab, soft lighting, 4K resolution."
-            }
-          ]
-        }
-      ]
-    },
-    "parameters": {
-      "size": "1024*1024"
-    }
-  }'
-```
+## Retry Policy (Agent Must Retry)
+
+To avoid one-shot failure, retry by default:
+
+- Status polling retries: up to `60` times, every `2` seconds.
+- Download retries per URL: up to `5` times.
+- If URL download still fails: refresh status once (to get updated URL) and retry.
+- If task is `FAILED` or repeated download failures continue: create a **new MCP task**.
+- Global max attempts for one user request: `3` tasks.
+
+Stop only when:
+
+- image/video is downloaded and persisted successfully, or
+- all retries are exhausted and a clear error is returned.
+
+## NoSuchBucket / AccessDenied Troubleshooting
+
+If you see `NoSuchBucket` or `AccessDenied`, check in this order:
+
+1. Did you read the latest successful task result from MCP?
+2. Is the returned URL temporary and already expired?
+3. Did you download immediately after success?
+4. Is your network/firewall blocking target domain access?
+5. Did you accidentally return external temporary URL instead of local topic asset URL?
 
 ## Best Practices
 
-- **Detailed prompts**: Include style, lighting, composition, colors.
-- **Language**: Chinese prompts are fully supported; English is also OK.
-- **Iterate**: Generate multiple variants and refine.
-- **Specify format**: Indicate photo vs illustration style when relevant.
-
-## Example Prompts
-
-- "A modern laboratory with scientists working, photorealistic, bright lighting"
-- "Diagram showing DNA structure, scientific illustration style, clean lines"
-- "日落时分的岳阳楼远景，中国传统水墨风格，淡雅配色"
+- Keep prompts detailed: subject, style, composition, and constraints.
+- Persist generated assets to local workspace immediately after successful generation.
+- Avoid reusing stale external result URLs.
+- Prefer deterministic settings when reproducibility matters.

@@ -190,10 +190,10 @@ def test_topic_create_sets_builtin_scholars_and_default_skills(client: TestClien
     mode_resp = client.get(f"/topics/{topic_id}/moderator-mode")
     assert mode_resp.status_code == 200
     mode_cfg = mode_resp.json()
-    assert mode_cfg["skill_list"] == ["web_search", "image_generation"]
+    # 默认只启用 image_generation
+    assert mode_cfg["skill_list"] == ["image_generation"]
 
     skills_dir = ws_path / "config" / "skills"
-    assert (skills_dir / "web_search.md").exists()
     assert (skills_dir / "image_generation.md").exists()
 
 
@@ -315,6 +315,20 @@ def test_mcp_assignable_content(client: TestClient):
     content = json.loads(data["content"])
     assert content["command"] == "npx"
     assert "@modelcontextprotocol/inspector" in content["args"]
+
+
+def test_mcp_assignable_streamable_http_hides_headers(client: TestClient):
+    """HTTP MCP config returned to frontend MUST NOT include headers."""
+    # Wan26Media is a built-in http MCP defined in libs/mcps/default/meta.json
+    resp = client.get("/mcp/assignable/Wan26Media/content")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "content" in data
+    content = json.loads(data["content"])
+    assert content.get("type") == "http"
+    assert "url" in content
+    # Security: headers (with API keys) must never be exposed through this API
+    assert "headers" not in content
 
 
 def test_copy_mcp_to_workspace(isolated_workspace: Path):

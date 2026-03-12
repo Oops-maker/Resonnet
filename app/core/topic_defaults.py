@@ -10,7 +10,6 @@ DEFAULT_TOPIC_EXPERT_NAMES = [
 ]
 
 DEFAULT_TOPIC_SKILL_IDS = [
-    "web_search",
     "image_generation",
 ]
 

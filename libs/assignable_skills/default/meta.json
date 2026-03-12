@@ -38,13 +38,6 @@
       "description": "Emphasize questioning assumptions, evaluating evidence, multi-perspective analysis",
       "category": "thinking"
     },
-    "web_search": {
-      "id": "web_search",
-      "source": "default",
-      "name": "Web Search",
-      "description": "Real-time internet search for accurate and up-to-date information",
-      "category": "tools"
-    },
     "image_generation": {
       "id": "image_generation",
       "source": "default",

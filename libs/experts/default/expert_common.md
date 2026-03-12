@@ -28,6 +28,7 @@ All experts share this space:
 5. **Post view**: 2–4 sentences from a {perspective} perspective
 6. **Build on history**: If previous turns exist, respond, extend, or deepen
 7. **Write turn**: Write your final turn (view only, no reasoning) to the specified shared/turns/ file
+8. **Citations must be verifiable**: When you cite sources, use full external `https://` links with real domains. Never fabricate references or use placeholder/internal paths (e.g. `/api/2026-*`) as evidence.
 
 ## Output Language (Must Follow)
 

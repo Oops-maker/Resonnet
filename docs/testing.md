@@ -23,6 +23,10 @@ Integration tests call the real Claude Agent SDK. Configure:
 ```bash
 # In .env (do not commit)
 ANTHROPIC_API_KEY=sk-...
+# Optional for Wan26Media MCP integration test
+DASHSCOPE_API_KEY=sk-...
+# Opt-in switch for Wan26Media forced-call integration test
+RUN_WAN26_MCP_TEST=1
 ```
 
 Optional: `SANDBOX_TEST_MODEL=claude-haiku-4-5-20251001` for cheaper model.
@@ -68,6 +72,7 @@ When changing topic experts or digital-twin import logic, verify these API expec
 - Poll `GET /topics/{topic_id}/posts/mention/{reply_post_id}` until `completed`
 - `GET /topics/{topic_id}/posts` shows user post and expert reply
 - `workspace/topics/{topic_id}/posts/*.json` contains reply record with `status=completed`
+- For `test_discussion_mcp_wan26media_forced_call_integration`, ensure `RUN_WAN26_MCP_TEST=1` and `DASHSCOPE_API_KEY` are set
 
 ## CI Notes
 
