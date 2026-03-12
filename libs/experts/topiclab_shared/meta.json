@@ -7,5 +7,16 @@
       "description": "User-shared experts from frontend"
     }
   },
-  "experts": {}
+  "experts": {
+    "test_shared_expert": {
+      "id": "test_shared_expert",
+      "source": "topiclab_shared",
+      "name": "test_shared_expert",
+      "label": "Test Shared",
+      "description": "For share test",
+      "category": "topiclab",
+      "skill_file": "test_shared_expert.md",
+      "perspective": "test_shared_expert"
+    }
+  }
 }

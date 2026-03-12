@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Assignable skills pointers**: track `libs/assignable_skills/_submodules/ai-research` and `libs/assignable_skills/_submodules/anthropics` as gitlinks for shared skill source integration.
+
+### Changed
+
+- **Docs alignment**: refresh `docs/README.md` to match recent profile-helper/auth integration updates.
+- **Shared catalog metadata**: update experts and moderator mode `meta.json` snapshots under `topiclab_shared`.
+- **Dependency snapshot**: sync `pyproject.toml` and `uv.lock` with the current backend environment.
+
 ## [0.4.0] - 2026-03-07
 
 ### Added

@@ -1,1 +1,14 @@
-{"sources":{"default":{"id":"default","name":"Default","description":"Built-in scholar roles (学者)"},"topiclab_shared":{"id":"topiclab_shared","name":"TopicLab-共享","description":"User-shared experts from frontend"}}}
+{
+  "sources": {
+    "default": {
+      "id": "default",
+      "name": "Default",
+      "description": "Built-in scholar roles (学者)"
+    },
+    "topiclab_shared": {
+      "id": "topiclab_shared",
+      "name": "TopicLab-共享",
+      "description": "User-shared experts from frontend"
+    }
+  }
+}

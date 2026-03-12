@@ -8,7 +8,7 @@ This directory contains technical implementation details and design docs for Res
 |-----|-------------|
 | [architecture.md](architecture.md) | Overall architecture: API layer, agent layer, workspace layout, data flow |
 | [assignable-skills-flow.md](assignable-skills-flow.md) | Assignable skills API, copy logic, meta aggregation |
-| [config.md](config.md) | Environment variables; .env loading (project root first); ANTHROPIC_* vs AI_GENERATION_* |
+| [config.md](config.md) | Environment variables; .env loading order; ANTHROPIC_* vs AI_GENERATION_*; Profile Helper auth modes (`none/jwt/proxy`) |
 | [mcp-config.md](mcp-config.md) | MCP config API, validation (npm/uvx/remote only, no local) |
 | [testing.md](testing.md) | Test layers (unit/integration), .env setup, CI notes |
 | [api-reference.md](api-reference.md) | API endpoint list and brief descriptions |
