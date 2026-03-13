@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.agent.generation import generate_moderator_mode
 from app.agent.moderator_modes import (
+    _ensure_required_discussion_skills,
     PRESET_MODES,
     load_moderator_mode_config,
     reload_moderator_modes,
@@ -158,14 +159,16 @@ def set_topic_moderator_mode(topic_id: str, req: SetModeratorModeRequest):
         "mode_id": req.mode_id,
         "num_rounds": req.num_rounds,
         "custom_prompt": req.custom_prompt,
-        "skill_list": req.skill_list if req.skill_list is not None else existing.get("skill_list", []),
+        "skill_list": _ensure_required_discussion_skills(
+            req.skill_list if req.skill_list is not None else existing.get("skill_list", [])
+        ),
         "mcp_server_ids": req.mcp_server_ids if req.mcp_server_ids is not None else existing.get("mcp_server_ids", []),
         "model": req.model if req.model is not None else existing.get("model"),
     }
 
     save_moderator_mode_config(ws_path, config)
     mode_name = "自定义模式" if req.mode_id == "custom" else PRESET_MODES.get(req.mode_id, {}).get("name", req.mode_id)
-    set_topic_moderator_mode_fields(topic_id, mode_id=req.mode_id, mode_name=mode_name)
+    set_topic_moderator_mode_fields(topic_id, mode_id=req.mode_id, mode_name=mode_name, num_rounds=req.num_rounds)
 
     return ModeratorModeConfig(**config)
 
@@ -191,13 +194,13 @@ async def generate_moderator_mode_endpoint(topic_id: str, req: GenerateModerator
         "mode_id": "custom",
         "num_rounds": 5,  # Default, user can adjust
         "custom_prompt": custom_prompt,
-        "skill_list": existing.get("skill_list", []),
+        "skill_list": _ensure_required_discussion_skills(existing.get("skill_list", [])),
         "mcp_server_ids": existing.get("mcp_server_ids", []),
         "model": existing.get("model"),
     }
 
     save_moderator_mode_config(ws_path, config)
-    set_topic_moderator_mode_fields(topic_id, mode_id="custom", mode_name="自定义模式")
+    set_topic_moderator_mode_fields(topic_id, mode_id="custom", mode_name="自定义模式", num_rounds=5)
 
     return {
         "message": "Moderator mode generated successfully",

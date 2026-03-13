@@ -26,7 +26,9 @@ from .workspace import (
     read_discussion_summary,
     sanitize_discussion_turn_sources,
     sync_claude_skill_discovery_files,
+    validate_discussion_outputs,
 )
+from app.core.topic_defaults import normalize_skill_ids
 from app.core.mcp_config import load_mcp_config_from_path
 
 logger = logging.getLogger(__name__)
@@ -91,8 +93,8 @@ async def run_discussion(
     topic: str,
     num_rounds: int = 5,
     expert_names: list[str] | None = None,
-    max_turns: int = 10000,
-    max_budget_usd: float = 5.0,
+    max_turns: int = 50000,
+    max_budget_usd: float = 500.0,
     allowed_tools: list[str] | None = None,
 ) -> dict[str, Any]:
     """Run discussion and return num_turns, total_cost_usd."""
@@ -189,8 +191,8 @@ async def run_discussion_for_topic(
     workspace_base: Path | str | None = None,
     num_rounds: int = 5,
     expert_names: list[str] | None = None,
-    max_turns: int = 10000,
-    max_budget_usd: float = 5.0,
+    max_turns: int = 50000,
+    max_budget_usd: float = 500.0,
     model: str | None = None,
     allowed_tools: list[str] | None = None,
     skill_list: list[str] | None = None,
@@ -204,7 +206,9 @@ async def run_discussion_for_topic(
     init_discussion_history(ws_path, topic_title, topic_body)
 
     # Copy user-selected skills from global assignable_skills to config/skills/
-    skills_to_copy = list(skill_list) if skill_list else []
+    skills_to_copy = normalize_skill_ids(skill_list or [])
+    if "image_generation" not in skills_to_copy:
+        skills_to_copy.append("image_generation")
     if skills_to_copy:
         copied = copy_skills_to_workspace(ws_path, skills_to_copy)
         if copied:
@@ -242,6 +246,12 @@ async def run_discussion_for_topic(
                 filtered_sources,
                 topic_id,
             )
+        validate_discussion_outputs(
+            ws_path,
+            expert_names=expert_names or EXPERT_ORDER,
+            num_rounds=num_rounds,
+            require_image=True,
+        )
 
     return {
         "discussion_history": read_discussion_history(ws_path),

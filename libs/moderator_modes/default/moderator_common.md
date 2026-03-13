@@ -10,6 +10,9 @@ Rounds: **{num_rounds}** (strict; do not exceed)
 
 - Each round, each expert writes to: shared/turns/round{round}_{expert}.md
 - Rounds start at 1; end strictly at round {num_rounds}
+- Do not finish early, skip rounds, or let any expert skip a required round
+- Before ending, verify that every round from 1 to {num_rounds} has a turn file for every expert
+- Every discussion must produce at least one image under `shared/generated_images/` and reference that image in a turn or the final summary
 - After discussion: Write shared/discussion_summary.md ({summary_scope})
 
 ## Output Language (Must Follow)

@@ -219,6 +219,7 @@ def post_topic(data: TopicCreate):
         topic.id,
         mode_id="standard",
         mode_name=PRESET_MODES.get("standard", {}).get("name", "Standard Round Table"),
+        num_rounds=topic.num_rounds,
     )
 
     for expert_name in DEFAULT_TOPIC_EXPERT_NAMES:

@@ -178,6 +178,7 @@ def set_topic_moderator_mode_fields(
     *,
     mode_id: str,
     mode_name: str,
+    num_rounds: int | None = None,
 ) -> Optional[Topic]:
     """Persist moderator mode fields on topic metadata without extra file reads."""
     topic = topics_db.get(topic_id)
@@ -185,7 +186,9 @@ def set_topic_moderator_mode_fields(
         return None
     topic.moderator_mode_id = mode_id
     topic.moderator_mode_name = mode_name
+    if num_rounds is not None:
+        topic.num_rounds = num_rounds
+        topic.updated_at = utc_now_iso()
     _save_topic_to_file(topic)
     return topic
-
 

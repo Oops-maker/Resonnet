@@ -46,6 +46,7 @@ class TopicUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     body: Optional[str] = Field(None, min_length=0)
     category: Optional[str] = None
+    num_rounds: Optional[int] = Field(None, ge=1, le=20)
     expert_names: Optional[list[str]] = None
 
 
@@ -122,8 +123,8 @@ DEFAULT_ALLOWED_TOOLS = [
 
 class StartDiscussionRequest(BaseModel):
     num_rounds: int = Field(default=5, ge=1, le=20)
-    max_turns: int = Field(default=10000, ge=10, le=10000)
-    max_budget_usd: float = Field(default=5.0, ge=0.1)  # no upper limit
+    max_turns: int = Field(default=50000, ge=10, le=50000)
+    max_budget_usd: float = Field(default=500.0, ge=0.1)  # no upper limit
     model: str | None = None
     allowed_tools: list[str] | None = Field(
         default=None,

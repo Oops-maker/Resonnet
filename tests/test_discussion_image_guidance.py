@@ -28,7 +28,7 @@ def test_prepare_moderator_skill_includes_image_guidance_when_skill_present(
     assert "![图示说明](/api/topics/discussion-image-guidance/assets/generated_images/" in content
     assert "Do not return raw temporary DashScope URLs" in content
     assert "config/skills/image_generation.md" in content
-    assert "Required Visual Deliverable" not in content
+    assert "Required Visual Deliverable" in content
 
 
 def test_prepare_moderator_skill_requires_image_delivery_without_first_round_force(
@@ -47,6 +47,7 @@ def test_prepare_moderator_skill_requires_image_delivery_without_first_round_for
     )
 
     content = skill_file.read_text(encoding="utf-8")
+    assert "Every discussion must produce at least one image artifact" in content
     assert "treat at least one image as a required deliverable" in content
     assert "assign the image generation skill in round 1" not in content
     assert "produce a first visual draft in round 1" not in content

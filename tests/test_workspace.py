@@ -9,6 +9,7 @@ from app.agent.workspace import (
     _parse_skill_id,
     _resolve_skill_path,
     _skill_dest_filename,
+    validate_discussion_outputs,
     sync_claude_skill_discovery_files,
 )
 
@@ -149,3 +150,53 @@ class TestSourceCitationGuardrails:
 
         assert sanitized == raw
         assert filtered == 0
+
+
+class TestDiscussionOutputValidation:
+    """Tests for strict discussion completion validation."""
+
+    def test_validate_discussion_outputs_requires_all_turns_and_image_reference(self, tmp_path: Path):
+        ws = tmp_path / "topic_ws"
+        turns_dir = ws / "shared" / "turns"
+        turns_dir.mkdir(parents=True)
+        (turns_dir / "round1_physicist.md").write_text("第一轮", encoding="utf-8")
+        (turns_dir / "round1_biologist.md").write_text("第一轮", encoding="utf-8")
+        (turns_dir / "round2_physicist.md").write_text("第二轮", encoding="utf-8")
+        (turns_dir / "round2_biologist.md").write_text(
+            "第二轮\n\n![图](../generated_images/figure.png)",
+            encoding="utf-8",
+        )
+        generated_dir = ws / "shared" / "generated_images"
+        generated_dir.mkdir(parents=True)
+        (generated_dir / "figure.png").write_bytes(b"\x89PNG\r\n\x1a\nmock")
+        (ws / "shared" / "discussion_summary.md").write_text(
+            "总结\n\n![图](../generated_images/figure.png)",
+            encoding="utf-8",
+        )
+
+        validate_discussion_outputs(
+            ws,
+            expert_names=["physicist", "biologist"],
+            num_rounds=2,
+            require_image=True,
+        )
+
+    def test_validate_discussion_outputs_fails_when_round_is_missing(self, tmp_path: Path):
+        ws = tmp_path / "topic_ws"
+        turns_dir = ws / "shared" / "turns"
+        turns_dir.mkdir(parents=True)
+        (turns_dir / "round1_physicist.md").write_text("第一轮", encoding="utf-8")
+        (ws / "shared" / "discussion_summary.md").write_text("总结", encoding="utf-8")
+
+        try:
+            validate_discussion_outputs(
+                ws,
+                expert_names=["physicist", "biologist"],
+                num_rounds=2,
+                require_image=False,
+            )
+        except ValueError as exc:
+            assert "did not complete all configured rounds" in str(exc)
+            assert "round1_biologist.md" in str(exc)
+        else:
+            raise AssertionError("Expected validate_discussion_outputs to fail when a round is missing")

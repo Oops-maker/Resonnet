@@ -101,7 +101,7 @@ def load_moderator_mode_config(ws_path: Path) -> dict:
         "mode_id": "standard",
         "num_rounds": 5,
         "custom_prompt": None,
-        "skill_list": [],
+        "skill_list": ["image_generation"],
         "mcp_server_ids": [],
         "model": None,
     }
@@ -116,7 +116,7 @@ def load_moderator_mode_config(ws_path: Path) -> dict:
         for key in ("skill_list", "mcp_server_ids", "model"):
             if key not in data:
                 data[key] = default[key]
-        data["skill_list"] = normalize_skill_ids(data.get("skill_list", []))
+        data["skill_list"] = _ensure_required_discussion_skills(data.get("skill_list", []))
         return _enrich_config_from_workspace(data, ws_path)
     except (json.JSONDecodeError, OSError) as e:
         logger.error(f"Failed to load moderator mode config: {e}")
@@ -131,6 +131,7 @@ def _enrich_config_from_workspace(config: dict, ws_path: Path) -> dict:
 
     if not result.get("skill_list") and skills_dir.exists():
         result["skill_list"] = _skill_ids_from_workspace(skills_dir)
+    result["skill_list"] = _ensure_required_discussion_skills(result.get("skill_list", []))
 
     if not result.get("mcp_server_ids") and mcp_file.exists():
         try:
@@ -184,7 +185,7 @@ def save_moderator_mode_config(ws_path: Path, config: dict):
         "mode_id": config.get("mode_id", "standard"),
         "num_rounds": config.get("num_rounds", 5),
         "custom_prompt": config.get("custom_prompt"),
-        "skill_list": normalize_skill_ids(config.get("skill_list", [])),
+        "skill_list": _ensure_required_discussion_skills(config.get("skill_list", [])),
         "mcp_server_ids": config.get("mcp_server_ids", []),
         "model": config.get("model"),
     }
@@ -203,6 +204,13 @@ def _fill_skill_template(template: str, **kwargs) -> str:
     for key, value in kwargs.items():
         template = template.replace("{" + key + "}", str(value))
     return template
+
+
+def _ensure_required_discussion_skills(skill_ids: list[str] | None) -> list[str]:
+    normalized = normalize_skill_ids(skill_ids or [])
+    if "image_generation" not in normalized:
+        normalized.append("image_generation")
+    return normalized
 
 
 def _topic_explicitly_requests_image(topic: str) -> bool:
@@ -263,6 +271,8 @@ def prepare_moderator_skill(ws_path: Path, topic: str, expert_names: list[str], 
             skill_content = skill_content.rstrip() + "\n\n" + assignment_section
             logger.info(f"Added skill assignment section for {skill_names}")
 
+    skill_content = skill_content.rstrip() + "\n\n" + _build_source_citation_guardrails()
+
     skill_file = ws_path / "config" / "moderator_skill.md"
     skill_file.parent.mkdir(parents=True, exist_ok=True)
     skill_file.write_text(skill_content, encoding="utf-8")
@@ -276,12 +286,16 @@ def _build_skill_assignment_section(skill_names: list[str], topic_id: str, topic
     image_guidance = ""
     image_skill_name = next((name for name in skill_names if normalize_skill_id(name) == "image_generation"), None)
     if image_skill_name:
-        required_delivery = ""
-        if _topic_explicitly_requests_image(topic):
-            required_delivery = """
+        required_delivery = """
 
 ## Required Visual Deliverable
 
+- Every discussion must produce at least one image artifact and reference it in the discussion turns or final summary.
+- Do not end the discussion until at least one generated image has been saved under `shared/generated_images/` and embedded via Markdown.
+- Plan the image work early enough that the visual can be discussed, refined, and included before the final summary.
+"""
+        if _topic_explicitly_requests_image(topic):
+            required_delivery += """
 - If the topic explicitly asks for an image, diagram, figure, architecture chart, or other visual output, treat at least one image as a required deliverable rather than an optional enhancement.
 - If the topic explicitly asks for an image, diagram, figure, architecture chart, or other visual output, actively use the image generation skill to produce the figure instead of stopping at text-only analysis.
 - In that case, assign the image generation skill to a suitable expert at an appropriate stage and coordinate other experts to refine scope, labels, and comparison dimensions.
@@ -304,13 +318,15 @@ When assigning `config/skills/{image_skill_name}.md`, explicitly tell the expert
 **使用方式**：
 1. 每轮开始前，用 Read 工具阅读上述技能文件，根据当前讨论阶段与话题选择最相关的技能
 2. 调用专家 Task 时，在指令中附加技能内容，例如：「除你的角色外，请额外遵循以下指导：[粘贴技能内容]。然后阅读 shared/topic.md 并参与讨论。」
-3. 同一专家可分配多个技能，或不同专家分配不同技能；根据话题与专家专长灵活选择
+3. 同一专家可分配多个技能，或不同专家分配不同技能；根据话题与专家专长灵活选择{image_guidance}"""
 
-## Source Citation Guardrails
+
+def _build_source_citation_guardrails() -> str:
+    return """## Source Citation Guardrails
 
 - Only cite verifiable external sources using full `https://` URLs with a real domain.
 - Never use placeholder or internal pseudo-source paths such as `/api/2026-*` as evidence citations.
-- If a claim cannot be supported by a verifiable source, state uncertainty directly instead of inventing a source.{image_guidance}"""
+- If a claim cannot be supported by a verifiable source, state uncertainty directly instead of inventing a source."""
 
 
 def get_moderator_prompt(ws_path: Path) -> str:

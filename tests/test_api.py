@@ -554,6 +554,11 @@ def test_moderator_mode_get_and_set(client: TestClient, isolated_workspace: Path
     assert config_file.exists()
     saved = json.loads(config_file.read_text(encoding="utf-8"))
     assert saved["mode_id"] == "brainstorm"
+    assert saved["skill_list"] == ["image_generation"]
+
+    topic_resp = client.get(f"/topics/{topic_id}")
+    assert topic_resp.status_code == 200
+    assert topic_resp.json()["num_rounds"] == 4
 
     # Extended fields: skill_list, mcp_server_ids, model
     put_ext = client.put(
@@ -569,14 +574,14 @@ def test_moderator_mode_get_and_set(client: TestClient, isolated_workspace: Path
     )
     assert put_ext.status_code == 200
     ext_cfg = put_ext.json()
-    assert ext_cfg["skill_list"] == ["skill_a", "skill_b"]
+    assert ext_cfg["skill_list"] == ["skill_a", "skill_b", "image_generation"]
     assert ext_cfg["mcp_server_ids"] == ["mcp_x"]
     assert ext_cfg["model"] == "qwen-flash"
 
     get_again = client.get(f"/topics/{topic_id}/moderator-mode")
     assert get_again.status_code == 200
     reloaded = get_again.json()
-    assert reloaded["skill_list"] == ["skill_a", "skill_b"]
+    assert reloaded["skill_list"] == ["skill_a", "skill_b", "image_generation"]
     assert reloaded["mcp_server_ids"] == ["mcp_x"]
     assert reloaded["model"] == "qwen-flash"
 

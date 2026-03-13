@@ -166,6 +166,74 @@ def sanitize_discussion_turn_sources(ws_path: Path) -> int:
     return filtered_total
 
 
+def list_generated_image_files(ws_path: Path) -> list[Path]:
+    """List generated discussion images under shared/generated_images/."""
+    generated_dir = ws_path / "shared" / "generated_images"
+    if not generated_dir.exists():
+        return []
+    return sorted(
+        p for p in generated_dir.iterdir()
+        if p.is_file() and p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
+    )
+
+
+def validate_discussion_outputs(
+    ws_path: Path,
+    *,
+    expert_names: list[str],
+    num_rounds: int,
+    require_image: bool = True,
+) -> None:
+    """Validate that discussion outputs are complete before marking success.
+
+    Rules:
+    - Every expected round/expert turn file must exist and be non-empty.
+    - discussion_summary.md must exist and be non-empty.
+    - At least one generated image file must exist when require_image is True.
+    - Combined discussion output must reference at least one generated image when require_image is True.
+    """
+    turns_dir = ws_path / "shared" / "turns"
+    missing_turns: list[str] = []
+    empty_turns: list[str] = []
+    for round_num in range(1, num_rounds + 1):
+        for expert_name in expert_names:
+            turn_file = turns_dir / f"round{round_num}_{expert_name}.md"
+            if not turn_file.exists():
+                missing_turns.append(turn_file.name)
+                continue
+            if not turn_file.read_text(encoding="utf-8").strip():
+                empty_turns.append(turn_file.name)
+
+    summary = read_discussion_summary(ws_path).strip()
+    if not summary:
+        raise ValueError("Discussion summary is missing or empty")
+
+    if missing_turns or empty_turns:
+        details: list[str] = []
+        if missing_turns:
+            details.append(f"missing turns: {', '.join(missing_turns[:8])}")
+        if empty_turns:
+            details.append(f"empty turns: {', '.join(empty_turns[:8])}")
+        raise ValueError("Discussion did not complete all configured rounds; " + "; ".join(details))
+
+    if not require_image:
+        return
+
+    generated_images = list_generated_image_files(ws_path)
+    if not generated_images:
+        raise ValueError("Discussion must produce at least one generated image")
+
+    combined_output = f"{read_discussion_history(ws_path)}\n\n{summary}"
+    image_refs = (
+        "../generated_images/",
+        "shared/generated_images/",
+        "/assets/generated_images/",
+        "/api/topics/",
+    )
+    if not any(marker in combined_output for marker in image_refs):
+        raise ValueError("Discussion generated image files but did not reference any generated image in output")
+
+
 def validate_topic_id(topic_id: str) -> str:
     """Validate topic_id to prevent path traversal attacks.
 

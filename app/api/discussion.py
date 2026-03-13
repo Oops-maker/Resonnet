@@ -104,6 +104,10 @@ async def start_discussion_endpoint(topic_id: str, req: StartDiscussionRequest):
 
     ws_path = get_workspace_base() / "topics" / topic_id
     topic_mode_config = load_moderator_mode_config(ws_path)
+    configured_num_rounds = int(topic_mode_config.get("num_rounds") or topic.num_rounds or req.num_rounds)
+    if topic.num_rounds != configured_num_rounds:
+        update_topic(topic_id, TopicUpdate(num_rounds=configured_num_rounds))
+        topic = get_topic(topic_id) or topic
 
     # Start discussion in background
     tools = req.allowed_tools if req.allowed_tools else DEFAULT_ALLOWED_TOOLS
@@ -122,7 +126,7 @@ async def start_discussion_endpoint(topic_id: str, req: StartDiscussionRequest):
         topic_id=topic_id,
         topic_title=topic.title,
         topic_body=topic.body,
-        num_rounds=topic.num_rounds,
+        num_rounds=configured_num_rounds,
         expert_names=topic.expert_names,
         max_turns=req.max_turns,
         max_budget_usd=req.max_budget_usd,
