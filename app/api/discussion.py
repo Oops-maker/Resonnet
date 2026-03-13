@@ -29,6 +29,7 @@ from app.models.store import (
     update_topic,
     update_topic_discussion,
 )
+from app.models.discussion_turns import sync_discussion_turns
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -160,6 +161,7 @@ def get_discussion_status_endpoint(topic_id: str):
         ws_path = ws_base / "topics" / topic_id
         turns_dir = ws_path / "shared" / "turns"
         if turns_dir.exists():
+            sync_discussion_turns(ws_path)
             history = read_discussion_history(ws_path)
             summary = read_discussion_summary(ws_path)
             turn_files = sorted(turns_dir.glob("*.md"))

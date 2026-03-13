@@ -41,13 +41,13 @@ Each endpoint should have at least:
 - **Invalid params**: `422` or `400` (per implementation)
 - **Resource not found**: `404`
 - **Conflict**: `409` or `400` (per implementation)
-- **Persistence check**: Key data exists under `workspace/topics/{topic_id}/...`
+- **Persistence check**: Structured business state is queryable from API/DB; agent artifacts exist under `workspace/topics/{topic_id}/shared/...`
 
 ### 3) Shared Fixtures
 
 Use fixtures from `conftest.py`:
 
-- `isolated_workspace`: Isolated `tmp_path/workspace`, env patched, `topics_db` reset
+- `isolated_workspace`: Isolated `tmp_path/workspace`, env patched, isolated sqlite `DATABASE_URL`
 - `client`: `TestClient(app)` with isolated workspace
 
 For Agent SDK–specific workspaces (e.g. expert role files), add local fixtures in `test_agent_sdk.py`.
@@ -63,7 +63,7 @@ Run only when a real key is present:
   3. Poll `GET /topics/{topic_id}/posts/mention/{reply_post_id}` until `completed` or `failed`
   4. Assert reply completed, body non-empty, `in_reply_to_id` correct
   5. Call `GET /topics/{topic_id}/posts` to verify conversation chain
-  6. Read `workspace/topics/{topic_id}/posts/*.json` to verify disk records
+  6. Query `GET /topics/{topic_id}/posts` / `GET .../mention/{reply_post_id}` to verify persisted records
   7. Inspect logs for `fail`, `error`, `timeout`, `exception`, `warning`; avoid "pass but with anomalies"
 
 ## Assertion Checklist (Reusable)
@@ -72,7 +72,7 @@ Run only when a real key is present:
 - Response JSON has key fields: `id`, `status`, `created_at`, related fields
 - List endpoints return correct type and include new entities
 - Error responses include `detail` with correct semantics
-- File system side effects exist and content matches (JSON fields align with API response)
+- Database state and file-system artifacts match the API response
 - Async tasks reach a final state (not stuck in pending)
 
 ## File Layout

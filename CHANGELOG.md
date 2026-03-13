@@ -10,12 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Assignable skills pointers**: track `libs/assignable_skills/_submodules/ai-research` and `libs/assignable_skills/_submodules/anthropics` as gitlinks for shared skill source integration.
+- **Executor runtime mode**: add `RESONNET_MODE=executor` as the default integrated mode, with dedicated executor APIs for upstream backends.
+- **Standalone runtime mode**: keep `RESONNET_MODE=standalone` for independent MVP usage, with automatic local SQLite fallback when no database URL is configured.
+- **Executor snapshot API**: add `GET /executor/discussions/{topic_id}/snapshot` so an upstream backend can poll running discussion progress and sync turn-by-turn state.
+- **Runtime mode docs**: add `docs/runtime-modes.md` describing `executor` vs `standalone` usage and boundaries.
 
 ### Changed
 
 - **Docs alignment**: refresh `docs/README.md` to match recent profile-helper/auth integration updates.
 - **Shared catalog metadata**: update experts and moderator mode `meta.json` snapshots under `topiclab_shared`.
 - **Dependency snapshot**: sync `pyproject.toml` and `uv.lock` with the current backend environment.
+- **Topic business boundary**: in TopicLab-integrated deployments, Resonnet now serves as an execution engine instead of the source of truth for topic business data.
+- **Executor responses**: discussion execution now exposes per-turn data, generated image references, and live workspace snapshots for upstream synchronization.
 
 ## [0.4.0] - 2026-03-07
 

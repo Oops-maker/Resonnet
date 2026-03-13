@@ -20,7 +20,10 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from app.agent.posts import load_post
 from app.agent.expert_reply import _extract_reply_body, run_expert_reply
+from app.db.migrations import run_db_migrations
+from app.db.session import reset_db_state
 
 
 # =============================================================================
@@ -65,15 +68,22 @@ def test_extract_reply_body_empty():
 
 
 @pytest.fixture
-def expert_reply_workspace(tmp_path):
+def expert_reply_workspace(tmp_path, monkeypatch):
     """Minimal workspace with physicist role for expert_reply."""
+    database_path = tmp_path / "expert-reply-test.db"
+    monkeypatch.setenv("TOPICDATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("RESONNET_MODE", "standalone")
+    reset_db_state()
+    run_db_migrations()
     ws = tmp_path / "workspace" / "topics" / "t1"
     (ws / "agents" / "physicist").mkdir(parents=True)
     (ws / "agents" / "physicist" / "role.md").write_text(
         "# Physicist\n\nYou are a physicist.",
         encoding="utf-8",
     )
-    return ws
+    yield ws
+    reset_db_state()
 
 
 async def _mock_query_expert_reply(assistant_text: str = "Mocked expert reply.", **kwargs):
@@ -117,9 +127,7 @@ async def test_run_expert_reply_mocked_saves_completed_post(expert_reply_workspa
     assert result_info["num_turns"] == 1
     assert result_info["total_cost_usd"] == 0.001
 
-    posts_dir = expert_reply_workspace / "posts"
-    assert posts_dir.exists()
-    reply_post = _find_post_by_id(posts_dir, "reply-1")
+    reply_post = load_post(expert_reply_workspace, "reply-1")
     assert reply_post is not None
     assert reply_post["status"] == "completed"
     assert "Mocked expert reply" in reply_post["body"]
@@ -160,7 +168,7 @@ async def test_run_expert_reply_mocked_extracts_json_body(expert_reply_workspace
             reply_created_at="2025-01-01T00:00:00Z",
         )
 
-    reply_post = _find_post_by_id(expert_reply_workspace / "posts", "r1")
+    reply_post = load_post(expert_reply_workspace, "r1")
     assert reply_post is not None
     assert reply_post["body"] == "Extracted from JSON response"
 
@@ -515,7 +523,7 @@ def test_mention_api_mocked_returns_202_and_completes(client: TestClient, isolat
         assert "Mocked expert reply" in post["body"]
         assert post["author"] == "physicist"
 
-        persisted = _find_post_by_id(isolated_workspace / "topics" / topic_id / "posts", reply_post_id)
+        persisted = load_post(isolated_workspace / "topics" / topic_id, reply_post_id)
         assert persisted is not None
         assert persisted["status"] == "completed"
 
@@ -556,20 +564,6 @@ def _assert_evidence(scenario: str, evidence: dict[str, Any], required_keys: lis
             f"evidence={json.dumps(evidence, ensure_ascii=False, indent=2)}"
         )
     print("[AGENTSDK_EVIDENCE]", json.dumps(evidence, ensure_ascii=False))
-
-
-def _find_post_by_id(posts_dir: Path, post_id: str) -> dict | None:
-    """Find a post by id in posts directory."""
-    if not posts_dir.exists():
-        return None
-    for f in posts_dir.glob("*.json"):
-        try:
-            p = json.loads(f.read_text(encoding="utf-8"))
-            if p.get("id") == post_id:
-                return p
-        except Exception:
-            pass
-    return None
 
 
 def _poll_mention_until_done(
@@ -648,7 +642,7 @@ def test_mention_expert_real_agentsdk_generates_reply(
     assert latest["body"].strip()
     assert latest["in_reply_to_id"] == user_post_id
 
-    persisted_reply = _find_post_by_id(isolated_workspace / "topics" / topic_id / "posts", reply_post_id)
+    persisted_reply = load_post(isolated_workspace / "topics" / topic_id, reply_post_id)
     assert persisted_reply is not None
     assert persisted_reply["status"] == "completed"
     assert persisted_reply["body"].strip()

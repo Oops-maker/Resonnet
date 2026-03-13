@@ -17,7 +17,7 @@ from app.agent.workspace import (
     load_experts_metadata,
     remove_expert_metadata,
 )
-from app.core.config import get_experts_dir, get_workspace_base
+from app.core.config import get_experts_dir, get_resonnet_mode, get_workspace_base
 from app.models.schemas import (
     AddExpertRequest,
     GenerateExpertActionResponse,
@@ -30,6 +30,21 @@ from app.models.schemas import TopicUpdate
 from app.models.store import get_topic, update_topic
 
 router = APIRouter()
+
+
+def _topic_workspace_exists(topic_id: str) -> bool:
+    return (get_workspace_base() / "topics" / topic_id).exists()
+
+
+def _require_topic(topic_id: str):
+    if get_resonnet_mode() == "standalone":
+        topic = get_topic(topic_id)
+        if not topic:
+            raise HTTPException(status_code=404, detail="Topic not found")
+        return topic
+    if not _topic_workspace_exists(topic_id):
+        raise HTTPException(status_code=404, detail="Topic not found")
+    return None
 
 
 def _build_private_twin_masked_content(label: str, description: str) -> str:
@@ -53,9 +68,7 @@ def _build_private_twin_masked_content(label: str, description: str) -> str:
 @router.get("/{topic_id}/experts", response_model=list[TopicExpert])
 def list_topic_experts(topic_id: str):
     """Get list of experts for this topic from workspace/agents/ directory."""
-    topic = get_topic(topic_id)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    _require_topic(topic_id)
 
     ws_base = get_workspace_base()
     ws_path = ws_base / "topics" / topic_id
@@ -76,9 +89,7 @@ def add_expert_to_topic(topic_id: str, req: AddExpertRequest):
     - custom: Create with user-provided content
     - ai_generated: (handled by separate generate endpoint)
     """
-    topic = get_topic(topic_id)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    topic = _require_topic(topic_id)
 
     ws_base = get_workspace_base()
     ws_path = ws_base / "topics" / topic_id
@@ -117,7 +128,7 @@ def add_expert_to_topic(topic_id: str, req: AddExpertRequest):
         )
 
         # Sync expert_names in topic
-        if req.preset_name not in topic.expert_names:
+        if topic is not None and req.preset_name not in topic.expert_names:
             update_topic(topic_id, TopicUpdate(expert_names=topic.expert_names + [req.preset_name]))
 
         return {"message": "Expert added from preset", "expert_name": req.preset_name}
@@ -167,7 +178,7 @@ def add_expert_to_topic(topic_id: str, req: AddExpertRequest):
         )
 
         # Sync expert_names in topic
-        if req.name not in topic.expert_names:
+        if topic is not None and req.name not in topic.expert_names:
             update_topic(topic_id, TopicUpdate(expert_names=topic.expert_names + [req.name]))
 
         return {"message": "Custom expert created", "expert_name": req.name}
@@ -182,9 +193,7 @@ def add_expert_to_topic(topic_id: str, req: AddExpertRequest):
 @router.put("/{topic_id}/experts/{expert_name}", response_model=TopicExpertResponse)
 def update_topic_expert(topic_id: str, expert_name: str, req: UpdateTopicExpertRequest):
     """Update expert's role content."""
-    topic = get_topic(topic_id)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    _require_topic(topic_id)
 
     ws_base = get_workspace_base()
     ws_path = ws_base / "topics" / topic_id
@@ -202,9 +211,7 @@ def update_topic_expert(topic_id: str, expert_name: str, req: UpdateTopicExpertR
 @router.delete("/{topic_id}/experts/{expert_name}", response_model=TopicExpertResponse)
 def delete_topic_expert(topic_id: str, expert_name: str):
     """Delete an expert from the topic."""
-    topic = get_topic(topic_id)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    topic = _require_topic(topic_id)
 
     ws_base = get_workspace_base()
     ws_path = ws_base / "topics" / topic_id
@@ -228,7 +235,8 @@ def delete_topic_expert(topic_id: str, expert_name: str):
     remove_expert_metadata(ws_path, expert_name)
 
     # Sync expert_names in topic
-    update_topic(topic_id, TopicUpdate(expert_names=[n for n in topic.expert_names if n != expert_name]))
+    if topic is not None:
+        update_topic(topic_id, TopicUpdate(expert_names=[n for n in topic.expert_names if n != expert_name]))
 
     return {"message": "Expert deleted", "expert_name": expert_name}
 
@@ -236,9 +244,7 @@ def delete_topic_expert(topic_id: str, expert_name: str):
 @router.get("/{topic_id}/experts/{expert_name}/content")
 def get_topic_expert_content(topic_id: str, expert_name: str):
     """Get the role content of a topic expert."""
-    topic = get_topic(topic_id)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    _require_topic(topic_id)
 
     ws_base = get_workspace_base()
     ws_path = ws_base / "topics" / topic_id
@@ -265,9 +271,7 @@ def get_topic_expert_content(topic_id: str, expert_name: str):
 def share_expert_to_platform(topic_id: str, expert_name: str):
     """Share a topic-level expert to the platform library (topiclab_shared source)."""
     try:
-        topic = get_topic(topic_id)
-        if not topic:
-            raise HTTPException(status_code=404, detail="Topic not found")
+        _require_topic(topic_id)
 
         # Reject if expert is built-in (default source); allow overwrite for topiclab_shared
         existing = EXPERT_SPECS.get(expert_name)
@@ -373,9 +377,7 @@ async def generate_expert_for_topic(topic_id: str, req: GenerateExpertRequest):
 
     Returns the generated content for user preview without creating the expert yet.
     """
-    topic = get_topic(topic_id)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    _require_topic(topic_id)
 
     try:
         expert_name, expert_label, role_content = await generate_expert(

@@ -72,6 +72,24 @@ def get_workspace_base() -> Path:
     return Path(__file__).resolve().parent.parent.parent / "workspace"
 
 
+def get_database_url() -> str:
+    url = os.getenv("TOPICDATABASE_URL", "").strip() or os.getenv("DATABASE_URL", "").strip()
+    if not url and get_resonnet_mode() == "standalone":
+        sqlite_path = Path(__file__).resolve().parent.parent.parent / "workspace" / "resonnet.sqlite3"
+        sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+        return f"sqlite:///{sqlite_path}"
+    if not url:
+        raise ValueError("DATABASE_URL is not required in executor mode; standalone mode can use local SQLite automatically")
+    return url
+
+
+def get_resonnet_mode() -> str:
+    mode = os.getenv("RESONNET_MODE", "executor").strip().lower()
+    if mode in {"executor", "standalone"}:
+        return mode
+    return "executor"
+
+
 def get_auth_service_base_url() -> str:
     """Auth service base URL for token introspection via topiclab-backend."""
     return os.getenv("AUTH_SERVICE_BASE_URL", "http://topiclab-backend:8000")

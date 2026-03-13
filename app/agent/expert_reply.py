@@ -102,6 +102,9 @@ async def run_expert_reply(
     reply_created_at: str,
     max_turns: int = 100,
     max_budget_usd: float = 10.0,
+    *,
+    persist_reply: bool = True,
+    posts_context_text: str | None = None,
 ) -> dict[str, Any]:
     """Launch an expert agent that reads workspace context and writes its reply.
 
@@ -161,6 +164,11 @@ async def run_expert_reply(
         user_question=user_question,
     )
 
+    if posts_context_text is not None:
+        shared_dir = ws_path / "shared"
+        shared_dir.mkdir(parents=True, exist_ok=True)
+        (shared_dir / "posts_context.md").write_text(posts_context_text, encoding="utf-8")
+
     discovered_skills = sync_claude_skill_discovery_files(ws_path)
     if discovered_skills:
         logger.info(
@@ -215,46 +223,48 @@ async def run_expert_reply(
                     reply_text = message.result or last_assistant_text
         except Exception as e:
             logger.error(f"Expert reply agent failed: {e}", exc_info=True)
-            # Overwrite the pending placeholder with a failed status
-            failed = make_post(
-                topic_id=topic_id,
-                author=expert_name,
-                author_type="agent",
-                body="(Expert reply failed; please try again later)",
-                expert_name=expert_name,
-                expert_label=expert_label,
-                in_reply_to_id=user_post_id,
-                status="failed",
-            )
-            failed["id"] = reply_post_id
-            failed["created_at"] = reply_created_at
-            save_post(ws_path, failed)
+            if persist_reply:
+                # Overwrite the pending placeholder with a failed status
+                failed = make_post(
+                    topic_id=topic_id,
+                    author=expert_name,
+                    author_type="agent",
+                    body="(Expert reply failed; please try again later)",
+                    expert_name=expert_name,
+                    expert_label=expert_label,
+                    in_reply_to_id=user_post_id,
+                    status="failed",
+                )
+                failed["id"] = reply_post_id
+                failed["created_at"] = reply_created_at
+                save_post(ws_path, failed)
             raise
 
     reply_body = _extract_reply_body(reply_text)
     if reply_body != reply_text:
         logger.info(f"Extracted reply body from raw result (original len={len(reply_text)}, extracted len={len(reply_body)})")
 
-    # Write the completed reply post (overwrites the pending placeholder)
-    completed = make_post(
-        topic_id=topic_id,
-        author=expert_name,
-        author_type="agent",
-        body=reply_body,
-        expert_name=expert_name,
-        expert_label=expert_label,
-        in_reply_to_id=user_post_id,
-        status="completed",
-    )
-    completed["id"] = reply_post_id
-    completed["created_at"] = reply_created_at
-    save_post(ws_path, completed)
+    if persist_reply:
+        # Write the completed reply post (overwrites the pending placeholder)
+        completed = make_post(
+            topic_id=topic_id,
+            author=expert_name,
+            author_type="agent",
+            body=reply_body,
+            expert_name=expert_name,
+            expert_label=expert_label,
+            in_reply_to_id=user_post_id,
+            status="completed",
+        )
+        completed["id"] = reply_post_id
+        completed["created_at"] = reply_created_at
+        save_post(ws_path, completed)
 
     logger.info(
         f"Expert reply saved: turns={result_info['num_turns']}, "
         f"cost={result_info['total_cost_usd']}, chars={len(reply_text)}"
     )
-    return result_info
+    return {**result_info, "reply_body": reply_body}
 
 
 def run_expert_reply_sandboxed(

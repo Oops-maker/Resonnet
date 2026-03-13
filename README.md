@@ -156,6 +156,8 @@ curl http://localhost:8000/health
 | `WORKSPACE_BASE` | | 工作区目录，默认 `./workspace` |
 | `LIBS_CACHE_TTL_SECONDS` | | 库 meta 缓存 TTL（秒）；0=禁用缓存即热更新；默认 60 |
 
+在 TopicLab 集成模式下，topic 主业务数据库归 `topiclab-backend` 持有；Resonnet 只负责 Agent SDK 执行、workspace 产物和运行时编排，因此这里不再要求配置 topic 业务数据库。
+
 详见 [docs/config.md](docs/config.md)。所有库（experts、moderator_modes、mcps、assignable_skills、prompts）从 `libs/` 加载，无需配置 scenarios。
 
 ## 测试
@@ -171,7 +173,7 @@ pytest tests/test_agent_sdk.py -m integration -v -s
 bash scripts/ci_local.sh
 ```
 
-> AgentSDK 可用性的验收标准：在真实 `.env` 下调用成功，且对话记录已写入 `workspace/topics/{topic_id}/posts/*.json`。
+> AgentSDK 可用性的验收标准：在真实 `.env` 下调用成功，并能在 workspace 中产出讨论 turn、summary、图片等执行结果；业务状态回写由上层业务后端负责。
 
 详见 [docs/testing.md](docs/testing.md)。
 
@@ -203,6 +205,7 @@ docker run --rm -p 8000:8000 --env-file .env \
 |------|------|
 | [docs/README.md](docs/README.md) | 文档索引 |
 | [docs/architecture.md](docs/architecture.md) | 架构说明 |
+| [docs/runtime-modes.md](docs/runtime-modes.md) | `executor` 集成模式与 `standalone` MVP 模式的使用方式 |
 | [docs/config.md](docs/config.md) | 环境变量配置 |
 | [docs/testing.md](docs/testing.md) | 测试指南 |
 | [docs/api-reference.md](docs/api-reference.md) | API 参考 |

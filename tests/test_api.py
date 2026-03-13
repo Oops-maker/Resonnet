@@ -9,7 +9,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
+from sqlalchemy import select
 
+from app.agent.posts import load_post
+from app.db.models import DiscussionTurnRecord
+from app.db.session import session_scope
 from main import app
 
 
@@ -303,11 +307,41 @@ def test_posts_create_list_and_persistence(client: TestClient, isolated_workspac
     assert posts[0]["id"] == post["id"]
     assert posts[0]["body"] == "第一条留言"
 
-    posts_dir = isolated_workspace / "topics" / topic_id / "posts"
-    files = list(posts_dir.glob("*.json"))
-    assert len(files) == 1
-    persisted = json.loads(files[0].read_text(encoding="utf-8"))
+    persisted = load_post(isolated_workspace / "topics" / topic_id, post["id"])
+    assert persisted is not None
     assert persisted["id"] == post["id"]
+    posts_context = isolated_workspace / "topics" / topic_id / "shared" / "posts_context.md"
+    assert posts_context.exists()
+    assert "第一条留言" in posts_context.read_text(encoding="utf-8")
+
+
+def test_discussion_status_syncs_turn_markdown_into_database(
+    client: TestClient,
+    isolated_workspace: Path,
+):
+    topic = _create_topic(client, title="同步讨论轮次", body="验证 turn 入库")
+    topic_id = topic["id"]
+    turns_dir = isolated_workspace / "topics" / topic_id / "shared" / "turns"
+    turns_dir.mkdir(parents=True, exist_ok=True)
+    (turns_dir / "round1_physicist.md").write_text("第一轮物理学家观点", encoding="utf-8")
+    (turns_dir / "round1_biologist.md").write_text("第一轮生物学家观点", encoding="utf-8")
+
+    response = client.get(f"/topics/{topic_id}/discussion/status")
+    assert response.status_code == 200
+
+    with session_scope() as session:
+        rows = session.scalars(
+            select(DiscussionTurnRecord)
+            .where(DiscussionTurnRecord.topic_id == topic_id)
+            .order_by(DiscussionTurnRecord.round_num.asc(), DiscussionTurnRecord.turn_key.asc())
+        ).all()
+
+    assert len(rows) == 2
+    assert rows[0].round_num == 1
+    assert rows[0].expert_name == "biologist"
+    assert rows[0].body == "第一轮生物学家观点"
+    assert rows[1].expert_name == "physicist"
+    assert rows[1].body == "第一轮物理学家观点"
 
 
 def test_mention_unknown_expert_returns_400(client: TestClient):

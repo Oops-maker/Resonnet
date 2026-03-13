@@ -71,7 +71,8 @@ When changing topic experts or digital-twin import logic, verify these API expec
 - `POST /topics/{topic_id}/posts/mention` returns `202`
 - Poll `GET /topics/{topic_id}/posts/mention/{reply_post_id}` until `completed`
 - `GET /topics/{topic_id}/posts` shows user post and expert reply
-- `workspace/topics/{topic_id}/posts/*.json` contains reply record with `status=completed`
+- Reply record is queryable via API/database with `status=completed`
+- Discussion artifacts still appear under `workspace/topics/{topic_id}/shared/`
 - For `test_discussion_mcp_wan26media_forced_call_integration`, ensure `RUN_WAN26_MCP_TEST=1` and `DASHSCOPE_API_KEY` are set
 
 ## CI Notes

@@ -78,6 +78,9 @@ MCP servers are configured in `libs/mcps/` (read-only, same structure as assigna
 WORKSPACE_BASE=/path/to/workspace
 ```
 
+- TopicLab 集成模式下，topic 主业务数据库由 `topiclab-backend` 使用 `DATABASE_URL` 持有。
+- Resonnet 仅保留 workspace，供 Agent SDK 运行上下文和非结构化产物（turn markdown、summary、generated images）使用。
+
 For Docker deployments, both workspace and libs can be mounted for persistence:
 
 | Volume | Env / Default | Purpose |
@@ -152,4 +155,5 @@ pytest tests/test_agent_sdk.py -m integration -v -s
 
 - Acceptance criteria:
   - API returns success
-  - Post conversation records written to `workspace/topics/{topic_id}/posts/*.json`
+  - Topic/post/discussion 状态成功写入数据库
+  - Discussion turn / summary artifacts written under `workspace/topics/{topic_id}/shared/`

@@ -51,7 +51,7 @@ uv run uvicorn main:app --reload
 - For changes to `app/api`, `app/agent`, or AgentSDK call paths, run AgentSDK integration tests with a real `.env`:
   - `pytest tests/test_agent_sdk.py -m integration -v -s`
   - `ANTHROPIC_API_KEY` must be a real, valid key (not a `test` placeholder)
-  - Verify reply status completes and conversation records are written to `workspace/topics/{topic_id}/posts/*.json`
+  - Verify reply status completes and conversation records are queryable via API/database; discussion artifacts remain in `workspace/topics/{topic_id}/shared/`
 - One-shot local CI (unit + integration):
   - `bash scripts/ci_local.sh`
 

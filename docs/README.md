@@ -12,6 +12,7 @@ This directory contains technical implementation details and design docs for Res
 | [mcp-config.md](mcp-config.md) | MCP config API, validation (npm/uvx/remote only, no local) |
 | [testing.md](testing.md) | Test layers (unit/integration), .env setup, CI notes |
 | [api-reference.md](api-reference.md) | API endpoint list and brief descriptions |
+| [runtime-modes.md](runtime-modes.md) | How to use Resonnet in `executor` mode vs `standalone` MVP mode |
 | [agent-links-runtime.md](agent-links-runtime.md) | Agent link runtime lifecycle: per-session workspace, SSE chat, import limits |
 | [skills-generalization.md](skills-generalization.md) | Library design; experts in `libs/experts/`; discussion modes in `libs/moderator_modes/` |
 | [skills-submodule-guide.md](skills-submodule-guide.md) | Add/update skill libraries via submodule; points to Cursor skill |
@@ -23,8 +24,10 @@ This directory contains technical implementation details and design docs for Res
 
 - **Getting started**: Read [config.md](config.md) for env setup, then [testing.md](testing.md) to run tests
 - **Architecture**: [architecture.md](architecture.md)
+- **Runtime mode selection**: [runtime-modes.md](runtime-modes.md)
 - **API development**: [api-reference.md](api-reference.md)
 
 ## Important Notes
 
 - AgentSDK availability must be validated with a real `.env`; `ANTHROPIC_API_KEY=test` is not acceptable for acceptance.
+- In TopicLab integrated mode, topic/domain business storage belongs to `topiclab-backend`; Resonnet acts as the agent execution backend.

@@ -154,6 +154,8 @@ curl http://localhost:8000/health
 | `WORKSPACE_BASE` | | Workspace directory, default `./workspace` |
 | `LIBS_CACHE_TTL_SECONDS` | | Libs meta cache TTL (seconds); 0=disable cache (hot-reload); default 60 |
 
+In TopicLab integrated mode, topic/domain business storage belongs to `topiclab-backend`; Resonnet only handles Agent SDK execution, workspace artifacts, and runtime orchestration, so no topic business database is required here.
+
 See [docs/config.md](docs/config.md) for details. All libraries (experts, moderator_modes, mcps, assignable_skills, prompts) load from `libs/`; no scenario config needed.
 
 ## Testing
@@ -169,7 +171,7 @@ pytest tests/test_agent_sdk.py -m integration -v -s
 bash scripts/ci_local.sh
 ```
 
-> AgentSDK acceptance: successful calls with real `.env`, and conversation records written to `workspace/topics/{topic_id}/posts/*.json`.
+> AgentSDK acceptance: successful calls with real `.env`, with discussion artifacts written under `workspace/topics/{topic_id}/shared/`; business-state persistence is handled by the upstream application backend.
 
 See [docs/testing.md](docs/testing.md) for details.
 
@@ -201,6 +203,7 @@ Or use `docker compose up --build`.
 |-----|-------------|
 | [docs/README.md](docs/README.md) | Doc index |
 | [docs/architecture.md](docs/architecture.md) | Architecture |
+| [docs/runtime-modes.md](docs/runtime-modes.md) | How to use `executor` integration mode and `standalone` MVP mode |
 | [docs/config.md](docs/config.md) | Env config |
 | [docs/testing.md](docs/testing.md) | Testing guide |
 | [docs/api-reference.md](docs/api-reference.md) | API reference |

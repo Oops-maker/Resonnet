@@ -16,7 +16,7 @@ from app.agent.moderator_modes import (
     reload_moderator_modes,
     save_moderator_mode_config,
 )
-from app.core.config import get_moderator_modes_dir, get_workspace_base
+from app.core.config import get_moderator_modes_dir, get_resonnet_mode, get_workspace_base
 from app.core.libs_service import get_cached_modes_meta, invalidate_libs_cache, list_assignable_items
 from app.models.schemas import (
     GenerateModeratorModeRequest,
@@ -30,6 +30,21 @@ from app.models.store import get_topic, set_topic_moderator_mode_fields
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _topic_workspace_exists(topic_id: str) -> bool:
+    return (get_workspace_base() / "topics" / topic_id).exists()
+
+
+def _require_topic(topic_id: str):
+    if get_resonnet_mode() == "standalone":
+        topic = get_topic(topic_id)
+        if not topic:
+            raise HTTPException(status_code=404, detail="Topic not found")
+        return topic
+    if not _topic_workspace_exists(topic_id):
+        raise HTTPException(status_code=404, detail="Topic not found")
+    return None
 
 
 @router.get("/moderator-modes/assignable/categories")
@@ -119,9 +134,7 @@ def list_moderator_modes():
 @router.get("/topics/{topic_id}/moderator-mode", response_model=ModeratorModeConfig)
 def get_topic_moderator_mode(topic_id: str):
     """Get moderator mode configuration for this topic."""
-    topic = get_topic(topic_id)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    _require_topic(topic_id)
 
     ws_base = get_workspace_base()
     ws_path = ws_base / "topics" / topic_id
@@ -133,9 +146,7 @@ def get_topic_moderator_mode(topic_id: str):
 @router.put("/topics/{topic_id}/moderator-mode", response_model=ModeratorModeConfig)
 def set_topic_moderator_mode(topic_id: str, req: SetModeratorModeRequest):
     """Set moderator mode for this topic."""
-    topic = get_topic(topic_id)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    _require_topic(topic_id)
 
     # Validate mode_id
     if req.mode_id not in PRESET_MODES and req.mode_id != "custom":
@@ -168,7 +179,8 @@ def set_topic_moderator_mode(topic_id: str, req: SetModeratorModeRequest):
 
     save_moderator_mode_config(ws_path, config)
     mode_name = "自定义模式" if req.mode_id == "custom" else PRESET_MODES.get(req.mode_id, {}).get("name", req.mode_id)
-    set_topic_moderator_mode_fields(topic_id, mode_id=req.mode_id, mode_name=mode_name, num_rounds=req.num_rounds)
+    if get_resonnet_mode() == "standalone":
+        set_topic_moderator_mode_fields(topic_id, mode_id=req.mode_id, mode_name=mode_name, num_rounds=req.num_rounds)
 
     return ModeratorModeConfig(**config)
 
@@ -176,9 +188,7 @@ def set_topic_moderator_mode(topic_id: str, req: SetModeratorModeRequest):
 @router.post("/topics/{topic_id}/moderator-mode/generate", response_model=GenerateModeratorModeResponse)
 async def generate_moderator_mode_endpoint(topic_id: str, req: GenerateModeratorModeRequest):
     """AI-generate a moderator mode based on user's description."""
-    topic = get_topic(topic_id)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    _require_topic(topic_id)
 
     try:
         custom_prompt = await generate_moderator_mode(req.prompt)
@@ -200,7 +210,8 @@ async def generate_moderator_mode_endpoint(topic_id: str, req: GenerateModerator
     }
 
     save_moderator_mode_config(ws_path, config)
-    set_topic_moderator_mode_fields(topic_id, mode_id="custom", mode_name="自定义模式", num_rounds=5)
+    if get_resonnet_mode() == "standalone":
+        set_topic_moderator_mode_fields(topic_id, mode_id="custom", mode_name="自定义模式", num_rounds=5)
 
     return {
         "message": "Moderator mode generated successfully",
@@ -212,9 +223,7 @@ async def generate_moderator_mode_endpoint(topic_id: str, req: GenerateModerator
 @router.post("/topics/{topic_id}/moderator-mode/share", response_model=dict)
 def share_moderator_mode_to_platform(topic_id: str, req: ShareModeratorModeRequest):
     """Share topic's custom moderator mode to platform library (topiclab_shared source)."""
-    topic = get_topic(topic_id)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    _require_topic(topic_id)
 
     ws_base = get_workspace_base()
     ws_path = ws_base / "topics" / topic_id

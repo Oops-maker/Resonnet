@@ -18,30 +18,37 @@ os.environ.setdefault("ANTHROPIC_API_KEY", "test")
 os.environ.setdefault("AI_GENERATION_BASE_URL", "https://example.com")
 os.environ.setdefault("AI_GENERATION_API_KEY", "test")
 os.environ.setdefault("AI_GENERATION_MODEL", "test")
+os.environ.setdefault("RESONNET_MODE", "standalone")
 
 import pytest
+import importlib
 
-from app.models import store
+from app.db.session import reset_db_state
 
 
 @pytest.fixture
 def isolated_workspace(tmp_path, monkeypatch):
     """Isolated workspace for API/Agent SDK tests. Shared across test_api, test_agent_sdk."""
     workspace_base = tmp_path / "workspace"
+    database_path = tmp_path / "resonnet-test.db"
     monkeypatch.setenv("WORKSPACE_BASE", str(workspace_base))
-    monkeypatch.setattr(store, "WORKSPACE_BASE", workspace_base, raising=False)
-    store.topics_db.clear()
+    monkeypatch.setenv("TOPICDATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("RESONNET_MODE", "standalone")
+    reset_db_state()
     yield workspace_base
-    store.topics_db.clear()
+    reset_db_state()
 
 
 @pytest.fixture
 def client(isolated_workspace):
     """TestClient with isolated workspace. Requires isolated_workspace fixture."""
     from fastapi.testclient import TestClient
-    from main import app
+    import main as main_module
 
-    with TestClient(app) as c:
+    main_module = importlib.reload(main_module)
+
+    with TestClient(main_module.app) as c:
         yield c
 
 

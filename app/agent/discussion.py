@@ -28,6 +28,7 @@ from .workspace import (
     sync_claude_skill_discovery_files,
     validate_discussion_outputs,
 )
+from app.models.discussion_turns import sync_discussion_turns
 from app.core.topic_defaults import normalize_skill_ids
 from app.core.mcp_config import load_mcp_config_from_path
 
@@ -252,6 +253,7 @@ async def run_discussion_for_topic(
             num_rounds=num_rounds,
             require_image=True,
         )
+        sync_discussion_turns(ws_path)
 
     return {
         "discussion_history": read_discussion_history(ws_path),
