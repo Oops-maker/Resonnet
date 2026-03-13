@@ -4,12 +4,13 @@ import logging
 import threading
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.agent.expert_reply import run_expert_reply_sandboxed
 from app.agent.posts import load_post, load_posts, make_post, save_post
 from app.agent.topic_sandbox import get_sandbox_status
 from app.agent.workspace import get_topic_experts
+from app.api.auth_bridge import get_current_auth_context
 from app.core.config import get_workspace_base
 from app.models.schemas import (
     CreatePostRequest,
@@ -26,6 +27,21 @@ router = APIRouter()
 
 def _ws_path(topic_id: str) -> Path:
     return get_workspace_base() / "topics" / topic_id
+
+
+def _resolve_author_name(req_author: str, auth_ctx: dict) -> str:
+    """Prefer authenticated account identity over client-supplied author."""
+    auth_context = auth_ctx.get("auth_context")
+    user = auth_ctx.get("user")
+    if auth_context is None or getattr(auth_context, "is_anonymous", True):
+        return req_author
+    if not isinstance(user, dict):
+        return req_author
+
+    username = str(user.get("username") or "").strip()
+    phone = str(user.get("phone") or "").strip()
+    user_id = user.get("id")
+    return username or phone or (f"user-{user_id}" if user_id is not None else req_author)
 
 
 # ---------------------------------------------------------------------------
@@ -46,15 +62,20 @@ def list_posts(topic_id: str):
 # ---------------------------------------------------------------------------
 
 @router.post("/{topic_id}/posts", response_model=Post, status_code=201)
-def create_post(topic_id: str, req: CreatePostRequest):
+def create_post(
+    topic_id: str,
+    req: CreatePostRequest,
+    auth_ctx: dict = Depends(get_current_auth_context),
+):
     """Create a human post."""
     topic = get_topic(topic_id)
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
 
+    author_name = _resolve_author_name(req.author, auth_ctx)
     post = make_post(
         topic_id=topic_id,
-        author=req.author,
+        author=author_name,
         author_type="human",
         body=req.body,
         in_reply_to_id=req.in_reply_to_id,
@@ -102,7 +123,11 @@ def _run_expert_reply_sync(
 
 
 @router.post("/{topic_id}/posts/mention", response_model=MentionExpertResponse, status_code=202)
-def mention_expert(topic_id: str, req: MentionExpertRequest):
+def mention_expert(
+    topic_id: str,
+    req: MentionExpertRequest,
+    auth_ctx: dict = Depends(get_current_auth_context),
+):
     """User @mentions an expert.
 
     Saves the human post immediately, creates a pending reply placeholder,
@@ -143,11 +168,12 @@ def mention_expert(topic_id: str, req: MentionExpertRequest):
         )
 
     expert_label = expert_meta.get("label", req.expert_name)
+    author_name = _resolve_author_name(req.author, auth_ctx)
 
     # 1. Save the human post
     user_post = make_post(
         topic_id=topic_id,
-        author=req.author,
+        author=author_name,
         author_type="human",
         body=req.body,
         in_reply_to_id=req.in_reply_to_id,
@@ -179,7 +205,7 @@ def mention_expert(topic_id: str, req: MentionExpertRequest):
             expert_name=req.expert_name,
             expert_label=expert_label,
             user_post_id=user_post["id"],
-            user_author=req.author,
+            user_author=author_name,
             user_question=req.body,
             reply_post_id=reply_post["id"],
             reply_created_at=reply_post["created_at"],
