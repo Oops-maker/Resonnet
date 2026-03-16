@@ -96,6 +96,20 @@ Default: `backend/workspace/`. For Docker, see volume mounts above.
 
 ---
 
+### 5.1 TopicLab Executor Sync (per-round push)
+
+When `topiclab_sync_url` is set in the executor request, Resonnet pushes discussion snapshot to TopicLab during discussion:
+
+```bash
+DISCUSSION_SYNC_INTERVAL_SECONDS=10.0
+```
+
+- **Default**: 10 seconds. How often to check workspace for new turns.
+- **Push policy**: Only push when `turns_count` increases (new round completed), not every interval — reduces TopicLab DB load.
+- **Range**: Minimum 1.0 second.
+
+---
+
 ### 6. Profile Helper Auth Modes
 
 Profile Helper supports pluggable auth modes:

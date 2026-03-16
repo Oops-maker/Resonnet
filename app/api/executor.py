@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urljoin
 import re
 
+import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
@@ -47,6 +52,7 @@ class ExecutorDiscussionRequest(BaseModel):
     skill_list: list[str] | None = None
     mcp_server_ids: list[str] | None = None
     posts_context: str | None = None
+    topiclab_sync_url: str | None = None  # When set, push snapshot per-round to TopicLab DB
 
 
 class ExecutorExpertReplyRequest(BaseModel):
@@ -132,6 +138,51 @@ def _read_discussion_snapshot(topic_id: str) -> dict:
     }
 
 
+def _get_sync_interval_seconds() -> float:
+    raw = os.getenv("DISCUSSION_SYNC_INTERVAL_SECONDS", "10.0").strip()
+    try:
+        return max(1.0, float(raw))
+    except ValueError:
+        return 10.0
+
+
+logger = logging.getLogger(__name__)
+
+
+async def _push_snapshot_to_topiclab(topic_id: str, sync_url: str, snapshot: dict) -> bool:
+    """POST snapshot to TopicLab internal endpoint. Returns True on success."""
+    url = urljoin(f"{sync_url.rstrip('/')}/", f"internal/discussion-snapshot/{topic_id}")
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            await client.post(
+                url,
+                json={
+                    "turns": snapshot.get("turns", []),
+                    "turns_count": snapshot.get("turns_count", 0),
+                    "discussion_history": snapshot.get("discussion_history", ""),
+                    "discussion_summary": snapshot.get("discussion_summary", ""),
+                    "generated_images": snapshot.get("generated_images", []),
+                },
+            )
+        return True
+    except Exception as e:
+        logger.warning("Failed to push snapshot to TopicLab: %s", e)
+        return False
+
+
+async def _run_sync_loop_until_done(topic_id: str, sync_url: str, discussion_task: asyncio.Task) -> None:
+    """Push snapshot to TopicLab only when turns increase, to reduce server load."""
+    interval = _get_sync_interval_seconds()
+    last_turns_count = -1
+    while not discussion_task.done():
+        await asyncio.sleep(interval)
+        snapshot = _read_discussion_snapshot(topic_id)
+        turns_count = snapshot.get("turns_count", 0)
+        if turns_count > last_turns_count:
+            await _push_snapshot_to_topiclab(topic_id, sync_url, snapshot)
+            last_turns_count = turns_count
+
+
 @router.post("/topics/bootstrap")
 async def bootstrap_topic_workspace(req: ExecutorTopicBootstrapRequest):
     ws_path = ensure_topic_workspace(get_workspace_base(), req.topic_id)
@@ -166,19 +217,35 @@ async def bootstrap_topic_workspace(req: ExecutorTopicBootstrapRequest):
 async def run_discussion_executor(req: ExecutorDiscussionRequest):
     ws_path = ensure_topic_workspace(get_workspace_base(), req.topic_id)
     _write_posts_context(ws_path, req.posts_context)
-    result = await run_discussion_for_topic(
-        topic_id=req.topic_id,
-        topic_title=req.topic_title,
-        topic_body=req.topic_body,
-        num_rounds=req.num_rounds,
-        expert_names=req.expert_names,
-        max_turns=req.max_turns,
-        max_budget_usd=req.max_budget_usd,
-        model=req.model,
-        allowed_tools=req.allowed_tools,
-        skill_list=req.skill_list,
-        mcp_server_ids=req.mcp_server_ids,
+
+    discussion_task = asyncio.create_task(
+        run_discussion_for_topic(
+            topic_id=req.topic_id,
+            topic_title=req.topic_title,
+            topic_body=req.topic_body,
+            num_rounds=req.num_rounds,
+            expert_names=req.expert_names,
+            max_turns=req.max_turns,
+            max_budget_usd=req.max_budget_usd,
+            model=req.model,
+            allowed_tools=req.allowed_tools,
+            skill_list=req.skill_list,
+            mcp_server_ids=req.mcp_server_ids,
+        )
     )
+
+    if req.topiclab_sync_url:
+        sync_task = asyncio.create_task(
+            _run_sync_loop_until_done(req.topic_id, req.topiclab_sync_url, discussion_task)
+        )
+        await asyncio.gather(discussion_task, sync_task)
+        # Final push so TopicLab has latest state before we return
+        snapshot = _read_discussion_snapshot(req.topic_id)
+        await _push_snapshot_to_topiclab(req.topic_id, req.topiclab_sync_url, snapshot)
+    else:
+        await discussion_task
+
+    result = discussion_task.result()
     result["turns"] = _read_turns(ws_path)
     result["generated_images"] = _read_generated_images(ws_path)
     return result
