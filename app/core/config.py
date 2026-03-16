@@ -132,6 +132,14 @@ def get_sandbox_use_srt() -> bool:
     return os.getenv("SANDBOX_USE_SRT", "true").lower() in ("true", "1", "yes")
 
 
+def get_enable_semantic_search() -> bool:
+    """Whether to enable semantic search by default.
+
+    Controlled by the ENABLE_SEMANTIC_SEARCH env var. Defaults to true (enabled).
+    """
+    return os.getenv("ENABLE_SEMANTIC_SEARCH", "true").lower() in ("true", "1", "yes")
+
+
 def _libs_root() -> Path:
     """Return primary libs/ root (mount point in Docker; where we write topiclab_shared)."""
     return Path(__file__).resolve().parent.parent.parent / "libs"
@@ -241,6 +249,7 @@ def get_prompts_dir() -> Path:
 
 # Module-level constants for easy import
 WORKSPACE_BASE = get_workspace_base()
+ENABLE_SEMANTIC_SEARCH = get_enable_semantic_search()
 
 # Claude Agent SDK configuration (for discussion orchestration)
 ANTHROPIC_API_KEY = get_anthropic_api_key()

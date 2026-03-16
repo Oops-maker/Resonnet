@@ -7,5 +7,17 @@
       "description": "User-shared moderator modes from frontend"
     }
   },
-  "modes": {}
+  "modes": {
+    "test_shared_mode": {
+      "id": "test_shared_mode",
+      "source": "topiclab_shared",
+      "name": "Test Shared Mode",
+      "description": "For share test",
+      "category": "topiclab",
+      "num_rounds": 5,
+      "convergence_strategy": "User-defined flow",
+      "prompt_file": "test_shared_mode.md",
+      "summary_scope": "key findings, consensus, disagreements"
+    }
+  }
 }
