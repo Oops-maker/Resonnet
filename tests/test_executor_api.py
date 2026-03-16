@@ -87,3 +87,81 @@ def test_executor_endpoints_work_without_database(monkeypatch, tmp_path):
         )
         assert reply.status_code == 200, reply.text
         assert reply.json()["reply_body"] == "专家回复"
+
+
+def test_bootstrap_with_ai_generated_roles(monkeypatch, tmp_path):
+    """Bootstrap with use_ai_generated_roles creates workspace without default experts."""
+    monkeypatch.setenv("RESONNET_MODE", "executor")
+    monkeypatch.delenv("TOPICDATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("WORKSPACE_BASE", str(tmp_path / "workspace"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setenv("AI_GENERATION_BASE_URL", "https://example.com")
+    monkeypatch.setenv("AI_GENERATION_API_KEY", "test")
+    monkeypatch.setenv("AI_GENERATION_MODEL", "test")
+
+    import importlib
+    import main as main_module
+
+    with TestClient(main_module.app) as client:
+        bootstrap = client.post(
+            "/executor/topics/bootstrap",
+            json={
+                "topic_id": "topic-ai-1",
+                "topic_title": "AI Topic",
+                "topic_body": "Body",
+                "num_rounds": 5,
+                "use_ai_generated_roles": True,
+            },
+        )
+        assert bootstrap.status_code == 200, bootstrap.text
+
+        ws_path = tmp_path / "workspace" / "topics" / "topic-ai-1"
+        agents_dir = ws_path / "agents"
+        assert not agents_dir.exists() or len(list(agents_dir.iterdir())) == 0
+
+
+def test_set_generated_experts(monkeypatch, tmp_path):
+    """POST /executor/topics/{id}/experts/generated adds AI-generated experts."""
+    monkeypatch.setenv("RESONNET_MODE", "executor")
+    monkeypatch.delenv("TOPICDATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("WORKSPACE_BASE", str(tmp_path / "workspace"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setenv("AI_GENERATION_BASE_URL", "https://example.com")
+    monkeypatch.setenv("AI_GENERATION_API_KEY", "test")
+    monkeypatch.setenv("AI_GENERATION_MODEL", "test")
+
+    import main as main_module
+
+    with TestClient(main_module.app) as client:
+        resp = client.post(
+            f"/executor/topics/topic-gen-1/experts/generated",
+            json={
+                "experts": [
+                    {
+                        "name": "industry_analyst",
+                        "label": "产业分析师",
+                        "description": "产业视角分析",
+                        "role_content": "# 产业分析师\n\n## Identity\n\n产业分析师。\n\n## Expertise\n\n- 产业趋势\n\n## Thinking Style\n\n- 数据驱动",
+                    },
+                    {
+                        "name": "tech_researcher",
+                        "label": "技术研究员",
+                        "description": "技术研究视角",
+                        "role_content": "# 技术研究员\n\n## Identity\n\n技术研究员。",
+                    },
+                ],
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["expert_names"] == ["industry_analyst", "tech_researcher"]
+
+        ws_path = tmp_path / "workspace" / "topics" / "topic-gen-1"
+        role1 = ws_path / "agents" / "industry_analyst" / "role.md"
+        role2 = ws_path / "agents" / "tech_researcher" / "role.md"
+        assert role1.exists()
+        assert role2.exists()
+        assert "产业分析师" in role1.read_text()

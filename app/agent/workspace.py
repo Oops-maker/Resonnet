@@ -249,12 +249,21 @@ def validate_topic_id(topic_id: str) -> str:
     return topic_id
 
 
-def ensure_topic_workspace(workspace_base: Path | str, topic_id: str) -> Path:
+def ensure_topic_workspace(
+    workspace_base: Path | str,
+    topic_id: str,
+    *,
+    expert_names: list[str] | None = None,
+) -> Path:
     """Ensure workspace/topics/{topic_id}/shared/turns/ exists. Return topic workspace path.
 
     Validates topic_id and verifies the resolved path stays inside workspace_base.
     Also creates agents/<name>/ directories with default role.md for each expert.
     Creates config/ directory for metadata storage.
+
+    Args:
+        expert_names: When None, use DEFAULT_TOPIC_EXPERT_NAMES. When [], skip creating
+            agents (for AI-generated roles to be added later).
     """
     validate_topic_id(topic_id)
 
@@ -268,8 +277,9 @@ def ensure_topic_workspace(workspace_base: Path | str, topic_id: str) -> Path:
     (ws / "shared" / "turns").mkdir(parents=True, exist_ok=True)
     (ws / "config").mkdir(exist_ok=True)  # Create config directory
 
-    # Create only the built-in default scholars for a new topic.
-    _ensure_agents_structure(ws, DEFAULT_TOPIC_EXPERT_NAMES)
+    agents_to_create = expert_names if expert_names is not None else DEFAULT_TOPIC_EXPERT_NAMES
+    if agents_to_create:
+        _ensure_agents_structure(ws, agents_to_create)
 
     # Initialize topic sandbox metadata (idempotent)
     from .topic_sandbox import init_sandbox_meta

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin
@@ -37,6 +38,18 @@ class ExecutorTopicBootstrapRequest(BaseModel):
     topic_title: str
     topic_body: str = ""
     num_rounds: int = 5
+    use_ai_generated_roles: bool = False
+
+
+class ExecutorGeneratedExpert(BaseModel):
+    name: str
+    label: str
+    description: str
+    role_content: str
+
+
+class ExecutorSetGeneratedExpertsRequest(BaseModel):
+    experts: list[ExecutorGeneratedExpert] = Field(..., min_length=1, max_length=10)
 
 
 class ExecutorDiscussionRequest(BaseModel):
@@ -185,7 +198,10 @@ async def _run_sync_loop_until_done(topic_id: str, sync_url: str, discussion_tas
 
 @router.post("/topics/bootstrap")
 async def bootstrap_topic_workspace(req: ExecutorTopicBootstrapRequest):
-    ws_path = ensure_topic_workspace(get_workspace_base(), req.topic_id)
+    expert_names: list[str] | None = None if not req.use_ai_generated_roles else []
+    ws_path = ensure_topic_workspace(
+        get_workspace_base(), req.topic_id, expert_names=expert_names
+    )
     copied_skills = copy_skills_to_workspace(ws_path, DEFAULT_TOPIC_SKILL_IDS)
     save_moderator_mode_config(
         ws_path,
@@ -198,19 +214,60 @@ async def bootstrap_topic_workspace(req: ExecutorTopicBootstrapRequest):
             "model": None,
         },
     )
-    for expert_name in DEFAULT_TOPIC_EXPERT_NAMES:
-        spec = EXPERT_SPECS.get(expert_name)
-        if not spec:
-            continue
+    if not req.use_ai_generated_roles:
+        for expert_name in DEFAULT_TOPIC_EXPERT_NAMES:
+            spec = EXPERT_SPECS.get(expert_name)
+            if not spec:
+                continue
+            add_expert_metadata(
+                ws_path,
+                expert_name=expert_name,
+                label=spec.get("label", expert_name),
+                description=spec.get("description", ""),
+                source="preset",
+                is_from_topic_creation=True,
+            )
+    return {"ok": True, "topic_id": req.topic_id}
+
+
+def _write_generated_experts(ws_path: Path, experts: list) -> None:
+    """Write expert definitions to agents/ and metadata. Used by both add and replace."""
+    agents_dir = ws_path / "agents"
+    agents_dir.mkdir(exist_ok=True)
+    for expert in experts:
+        expert_dir = agents_dir / expert.name
+        expert_dir.mkdir(exist_ok=True)
+        role_file = expert_dir / "role.md"
+        role_file.write_text(expert.role_content, encoding="utf-8")
         add_expert_metadata(
             ws_path,
-            expert_name=expert_name,
-            label=spec.get("label", expert_name),
-            description=spec.get("description", ""),
-            source="preset",
+            expert_name=expert.name,
+            label=expert.label,
+            description=expert.description,
+            source="ai_generated",
             is_from_topic_creation=True,
         )
-    return {"ok": True, "topic_id": req.topic_id}
+
+
+@router.post("/topics/{topic_id}/experts/generated")
+async def set_generated_experts(topic_id: str, req: ExecutorSetGeneratedExpertsRequest):
+    """Add AI-generated experts to topic workspace. Creates agents/<name>/role.md and metadata."""
+    ws_path = ensure_topic_workspace(
+        get_workspace_base(), topic_id, expert_names=[]
+    )
+    _write_generated_experts(ws_path, req.experts)
+    return {"ok": True, "topic_id": topic_id, "expert_names": [e.name for e in req.experts]}
+
+
+@router.post("/topics/{topic_id}/experts/replace")
+async def replace_generated_experts(topic_id: str, req: ExecutorSetGeneratedExpertsRequest):
+    """Replace all topic experts with AI-generated set. Removes existing agents first."""
+    ws_path = ensure_topic_workspace(get_workspace_base(), topic_id)
+    agents_dir = ws_path / "agents"
+    if agents_dir.exists():
+        shutil.rmtree(agents_dir)
+    _write_generated_experts(ws_path, req.experts)
+    return {"ok": True, "topic_id": topic_id, "expert_names": [e.name for e in req.experts]}
 
 
 @router.post("/discussions")

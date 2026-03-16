@@ -168,6 +168,7 @@ def build_experts_from_workspace(
 
     Prioritizes workspace-specific role definitions (agents/<name>/role.md) over
     global skills. Only builds experts specified in expert_names.
+    Supports workspace-only experts (e.g. AI-generated) not in EXPERT_SPECS.
 
     Args:
         workspace_dir: Topic workspace directory (workspace/topics/{topic_id})
@@ -182,17 +183,41 @@ def build_experts_from_workspace(
         Dictionary mapping expert names to AgentDefinition objects.
         Only includes experts from expert_names list.
     """
+    from .workspace import load_experts_metadata
+
     experts: dict[str, AgentDefinition] = {}
+    expert_tools = tools if tools else DEFAULT_EXPERT_TOOLS
 
     for name in expert_names:
-        if name not in EXPERT_SPECS:
-            logger.warning(f"Unknown expert name: {name}, skipping")
+        workspace_role = workspace_dir / "agents" / name / "role.md"
+        if not workspace_role.exists():
+            if name not in EXPERT_SPECS:
+                logger.warning(f"Expert {name} has no workspace role.md and is not in EXPERT_SPECS, skipping")
+                continue
+            # Fall through to global-spec path
+        elif name not in EXPERT_SPECS:
+            # Workspace-only expert (e.g. AI-generated)
+            role_content = workspace_role.read_text(encoding="utf-8")
+            metadata = load_experts_metadata(workspace_dir)
+            meta = next((e for e in metadata.get("experts", []) if e["name"] == name), {})
+            description = meta.get("description", name)
+            prompt_text = role_content
+            prompt_text += get_discussion_image_guidance(workspace_dir.name)
+            prompt_text += EXPERT_SECURITY_SUFFIX
+            if ws_abs:
+                prompt_text += build_workspace_boundary(ws_abs)
+            experts[name] = AgentDefinition(
+                description=description,
+                prompt=prompt_text,
+                tools=expert_tools,
+                model=model,
+            )
+            logger.info(f"Built workspace-only expert: {name}")
             continue
 
         spec = EXPERT_SPECS[name]
 
         # Priority 1: workspace role.md (role-only; common sections appended)
-        workspace_role = workspace_dir / "agents" / name / "role.md"
         output_lang = build_output_language_instruction(workspace_dir)
         source_id = spec.get("source", "default")
         if workspace_role.exists():
@@ -230,7 +255,6 @@ def build_experts_from_workspace(
         if ws_abs:
             prompt_text += build_workspace_boundary(ws_abs)
 
-        expert_tools = tools if tools else DEFAULT_EXPERT_TOOLS
         experts[name] = AgentDefinition(
             description=spec["description"],
             prompt=prompt_text,
