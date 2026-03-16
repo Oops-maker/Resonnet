@@ -279,9 +279,6 @@ Network isolation is prepared but not enabled. To enable it in the future:
 
 ### 8.6 Scope Limitations
 
-- **Agent Links runtime** (`agent_links_runtime.py`) is NOT sandboxed with
-  srt.  Its persistent `ClaudeSDKClient` model would require a subprocess
-  refactor.  Planned for a future phase.
 - **Network isolation** is disabled by default (`enableWeakerNetworkIsolation:
   true`).  Enable when specific domain allowlists are defined.
 

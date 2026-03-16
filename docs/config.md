@@ -63,7 +63,54 @@ Manual invalidation: `POST /libs/invalidate-cache` clears cache immediately.
 
 ---
 
-### 4. MCP (Model Context Protocol)
+### 4. Sandbox Runtime (srt)
+
+Resonnet prefers Anthropic sandbox-runtime (`srt`) for OS-level sandboxing.
+
+```bash
+SANDBOX_USE_SRT=true
+```
+
+- **Default**: `true`
+- **Behavior**:
+  - `true`: use `srt` when available (`PATH` contains `srt`)
+  - `false`: skip srt and fall back to legacy backend (`sandbox-exec` on macOS / `bwrap` on Linux)
+- **Scope**: expert reply, discussion, MCP subprocesses, and agent-links runtime.
+
+Install and verify (Linux example):
+
+```bash
+# 1) Install Node.js + npm
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# 2) Install srt CLI
+sudo npm install -g @anthropic-ai/sandbox-runtime
+
+# 3) Verify
+which srt
+srt --version
+```
+
+Notes:
+- `srt` is not a Python dependency; `uv`/`pyproject.toml` do not install it.
+- Docker image already installs `srt` and required Linux dependencies (see `Dockerfile`).
+- `scripts/ci_local.sh` checks srt availability and tries npm installation when possible.
+
+---
+
+### 5. Semantic Search Default
+
+```bash
+ENABLE_SEMANTIC_SEARCH=true
+```
+
+- **Default**: `true`
+- **Behavior**: controls default semantic search enablement.
+
+---
+
+### 6. MCP (Model Context Protocol)
 
 MCP servers are configured in `libs/mcps/` (read-only, same structure as assignable_skills). **Accepted sources only**: npm, uvx, remote (mcp-remote). No local paths.
 
@@ -72,7 +119,7 @@ MCP servers are configured in `libs/mcps/` (read-only, same structure as assigna
 
 ---
 
-### 5. Workspace and Libs (Docker)
+### 7. Workspace and Libs (Docker)
 
 ```bash
 WORKSPACE_BASE=/path/to/workspace

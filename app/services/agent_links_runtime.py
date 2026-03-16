@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import shutil
 from collections import defaultdict
@@ -27,6 +28,7 @@ _sdk_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 # Tracks whether the previous turn completed cleanly (ResultMessage received).
 # If False, the subprocess may be in a dirty state and needs reconnection.
 _turn_complete: dict[str, bool] = {}
+_srt_cli_wrappers: dict[str, str] = {}  # workdir -> wrapper path
 
 
 def register_session(session_id: str) -> None:
@@ -122,6 +124,43 @@ def _sdk_max_buffer_size() -> int:
     return 8 * 1024 * 1024
 
 
+def _maybe_prepare_srt_cli_wrapper(workdir: str) -> str | None:
+    """Create an srt-wrapped CLI shim and return its path when srt is enabled."""
+    from app.agent.sandbox_exec import SRT_AVAILABLE
+    from app.agent.srt_config import build_srt_settings
+    from app.core.config import get_sandbox_use_srt
+
+    if not (SRT_AVAILABLE and get_sandbox_use_srt()):
+        return None
+
+    ws_abs = str(Path(workdir).resolve())
+    existing = _srt_cli_wrappers.get(ws_abs)
+    if existing and Path(existing).exists():
+        return existing
+
+    config_dir = Path(ws_abs) / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    # Agent Links does not use sandbox_runner IPC files; we reuse config dir as
+    # a writable anchor path in srt settings.
+    srt_settings = build_srt_settings(topic_workspace=ws_abs, ipc_dir=str(config_dir))
+    srt_settings_path = config_dir / "agent_links_srt_settings.json"
+    srt_settings_path.write_text(
+        json.dumps(srt_settings, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    wrapper_path = config_dir / "claude_srt_wrapper.sh"
+    wrapper_path.write_text(
+        "#!/bin/sh\n"
+        f'exec srt --settings "{srt_settings_path}" claude "$@"\n',
+        encoding="utf-8",
+    )
+    wrapper_path.chmod(0o755)
+    _srt_cli_wrappers[ws_abs] = str(wrapper_path)
+    return _srt_cli_wrappers[ws_abs]
+
+
 def build_system_prompt(rule_path: str, rule_content: str | None, *, workspace_dir: str) -> str:
     if not rule_path:
         rule_path = "(unset)"
@@ -153,6 +192,7 @@ def _make_sdk_options(*, workdir: str, system_prompt: str, model: str | None) ->
     selected_model = model or cfg.get("model") or None
     if selected_model:
         env["ANTHROPIC_MODEL"] = selected_model
+    cli_path = _maybe_prepare_srt_cli_wrapper(workdir)
     return ClaudeAgentOptions(
         allowed_tools=list(DEFAULT_ALLOWED_TOOLS),
         permission_mode="bypassPermissions",
@@ -163,6 +203,7 @@ def _make_sdk_options(*, workdir: str, system_prompt: str, model: str | None) ->
         model=selected_model,
         max_turns=200,
         max_buffer_size=_sdk_max_buffer_size(),
+        cli_path=cli_path,
     )
 
 

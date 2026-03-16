@@ -153,10 +153,12 @@ curl http://localhost:8000/health
 | `ANTHROPIC_MODEL` | | Claude model name |
 | `WORKSPACE_BASE` | | Workspace directory, default `./workspace` |
 | `LIBS_CACHE_TTL_SECONDS` | | Libs meta cache TTL (seconds); 0=disable cache (hot-reload); default 60 |
+| `SANDBOX_USE_SRT` | | Whether to prefer srt sandbox backend, default `true` |
+| `ENABLE_SEMANTIC_SEARCH` | | Semantic search default switch, default `true` |
 
 In TopicLab integrated mode, topic/domain business storage belongs to `topiclab-backend`; Resonnet only handles Agent SDK execution, workspace artifacts, and runtime orchestration, so no topic business database is required here.
 
-See [docs/config.md](docs/config.md) for details. All libraries (experts, moderator_modes, mcps, assignable_skills, prompts) load from `libs/`; no scenario config needed.
+See [docs/config.md](docs/config.md) for details. srt install/verification/fallback is maintained there as the single source of truth. All libraries (experts, moderator_modes, mcps, assignable_skills, prompts) load from `libs/`; no scenario config needed.
 
 ## Testing
 

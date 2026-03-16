@@ -155,10 +155,12 @@ curl http://localhost:8000/health
 | `ANTHROPIC_MODEL` | | Claude 模型名 |
 | `WORKSPACE_BASE` | | 工作区目录，默认 `./workspace` |
 | `LIBS_CACHE_TTL_SECONDS` | | 库 meta 缓存 TTL（秒）；0=禁用缓存即热更新；默认 60 |
+| `SANDBOX_USE_SRT` | | 是否优先使用 srt 沙箱，默认 `true` |
+| `ENABLE_SEMANTIC_SEARCH` | | 语义搜索默认开关，默认 `true` |
 
 在 TopicLab 集成模式下，topic 主业务数据库归 `topiclab-backend` 持有；Resonnet 只负责 Agent SDK 执行、workspace 产物和运行时编排，因此这里不再要求配置 topic 业务数据库。
 
-详见 [docs/config.md](docs/config.md)。所有库（experts、moderator_modes、mcps、assignable_skills、prompts）从 `libs/` 加载，无需配置 scenarios。
+详见 [docs/config.md](docs/config.md)。`srt` 的安装、验证、回退策略统一在该文档维护。所有库（experts、moderator_modes、mcps、assignable_skills、prompts）从 `libs/` 加载，无需配置 scenarios。
 
 ## 测试
 
