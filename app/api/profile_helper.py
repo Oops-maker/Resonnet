@@ -235,6 +235,32 @@ async def get_structured_profile(
     return parse_profile(session["profile"])
 
 
+@router.get("/profile/{session_id}/scientists/famous")
+async def get_famous_scientist_matches(
+    session_id: str,
+    auth_ctx: dict = Depends(get_current_auth_context),
+):
+    """Top famous-scientist matches + scatter plot data (placeholder until matcher is wired)."""
+    uid = _get_uid(auth_ctx)
+    _ = _get_session_for_user(session_id, uid)
+    return {
+        "top3": [],
+        "scatter_data": [],
+        "user_point": {"csi": 0.5, "rai": 0.5},
+    }
+
+
+@router.get("/profile/{session_id}/scientists/field")
+async def get_field_scientist_recommendations(
+    session_id: str,
+    auth_ctx: dict = Depends(get_current_auth_context),
+):
+    """Same-field scholar recommendations (placeholder until recommender is wired)."""
+    uid = _get_uid(auth_ctx)
+    _ = _get_session_for_user(session_id, uid)
+    return {"recommendations": []}
+
+
 @router.get("/download/{session_id}")
 async def download_profile(
     session_id: str,

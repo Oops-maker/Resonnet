@@ -230,6 +230,8 @@ Response fields: `name`, `label`, `description`, `skill_file`, `skill_content`, 
 | POST | `/profile-helper/chat` | Streaming chat via SSE (body: `message`, `session_id?`, `model?`) |
 | GET | `/profile-helper/profile/{session_id}` | Get profile and forum_profile content |
 | GET | `/profile-helper/profile/{session_id}/structured` | Parse profile markdown into structured JSON |
+| GET | `/profile-helper/profile/{session_id}/scientists/famous` | Famous-scientist match + scatter payload (`top3`, `scatter_data`, `user_point`; placeholder empty lists until matcher enabled) |
+| GET | `/profile-helper/profile/{session_id}/scientists/field` | Same-field scholar recommendations JSON `{ "recommendations": [...] }` (placeholder empty until recommender enabled) |
 | GET | `/profile-helper/download/{session_id}` | Download development profile as .md |
 | GET | `/profile-helper/download/{session_id}/forum` | Download forum profile as .md |
 | POST | `/profile-helper/scales/submit` | Save scales answers/scores into session and user workspace |
