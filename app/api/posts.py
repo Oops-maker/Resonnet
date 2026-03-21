@@ -141,6 +141,14 @@ def mention_expert(
     ws_path = _ws_path(topic_id)
 
     # --- Topic sandbox isolation guard ---
+    # Only allow @mention after the topic has gone through at least one AI
+    # discussion run. Newly created topics carry the built-in experts by
+    # default, but exposing expert replies before discussion is misleading.
+    if topic.discussion_status == DiscussionStatus.PENDING:
+        raise HTTPException(
+            status_code=409,
+            detail="AI discussion has not started for this topic yet; start and finish a discussion before @mentioning experts",
+        )
     # Block expert @mention while a discussion is actively running on this topic.
     # The discussion agent writes to the shared workspace; allowing concurrent
     # expert replies could cause confusion and pollute the audit trail.

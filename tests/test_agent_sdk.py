@@ -24,11 +24,27 @@ from app.agent.posts import load_post
 from app.agent.expert_reply import _extract_reply_body, run_expert_reply
 from app.db.migrations import run_db_migrations
 from app.db.session import reset_db_state
+from app.models.schemas import DiscussionResult, DiscussionStatus
+from app.models.store import update_topic_discussion
 
 
 # =============================================================================
 # Unit tests (no integration marker — run in CI, no API key)
 # =============================================================================
+
+
+def _mark_discussion_finished(topic_id: str) -> None:
+    update_topic_discussion(
+        topic_id,
+        DiscussionStatus.COMPLETED,
+        DiscussionResult(
+            discussion_history="## Round 1 - Physicist\n\nMocked discussion",
+            discussion_summary="Mocked summary",
+            turns_count=1,
+            cost_usd=None,
+            completed_at="2026-03-21T00:00:00+00:00",
+        ),
+    )
 
 
 # --- _extract_reply_body ---
@@ -508,6 +524,7 @@ def test_mention_api_mocked_returns_202_and_completes(client: TestClient, isolat
         create = client.post("/topics", json={"title": "AgentSDK Unit", "body": "Test"})
         assert create.status_code == 201
         topic_id = create.json()["id"]
+        _mark_discussion_finished(topic_id)
 
         mention = client.post(
             f"/topics/{topic_id}/posts/mention",
@@ -612,6 +629,7 @@ def test_mention_expert_real_agentsdk_generates_reply(
     create = client.post("/topics", json={"title": "AgentSDK集成测试", "body": "验证真实对话链路"})
     assert create.status_code == 201
     topic_id = create.json()["id"]
+    _mark_discussion_finished(topic_id)
 
     mention_resp = client.post(
         f"/topics/{topic_id}/posts/mention",

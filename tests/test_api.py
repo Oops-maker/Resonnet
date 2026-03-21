@@ -14,6 +14,8 @@ from sqlalchemy import select
 from app.agent.posts import load_post
 from app.db.models import DiscussionTurnRecord
 from app.db.session import session_scope
+from app.models.schemas import DiscussionResult, DiscussionStatus
+from app.models.store import update_topic_discussion
 from main import app
 
 
@@ -21,6 +23,20 @@ def _create_topic(client: TestClient, title: str = "测试话题", body: str = "
     resp = client.post("/topics", json={"title": title, "body": body})
     assert resp.status_code == 201
     return resp.json()
+
+
+def _mark_discussion_finished(topic_id: str) -> None:
+    update_topic_discussion(
+        topic_id,
+        DiscussionStatus.COMPLETED,
+        DiscussionResult(
+            discussion_history="## Round 1 - Physicist\n\n测试讨论内容",
+            discussion_summary="测试总结",
+            turns_count=1,
+            cost_usd=None,
+            completed_at="2026-03-21T00:00:00+00:00",
+        ),
+    )
 
 
 def test_health(client: TestClient):
@@ -347,6 +363,7 @@ def test_discussion_status_syncs_turn_markdown_into_database(
 def test_mention_unknown_expert_returns_400(client: TestClient):
     topic = _create_topic(client)
     topic_id = topic["id"]
+    _mark_discussion_finished(topic_id)
 
     response = client.post(
         f"/topics/{topic_id}/posts/mention",
@@ -358,6 +375,22 @@ def test_mention_unknown_expert_returns_400(client: TestClient):
     )
     assert response.status_code == 400
     assert "not in this topic" in response.json()["detail"]
+
+
+def test_mention_requires_finished_discussion(client: TestClient):
+    topic = _create_topic(client)
+    topic_id = topic["id"]
+
+    response = client.post(
+        f"/topics/{topic_id}/posts/mention",
+        json={
+            "author": "alice",
+            "body": "@physicist 请回答",
+            "expert_name": "physicist",
+        },
+    )
+    assert response.status_code == 409
+    assert "AI discussion has not started" in response.json()["detail"]
 
 
 def test_copy_skills_to_workspace(isolated_workspace: Path):
