@@ -25,7 +25,7 @@ def test_run_in_os_sandbox_with_fake_srt(tmp_path: Path, monkeypatch):
 
     # 2) Prepend shim_dir to PATH before importing sandbox_exec
     old_path = os.environ.get("PATH", "")
-    os.environ["PATH"] = str(shim_dir) + os.pathsep + old_path
+    monkeypatch.setenv("PATH", str(shim_dir) + os.pathsep + old_path)
 
     # Force reimport to pick up the fake srt
     sys.modules.pop("app.agent.sandbox_exec", None)
