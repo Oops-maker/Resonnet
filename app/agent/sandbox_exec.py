@@ -14,7 +14,7 @@ Backend selection priority (highest first):
 
 Set ``SANDBOX_USE_SRT=false`` to skip srt and use the legacy backend.
 
-Design doc: docs/sandbox-isolation-design.md
+Design doc: docs/sandbox-isolation.md
 
 ## Why subprocess?
 
