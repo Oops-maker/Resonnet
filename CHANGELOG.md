@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-30
+
 ### Added
 
 - **Assignable skills pointers**: track `libs/assignable_skills/_submodules/ai-research` and `libs/assignable_skills/_submodules/anthropics` as gitlinks for shared skill source integration.
@@ -14,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Standalone runtime mode**: keep `RESONNET_MODE=standalone` for independent MVP usage, with automatic local SQLite fallback when no database URL is configured.
 - **Executor snapshot API**: add `GET /executor/discussions/{topic_id}/snapshot` so an upstream backend can poll running discussion progress and sync turn-by-turn state.
 - **Runtime mode docs**: add `docs/runtime-modes.md` describing `executor` vs `standalone` usage and boundaries.
+- **Profile helper scientist endpoints**: add placeholder same-field and famous-scientist recommendation APIs on the structured profile flow.
+- **Executor expert management**: support AI-generated expert definitions plus discussion snapshot synchronization for upstream TopicLab orchestration.
+- **Topic image delivery**: serve generated topic image assets as normalized `image/webp` variants, and expose a lightweight topic list payload path for fast polling.
 
 ### Changed
 
@@ -22,6 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dependency snapshot**: sync `pyproject.toml` and `uv.lock` with the current backend environment.
 - **Topic business boundary**: in TopicLab-integrated deployments, Resonnet now serves as an execution engine instead of the source of truth for topic business data.
 - **Executor responses**: discussion execution now exposes per-turn data, generated image references, and live workspace snapshots for upstream synchronization.
+- **Agent runtime hardening**: discussions now auto-discover workspace skills, sanitize discussion sources, tighten citation/image guidance, and accept HTTP-style MCP server configuration.
+- **Discussion defaults**: shared defaults now prefer image-generation skills plus Wan MCP wiring for integrated runs.
+- **Twin sync responses**: published profile-helper twins now return external `twin_id` and `twin_version` metadata when account sync reports them.
+
+### Fixed
+
+- **Mention gate**: expert `@mention` replies now require the topic to have completed a discussion first.
+- **Discussion validation**: discussion completion enforces full round coverage and requires at least one generated image artifact.
+- **Posts auth handling**: integrated post flows now use the corrected auth behavior after the `posts-auth` fix.
 
 ## [0.4.0] - 2026-03-07
 
