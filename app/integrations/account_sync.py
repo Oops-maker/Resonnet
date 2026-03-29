@@ -35,4 +35,10 @@ async def sync_twin_record(token: str | None, payload: dict) -> dict:
             pass
         return {"status": "failed", "reason": detail}
 
+    try:
+        body = resp.json()
+        if isinstance(body, dict):
+            return {"status": "ok", **body}
+    except Exception:
+        pass
     return {"status": "ok"}

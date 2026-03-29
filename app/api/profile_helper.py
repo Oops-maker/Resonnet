@@ -428,6 +428,8 @@ async def publish_to_library(
         "visibility": req.visibility,
         "exposure": req.exposure,
         "sync_status": sync_result.get("status", "unknown"),
+        "twin_id": sync_result.get("twin_id"),
+        "twin_version": sync_result.get("twin_version"),
     }
 
 
