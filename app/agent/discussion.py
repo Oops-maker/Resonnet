@@ -268,6 +268,7 @@ async def run_discussion_for_topic(
             expert_names=expert_names,
             max_turns=max_turns,
             max_budget_usd=max_budget_usd,
+            allowed_tools=allowed_tools,
         )
         filtered_sources = sanitize_discussion_turn_sources(ws_path)
         if filtered_sources:

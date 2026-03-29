@@ -4,11 +4,10 @@ import pytest
 
 from app.api.auth_bridge import get_current_auth_context, get_current_user_from_auth_service
 from app.services.profile_helper import sessions as profile_sessions
-from main import app
 
 
 @pytest.fixture
-def auth_override():
+def auth_override(client):
     async def _fake_ctx():
         return {
             "auth_context": type("Ctx", (), {"subject": "1", "raw": {"user": {"id": 1}}})(),
@@ -19,6 +18,7 @@ def auth_override():
     async def _fake_user():
         return {"id": 1}
 
+    app = client.app
     app.dependency_overrides[get_current_auth_context] = _fake_ctx
     app.dependency_overrides[get_current_user_from_auth_service] = _fake_user
     yield

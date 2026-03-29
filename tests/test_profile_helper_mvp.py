@@ -10,11 +10,10 @@ from app.api.auth_bridge import (
     get_current_user_from_auth_service,
 )
 from app.services.profile_helper import sessions as profile_sessions
-from main import app
 
 
 @pytest.fixture
-def auth_override():
+def auth_override(client):
     async def _fake_user():
         return {"id": 1, "phone": "13800138000", "username": "tester"}
 
@@ -24,6 +23,7 @@ def auth_override():
             "token": "test-token",
         }
 
+    app = client.app
     app.dependency_overrides[get_current_user_from_auth_service] = _fake_user
     app.dependency_overrides[get_current_auth_context] = _fake_auth_context
     yield
