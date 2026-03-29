@@ -6,6 +6,22 @@ RUN useradd -m -u 1000 appuser
 
 WORKDIR /app
 
+# 安装 sandbox-runtime (srt) 运行时依赖和 Node.js
+# srt 在 Linux 上需要: bubblewrap, socat, ripgrep
+# Node.js 用于运行 @anthropic-ai/sandbox-runtime CLI
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        bubblewrap socat ripgrep curl ca-certificates gnupg \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
+        > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g @anthropic-ai/sandbox-runtime \
+    && apt-get purge -y gnupg \
+    && apt-get autoremove -y \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # 配置 pip 使用阿里云镜像源，加速下载
 RUN mkdir -p /home/appuser/.pip && \
     echo "[global]" > /home/appuser/.pip/pip.conf && \

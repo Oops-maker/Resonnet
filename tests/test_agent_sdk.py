@@ -287,6 +287,44 @@ async def test_run_discussion_mocked_populates_result_info(discussion_workspace:
 
 
 @pytest.mark.asyncio
+async def test_run_discussion_for_topic_forwards_allowed_tools(tmp_path: Path):
+    """run_discussion_for_topic must preserve API-provided tool restrictions."""
+    from app.agent.discussion import run_discussion_for_topic
+
+    captured: dict[str, Any] = {}
+
+    async def fake_run_discussion(**kwargs):
+        captured.update(kwargs)
+        return {"num_turns": 1, "total_cost_usd": 0.0}
+
+    with (
+        patch("app.agent.discussion.run_discussion", side_effect=fake_run_discussion),
+        patch("app.agent.discussion.get_agent_config", return_value={"api_key": "test", "model": None}),
+        patch("app.agent.discussion.ensure_topic_workspace", return_value=tmp_path / "topics" / "topic-1"),
+        patch("app.agent.discussion.init_discussion_history"),
+        patch("app.agent.discussion.copy_skills_to_workspace", return_value=[]),
+        patch("app.agent.discussion.copy_mcp_to_workspace", return_value=[]),
+        patch("app.agent.discussion.sanitize_discussion_turn_sources", return_value=0),
+        patch("app.agent.discussion.validate_discussion_outputs"),
+        patch("app.agent.discussion.sync_discussion_turns"),
+        patch("app.agent.discussion.read_discussion_history", return_value="history"),
+        patch("app.agent.discussion.read_discussion_summary", return_value="summary"),
+    ):
+        result = await run_discussion_for_topic(
+            topic_id="topic-1",
+            topic_title="Test title",
+            topic_body="Test body",
+            workspace_base=tmp_path,
+            expert_names=["physicist"],
+            allowed_tools=["Read", "Glob"],
+        )
+
+    assert captured["allowed_tools"] == ["Read", "Glob"]
+    assert result["discussion_history"] == "history"
+    assert result["discussion_summary"] == "summary"
+
+
+@pytest.mark.asyncio
 async def test_run_discussion_mocked_passes_mcp_to_sdk(discussion_workspace: Path):
     """When config/mcp.json exists, run_discussion passes mcp_servers and mcp__* to ClaudeAgentOptions."""
     from app.agent.discussion import run_discussion
