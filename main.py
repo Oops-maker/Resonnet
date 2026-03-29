@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
     agent_links as agent_links_router,
+    agent_skill as agent_skill_router,
     discussion as discussion_router,
     executor as executor_router,
     experts,
@@ -65,6 +66,9 @@ app.include_router(libs_router.router, prefix="/libs", tags=["libs"])
 app.include_router(profile_helper_router.router, prefix="/profile-helper", tags=["profile-helper"])
 app.include_router(agent_links_router.router, prefix="/agent-links", tags=["agent-links"])
 app.include_router(executor_router.router, prefix="/executor", tags=["executor"])
+
+# Agent Skill API (external agent integration)
+app.include_router(agent_skill_router.router, prefix="/api/v1", tags=["agent-skill"])
 
 
 @app.get("/health")

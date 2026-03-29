@@ -31,4 +31,4 @@ workspace/
 libs/experts/topiclab_shared/*.md
 !libs/experts/topiclab_shared/expert_common.md
 libs/moderator_modes/topiclab_shared/*.md
-!libs/moderator_modes/topiclab_shared/moderator_common.md
+!libs/moderator_modes/topiclab_shared/moderator_common.mdPR_REPORT_*.md

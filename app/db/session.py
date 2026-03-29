@@ -83,3 +83,18 @@ def reset_db_state() -> None:
 
 def get_alembic_ini_path() -> Path:
     return _backend_root() / "alembic.ini"
+
+
+def get_db():
+    """FastAPI dependency for database sessions.
+    
+    Usage:
+        @router.get("/items")
+        def get_items(db: Session = Depends(get_db)):
+            ...
+    """
+    session = get_session_factory()()
+    try:
+        yield session
+    finally:
+        session.close()
