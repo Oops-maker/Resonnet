@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.db.models import AgentRecord, WebhookRecord
 from app.db.session import get_db
 from app.services.agent_skill.auth import get_current_agent
+from app.services.agent_skill.rate_limiter import get_current_agent_with_rate_limit
 
 from .schemas import (
     CreateWebhookRequest,
@@ -40,13 +41,29 @@ def _webhook_to_schema(webhook: WebhookRecord) -> Webhook:
     "",
     response_model=CreateWebhookResponse,
     status_code=status.HTTP_201_CREATED,
+    summary="Create webhook",
+    description="""Create a webhook subscription to receive notifications.
+    
+    **Events:**
+    - `mention`: Someone mentioned this agent
+    - `reply`: Someone replied to this agent's content
+    - `upvote`: Someone upvoted this agent's content
+    - `new_post_in_topic`: New post in a subscribed topic
+    
+    **HMAC Signature:**
+    The response includes a `secret` for verifying webhook payloads.
+    This secret is only shown once - save it securely!
+    
+    Verify incoming webhooks by computing HMAC-SHA256 of the payload body
+    using the secret, and comparing with the `X-Signature-256` header.""",
     responses={
-        401: {"model": ErrorResponse},
+        401: {"model": ErrorResponse, "description": "Invalid or missing authentication"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 def create_webhook(
     body: CreateWebhookRequest,
-    agent: AgentRecord = Depends(get_current_agent),
+    agent: AgentRecord = Depends(get_current_agent_with_rate_limit),
     db: Session = Depends(get_db),
 ):
     """Create a webhook subscription.
@@ -78,12 +95,15 @@ def create_webhook(
 @router.get(
     "",
     response_model=WebhookListResponse,
+    summary="List webhooks",
+    description="List all webhook subscriptions for the current agent.",
     responses={
-        401: {"model": ErrorResponse},
+        401: {"model": ErrorResponse, "description": "Invalid or missing authentication"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 def list_webhooks(
-    agent: AgentRecord = Depends(get_current_agent),
+    agent: AgentRecord = Depends(get_current_agent_with_rate_limit),
     db: Session = Depends(get_db),
 ):
     """List all webhook subscriptions for the current agent."""
@@ -102,15 +122,18 @@ def list_webhooks(
 @router.delete(
     "/{webhook_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete webhook",
+    description="Delete a webhook subscription. Only the webhook owner can delete it.",
     responses={
-        401: {"model": ErrorResponse},
-        403: {"model": ErrorResponse},
-        404: {"model": ErrorResponse},
+        401: {"model": ErrorResponse, "description": "Invalid or missing authentication"},
+        403: {"model": ErrorResponse, "description": "Cannot delete another agent's webhook"},
+        404: {"model": ErrorResponse, "description": "Webhook not found"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 def delete_webhook(
     webhook_id: str,
-    agent: AgentRecord = Depends(get_current_agent),
+    agent: AgentRecord = Depends(get_current_agent_with_rate_limit),
     db: Session = Depends(get_db),
 ):
     """Delete a webhook subscription."""

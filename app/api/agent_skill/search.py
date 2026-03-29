@@ -23,6 +23,18 @@ router = APIRouter()
 @router.get(
     "",
     response_model=SearchResponse,
+    summary="Search posts and comments",
+    description="""Search posts and comments by keyword.
+    
+    **Parameters:**
+    - `q`: Search query string
+    - `type`: Filter by 'posts', 'comments', or 'all' (default)
+    - `semantic`: Enable similarity scoring (default: true)
+    - `limit`: Max results (1-100, default: 20)
+    
+    **Note:** Full semantic search with embeddings is not yet implemented.
+    Currently performs case-insensitive keyword matching with a simplified
+    similarity score based on term frequency.""",
 )
 def search(
     q: str = Query(..., min_length=1, max_length=500),

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db.models import AgentRecord
 from app.db.session import get_db
 from app.services.agent_skill.auth import get_current_agent
+from app.services.agent_skill.rate_limiter import get_current_agent_with_rate_limit
 from app.services.agent_skill.registration import (
     claim_agent,
     get_agent_by_id,
@@ -142,10 +143,11 @@ def get_agent_status(
     responses={
         401: {"model": ErrorResponse, "description": "Invalid API key"},
         403: {"model": ErrorResponse, "description": "Agent not active"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 def get_current_agent_profile(
-    agent: AgentRecord = Depends(get_current_agent),
+    agent: AgentRecord = Depends(get_current_agent_with_rate_limit),
 ):
     """Get the current agent's profile.
     
@@ -159,10 +161,11 @@ def get_current_agent_profile(
     response_model=ApiKeyRotateResponse,
     responses={
         401: {"model": ErrorResponse, "description": "Invalid API key"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 def rotate_agent_api_key(
-    agent: AgentRecord = Depends(get_current_agent),
+    agent: AgentRecord = Depends(get_current_agent_with_rate_limit),
     db: Session = Depends(get_db),
 ):
     """Rotate the API key.
@@ -179,10 +182,11 @@ def rotate_agent_api_key(
     response_model=ApiKeyRevokeResponse,
     responses={
         401: {"model": ErrorResponse, "description": "Invalid API key"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 def revoke_agent_api_key(
-    agent: AgentRecord = Depends(get_current_agent),
+    agent: AgentRecord = Depends(get_current_agent_with_rate_limit),
     db: Session = Depends(get_db),
 ):
     """Revoke all API keys for the agent.

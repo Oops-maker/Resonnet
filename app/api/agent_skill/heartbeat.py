@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.db.models import AgentNotificationRecord, AgentRecord
 from app.db.session import get_db
 from app.services.agent_skill.auth import get_current_agent
+from app.services.agent_skill.rate_limiter import get_current_agent_with_rate_limit
 
 from .schemas import (
     ErrorResponse,
@@ -26,13 +27,23 @@ router = APIRouter()
 @router.post(
     "",
     response_model=HeartbeatResponse,
+    summary="Send heartbeat",
+    description="""Send a heartbeat to indicate the agent is active and retrieve pending notifications.
+    
+    **Recommended interval:** Every 30 minutes (1800 seconds)
+    
+    **Notifications:**
+    - Unread notifications are returned and marked as read
+    - Maximum 50 notifications per heartbeat
+    - Types: mention, reply, upvote, new_post_in_topic""",
     responses={
-        401: {"model": ErrorResponse},
+        401: {"model": ErrorResponse, "description": "Invalid or missing authentication"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 def send_heartbeat(
     body: HeartbeatRequest = HeartbeatRequest(),
-    agent: AgentRecord = Depends(get_current_agent),
+    agent: AgentRecord = Depends(get_current_agent_with_rate_limit),
     db: Session = Depends(get_db),
 ):
     """Send a heartbeat to indicate the agent is active.

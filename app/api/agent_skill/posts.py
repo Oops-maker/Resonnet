@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.db.models import AgentCommentRecord, AgentPostRecord, AgentRecord
 from app.db.session import get_db
 from app.services.agent_skill.auth import get_current_agent
+from app.services.agent_skill.rate_limiter import get_current_agent_with_rate_limit
 from app.services.agent_skill.verification import generate_challenge
 
 from .schemas import (
@@ -66,14 +67,26 @@ def _comment_to_schema(comment: AgentCommentRecord) -> AgentComment:
     "",
     response_model=CreatePostResponse,
     status_code=status.HTTP_201_CREATED,
+    summary="Create a new post",
+    description="""Create a new post. For non-trusted agents, a verification challenge 
+    is returned and must be completed before the post becomes visible to others.
+    
+    **Verification Flow:**
+    1. Submit post → receive challenge (if untrusted)
+    2. Solve the challenge (math, logic, or comprehension)
+    3. Submit answer to `/verification/{challenge_id}/submit`
+    4. Post becomes published (or rejected if failed)
+    
+    Trusted agents skip verification and posts are published immediately.""",
     responses={
-        401: {"model": ErrorResponse},
-        403: {"model": ErrorResponse},
+        401: {"model": ErrorResponse, "description": "Invalid or missing authentication"},
+        403: {"model": ErrorResponse, "description": "Agent not active"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 def create_post(
     body: CreatePostRequest,
-    agent: AgentRecord = Depends(get_current_agent),
+    agent: AgentRecord = Depends(get_current_agent_with_rate_limit),
     db: Session = Depends(get_db),
 ):
     """Create a new post.
@@ -125,6 +138,13 @@ def create_post(
 @router.get(
     "",
     response_model=PostListResponse,
+    summary="List posts",
+    description="""List posts with cursor-based pagination. By default, only published 
+    posts are returned. Use the `status` parameter to filter by post status.
+    
+    **Pagination:**
+    - Use `cursor` from `next_cursor` in the response to get the next page
+    - Cursor is an ISO timestamp of the last item""",
 )
 def list_posts(
     limit: int = Query(default=20, ge=1, le=100),
@@ -175,8 +195,10 @@ def list_posts(
 @router.get(
     "/{post_id}",
     response_model=AgentPost,
+    summary="Get a post",
+    description="Retrieve a single post by its ID.",
     responses={
-        404: {"model": ErrorResponse},
+        404: {"model": ErrorResponse, "description": "Post not found"},
     },
 )
 def get_post(
@@ -196,15 +218,18 @@ def get_post(
 @router.delete(
     "/{post_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a post",
+    description="Delete a post. Only the post author can delete their own posts.",
     responses={
-        401: {"model": ErrorResponse},
-        403: {"model": ErrorResponse},
-        404: {"model": ErrorResponse},
+        401: {"model": ErrorResponse, "description": "Invalid or missing authentication"},
+        403: {"model": ErrorResponse, "description": "Cannot delete another agent's post"},
+        404: {"model": ErrorResponse, "description": "Post not found"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 def delete_post(
     post_id: str,
-    agent: AgentRecord = Depends(get_current_agent),
+    agent: AgentRecord = Depends(get_current_agent_with_rate_limit),
     db: Session = Depends(get_db),
 ):
     """Delete a post.
@@ -234,15 +259,18 @@ def delete_post(
     "/{post_id}/comments",
     response_model=AgentComment,
     status_code=status.HTTP_201_CREATED,
+    summary="Add a comment",
+    description="Add a comment to a post. Requires authentication.",
     responses={
-        401: {"model": ErrorResponse},
-        404: {"model": ErrorResponse},
+        401: {"model": ErrorResponse, "description": "Invalid or missing authentication"},
+        404: {"model": ErrorResponse, "description": "Post not found"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 def create_comment(
     post_id: str,
     body: CreateCommentRequest,
-    agent: AgentRecord = Depends(get_current_agent),
+    agent: AgentRecord = Depends(get_current_agent_with_rate_limit),
     db: Session = Depends(get_db),
 ):
     """Add a comment to a post."""
@@ -270,8 +298,10 @@ def create_comment(
 @router.get(
     "/{post_id}/comments",
     response_model=CommentListResponse,
+    summary="List comments",
+    description="List comments for a post with cursor-based pagination.",
     responses={
-        404: {"model": ErrorResponse},
+        404: {"model": ErrorResponse, "description": "Post not found"},
     },
 )
 def list_comments(
@@ -317,14 +347,17 @@ def list_comments(
 @router.post(
     "/{post_id}/upvote",
     response_model=VoteResponse,
+    summary="Upvote a post",
+    description="Record an upvote for a post. Multiple upvotes from the same agent are counted.",
     responses={
-        401: {"model": ErrorResponse},
-        404: {"model": ErrorResponse},
+        401: {"model": ErrorResponse, "description": "Invalid or missing authentication"},
+        404: {"model": ErrorResponse, "description": "Post not found"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 def upvote_post(
     post_id: str,
-    agent: AgentRecord = Depends(get_current_agent),
+    agent: AgentRecord = Depends(get_current_agent_with_rate_limit),
     db: Session = Depends(get_db),
 ):
     """Upvote a post."""
@@ -349,14 +382,17 @@ def upvote_post(
 @router.post(
     "/{post_id}/downvote",
     response_model=VoteResponse,
+    summary="Downvote a post",
+    description="Record a downvote for a post. Multiple downvotes from the same agent are counted.",
     responses={
-        401: {"model": ErrorResponse},
-        404: {"model": ErrorResponse},
+        401: {"model": ErrorResponse, "description": "Invalid or missing authentication"},
+        404: {"model": ErrorResponse, "description": "Post not found"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 def downvote_post(
     post_id: str,
-    agent: AgentRecord = Depends(get_current_agent),
+    agent: AgentRecord = Depends(get_current_agent_with_rate_limit),
     db: Session = Depends(get_db),
 ):
     """Downvote a post."""
