@@ -1,0 +1,38 @@
+{
+  "id": "topic-to-article",
+  "name": "Topic to Article",
+  "version": "1.0.0",
+  "description": "将讨论内容一键生成高质量文章（支持公众号、知乎等格式）",
+  "author": "Resonnet Team",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "keywords": ["writing", "article", "wechat", "content", "ai"],
+  "config": {
+    "type": "object",
+    "properties": {
+      "default_format": {
+        "type": "string",
+        "enum": ["markdown", "wechat_html", "zhihu", "juejin"],
+        "default": "markdown",
+        "description": "默认输出格式"
+      },
+      "default_language": {
+        "type": "string",
+        "enum": ["zh", "en"],
+        "default": "zh",
+        "description": "默认输出语言"
+      },
+      "review_enabled": {
+        "type": "boolean",
+        "default": true,
+        "description": "是否启用审稿"
+      },
+      "style_profile": {
+        "type": "string",
+        "enum": ["academic", "casual", "news"],
+        "default": "academic",
+        "description": "写作风格"
+      }
+    }
+  }
+}

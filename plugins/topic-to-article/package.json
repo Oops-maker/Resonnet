@@ -1,0 +1,51 @@
+{
+  "name": "@resonnet/topic-to-article",
+  "version": "1.0.0",
+  "description": "OpenClaw Plugin: 将讨论内容一键生成高质量文章（支持公众号、知乎等格式）",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "openclaw.plugin.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "lint": "eslint src --ext .ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "writing",
+    "article",
+    "wechat",
+    "content",
+    "ai"
+  ],
+  "author": "Resonnet Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0",
+    "eslint": "^9.0.0"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.32.0"
+  }
+}
