@@ -31,4 +31,12 @@ workspace/
 libs/experts/topiclab_shared/*.md
 !libs/experts/topiclab_shared/expert_common.md
 libs/moderator_modes/topiclab_shared/*.md
-!libs/moderator_modes/topiclab_shared/moderator_common.mdPR_REPORT_*.md
+!libs/moderator_modes/topiclab_shared/moderator_common.md
+
+# Temporary PR reports (keep docs/reports/ for formal documentation)
+PR_REPORT_*.md
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
