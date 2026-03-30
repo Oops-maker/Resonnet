@@ -42,7 +42,7 @@ def extract_skill_meta(skill_md_path: Path) -> tuple[str, str]:
         if len(parts) >= 3:
             fm = parts[1]
             n = re.search(r"^name:\s*(.+)$", fm, re.MULTILINE | re.IGNORECASE)
-            d = re.search(r"^description:\s*(.+)$", fm, re.MULTILINE | re.DOTALL | re.IGNORECASE)
+            d = re.search(r"^description:\s*(.+)$", fm, re.MULTILINE | re.IGNORECASE)
             if n:
                 name = n.group(1).strip()
             if d:

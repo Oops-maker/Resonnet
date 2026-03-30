@@ -19,6 +19,11 @@
       "id": "claude-scientific",
       "name": "Claude Scientific",
       "description": ""
+    },
+    "research-dream": {
+      "id": "research-dream",
+      "name": "Research Dream",
+      "description": ""
     }
   }
 }
