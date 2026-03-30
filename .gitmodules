@@ -9,4 +9,4 @@
 	url = git@github.com:K-Dense-AI/claude-scientific-skills.git
 [submodule "libs/assignable_skills/_submodules/research-dream"]
 	path = libs/assignable_skills/_submodules/research-dream
-	url = https://github.com/Yu-Yang-Li/Research-Dream.git
+	url = https://github.com/TashanGKD/Research-Dream.git
