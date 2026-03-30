@@ -335,11 +335,18 @@ def _resolve_skill_path(base_dir: Path, skill_id: str, skill_info: dict) -> Path
     submodules = base_dir / "_submodules" / source
     if source != "default" and submodules.exists():
         skills_dir = skill_info.get("_skills_dir", ".") or "."
+        candidates: list[Path] = []
         if category and category != "general":
-            path = base_dir / "_submodules" / source / skills_dir / category / slug / "SKILL.md"
+            candidates.append(base_dir / "_submodules" / source / skills_dir / category / slug / "SKILL.md")
         else:
-            path = base_dir / "_submodules" / source / skills_dir / slug / "SKILL.md"
-        return path if path.exists() else None
+            if skills_dir == ".":
+                # Some imported repos expose a single top-level SKILL.md at repo root.
+                candidates.append(base_dir / "_submodules" / source / "SKILL.md")
+            candidates.append(base_dir / "_submodules" / source / skills_dir / slug / "SKILL.md")
+        for path in candidates:
+            if path.exists():
+                return path
+        return None
 
     if not category:
         return base_dir / source / f"{slug}.md"

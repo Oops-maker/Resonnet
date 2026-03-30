@@ -86,6 +86,7 @@ def get_skill_detail(skill_id: str):
         "id": skill_info.get("id", raw),
         "name": skill_info.get("name", raw),
         "description": skill_info.get("description", ""),
+        "introduction": skill_info.get("introduction", ""),
         "source": skill_info.get("source", "default"),
         "category": skill_info.get("category", ""),
         "content_path": f"/skills/assignable/{raw}/content",
