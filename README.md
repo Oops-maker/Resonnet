@@ -241,7 +241,7 @@ docker run --rm -p 8000:8000 --env-file .env \
 - **Moderator Modes**：`GET /moderator-modes`，`GET /moderator-modes/assignable`（支持 `category`、`q`、`fields`、`limit`、`offset`），`GET /moderator-modes/assignable/{id}/content`，`GET/PUT /topics/{topic_id}/moderator-mode`，`POST .../moderator-mode/generate`
 - **Experts**：`GET /experts`（支持 `fields=minimal`，列表不加载 skill_content），`GET /experts/{name}/content`，`GET/PUT /experts/{name}`，`POST /experts/import-profile`（论坛画像导入为专家）
 - **Libs**：`POST /libs/invalidate-cache` 立即清空库 meta 缓存（热更新）
-- **Profile Helper**：`GET /profile-helper/session`，`POST /profile-helper/chat`（SSE），`GET /profile-helper/profile/{session_id}`，`GET /profile-helper/download/{session_id}`，`POST /profile-helper/session/reset/{session_id}`
+- **Profile Helper**：`GET /profile-helper/session`，`POST /profile-helper/chat`（SSE），`POST /profile-helper/chat/blocks`（Block SSE），`GET /profile-helper/chat-history/{session_id}`，`GET /profile-helper/profile/{session_id}`，`GET /profile-helper/profile/{session_id}/structured`，`GET /profile-helper/profile/{session_id}/scientists/famous|field`，`GET /profile-helper/download/{session_id}`，`GET /profile-helper/download/{session_id}/forum`，`POST /profile-helper/scales/submit`，`POST /profile-helper/publish-to-library`，`POST /profile-helper/session/reset/{session_id}`
 
 > Profile Helper 认证模式：`AUTH_MODE=none|jwt|proxy`（默认 `none`）。发布后的账号库同步由 `ACCOUNT_SYNC_ENABLED` 控制，失败不会阻断主发布流程。
 >
