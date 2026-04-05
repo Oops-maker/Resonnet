@@ -239,7 +239,7 @@ Or use `docker compose up --build`.
 - **Moderator Modes**: `GET /moderator-modes`, `GET /moderator-modes/assignable/categories`, `GET /moderator-modes/assignable` (supports `category`, `q`, `fields`, `limit`, `offset`), `GET /moderator-modes/assignable/{id}/content`, `GET/PUT /topics/{topic_id}/moderator-mode`, `POST .../moderator-mode/generate`, `POST .../moderator-mode/share`
 - **Experts**: `GET /experts` (supports `fields=minimal` for list without skill_content), `GET /experts/{name}/content`, `GET/PUT /experts/{name}`, `POST /experts/import-profile` (import forum profile as expert)
 - **Libs**: `POST /libs/invalidate-cache` — clear libs meta cache immediately (hot-reload)
-- **Profile Helper**: `GET /profile-helper/session`, `POST /profile-helper/chat` (SSE), `GET /profile-helper/profile/{session_id}`, `GET /profile-helper/download/{session_id}`, `GET /profile-helper/download/{session_id}/forum`, `POST /profile-helper/session/reset/{session_id}`
+- **Profile Helper**: `GET /profile-helper/session`, `POST /profile-helper/chat` (SSE), `POST /profile-helper/chat/blocks` (Block SSE), `GET /profile-helper/chat-history/{session_id}`, `GET /profile-helper/profile/{session_id}`, `GET /profile-helper/profile/{session_id}/structured`, `GET /profile-helper/profile/{session_id}/scientists/famous|field`, `GET /profile-helper/download/{session_id}`, `GET /profile-helper/download/{session_id}/forum`, `POST /profile-helper/scales/submit`, `POST /profile-helper/publish-to-library`, `POST /profile-helper/session/reset/{session_id}`
 
 > Profile Helper auth modes: `AUTH_MODE=none|jwt|proxy` (default `none`). Account sync after publish is optional via `ACCOUNT_SYNC_ENABLED` and does not block the main publish flow on failure.
 >
