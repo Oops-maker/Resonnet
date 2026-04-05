@@ -38,12 +38,18 @@ class PublishRequest(BaseModel):
     display_name: str | None = None
 
 
-def _get_uid(auth_ctx: dict) -> str:
+def _get_uid(auth_ctx: dict) -> str | None:
     auth_context = auth_ctx.get("auth_context")
     if auth_context is not None:
-        return str(auth_context.subject)
+        if getattr(auth_context, "is_anonymous", False):
+            return None
+        subject = str(auth_context.subject).strip()
+        return subject or None
     user = auth_ctx.get("user") or {}
-    return str(user.get("id", "anonymous"))
+    uid = str(user.get("id", "")).strip()
+    if not uid or uid.lower() == "anonymous":
+        return None
+    return uid
 
 
 def _normalize_session_id(session_id: str | None) -> str | None:
@@ -55,7 +61,7 @@ def _normalize_session_id(session_id: str | None) -> str | None:
     return sid
 
 
-def _get_session_for_user(session_id: str, uid: str) -> dict:
+def _get_session_for_user(session_id: str, uid: str | None) -> dict:
     session = profile_sessions.get(session_id)
     if not session:
         # 会话不在内存中（常见于 uvicorn --reload 后热重载导致内存清空）
@@ -65,7 +71,7 @@ def _get_session_for_user(session_id: str, uid: str) -> dict:
     existing_uid = session.get("user_id")
     if existing_uid and str(existing_uid) != str(uid):
         raise HTTPException(status_code=404, detail="会话不存在或已过期")
-    if not existing_uid:
+    if not existing_uid and uid:
         session["user_id"] = uid
     return session
 
@@ -410,6 +416,8 @@ async def publish_to_library(
 
     token = auth_ctx.get("token")
     uid = _get_uid(auth_ctx)
+    if uid is None:
+        raise HTTPException(status_code=401, detail="请先登录后再发布数字分身")
     session = _get_session_for_user(req.session_id, uid)
     full_profile = session.get("profile", "")
     forum_profile = session.get("forum_profile", "")
