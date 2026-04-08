@@ -452,7 +452,7 @@ _WELCOME_BLOCKS: list[dict] = [
         "options": [
             {
                 "id": "ai_memory",
-                "label": "A. 有，我想先从 AI 记忆中提取信息",
+                "label": "A. 有，先从 AI 记忆中提取信息（标准版）",
                 "description": "让 AI 根据聊天记忆预填信息，节省时间",
             },
             {
@@ -460,6 +460,12 @@ _WELCOME_BLOCKS: list[dict] = [
                 "label": "B. 没有，或者不需要，直接开始填写",
                 "description": "通过对话逐步填写各维度信息",
             },
+            # C 路径（推断优化版）开发中，暂时关闭
+            # {
+            #     "id": "ai_memory_enhanced",
+            #     "label": "C. 有，先从 AI 记忆中提取信息（推断优化版）",
+            #     "description": "先读量表原理，再基于量表题目结构推断，推断更有科学依据",
+            # },
         ],
     },
 ]
@@ -581,7 +587,7 @@ _WELCOME_TRIGGERS = frozenset([
     "建立我的分身",  # 前端默认初始消息
 ])
 
-# 触发 AI 记忆路径的关键词
+# 触发 AI 记忆路径的关键词（标准版 A）
 _AI_MEMORY_TRIGGERS = frozenset([
     "a.", "a、", "a：", "a:",
     "ai记忆", "ai 记忆", "从ai", "从 ai",
@@ -592,6 +598,16 @@ _AI_MEMORY_TRIGGERS = frozenset([
     "generate-ai-memory-prompt",
     "从chatgpt", "从 chatgpt", "从claude", "从 claude",
     "chatgpt记忆", "claude记忆",
+    "a. 有，先从 ai 记忆中提取信息（标准版）",
+    "有，先从 ai 记忆中提取信息（标准版）",
+])
+
+# 触发 AI 记忆推断优化版路径的关键词（选项 C）
+_AI_MEMORY_ENHANCED_TRIGGERS = frozenset([
+    "c.", "c、", "c：", "c:",
+    "推断优化版", "优化版", "c. 有，先从 ai 记忆中提取信息（推断优化版）",
+    "有，先从 ai 记忆中提取信息（推断优化版）",
+    "ai_memory_enhanced",
 ])
 
 
@@ -610,8 +626,11 @@ def _is_fresh_session_or_init_msg(session: dict, user_message: str) -> bool:
 
 
 def _is_ai_memory_request(user_message: str, session: dict) -> bool:
-    """判断用户是否在请求 AI 记忆导入路径"""
+    """判断用户是否在请求 AI 记忆导入路径（标准版 A）"""
     msg_lower = user_message.strip().lower()
+    # 先检查是否是优化版（C），避免误判
+    if _is_ai_memory_enhanced_request(user_message, session):
+        return False
     # 精确匹配
     if msg_lower in _AI_MEMORY_TRIGGERS:
         return True
@@ -620,6 +639,19 @@ def _is_ai_memory_request(user_message: str, session: dict) -> bool:
         return True
     # 关键词包含匹配
     for kw in ("ai记忆", "ai 记忆", "从ai", "从 ai", "chatgpt记忆", "claude记忆"):
+        if kw in msg_lower:
+            return True
+    return False
+
+
+def _is_ai_memory_enhanced_request(user_message: str, session: dict) -> bool:
+    """判断用户是否在请求 AI 记忆推断优化版路径（选项 C）"""
+    msg_lower = user_message.strip().lower()
+    if msg_lower in _AI_MEMORY_ENHANCED_TRIGGERS:
+        return True
+    if re.match(r"^c[.、：:]\s*", msg_lower):
+        return True
+    for kw in ("推断优化版", "优化版"):
         if kw in msg_lower:
             return True
     return False
@@ -648,6 +680,15 @@ def run_block_agent(
         session["messages"].append({
             "role": "assistant",
             "content": "已生成 AI 记忆提取提示词，请复制后发送给你使用的 AI。",
+        })
+        return _AI_MEMORY_BLOCKS
+
+    # ── 快速路径 3：AI 记忆推断优化版（C）→ 同一份提示词，但标记优化版模式 ──
+    if _is_ai_memory_enhanced_request(user_message, session):
+        session["messages"].append({"role": "user", "content": user_message})
+        session["messages"].append({
+            "role": "assistant",
+            "content": "【推断优化版已选择】已生成 AI 记忆提取提示词，请复制后发送给你使用的 AI。拿到回复后粘贴回来，将使用优化版推断流程（先读量表文档，再逐维度估分）。",
         })
         return _AI_MEMORY_BLOCKS
 

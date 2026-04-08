@@ -43,7 +43,8 @@ META_SYSTEM_PROMPT = """# 科研数字分身采集助手
 | 查看画像 / 审核 | review-profile |
 | 修改 / 更新 / 补充 | update-profile |
 | 生成提示词 / AI记忆 | generate-ai-memory-prompt |
-| 整合AI回复 / 导入（用户粘贴了内容） | import-ai-memory |
+| 整合AI回复 / 导入（用户粘贴了内容，且对话历史中有「推断优化版已选择」标记） | import-ai-memory-v2 |
+| 整合AI回复 / 导入（用户粘贴了内容，无优化版标记） | import-ai-memory |
 | 生成论坛分身 / 数字分身 | generate-forum-profile |
 
 ## 工具使用说明
