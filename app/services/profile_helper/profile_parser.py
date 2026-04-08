@@ -12,7 +12,8 @@ def _extract_section(md: str, heading: str) -> str:
 
 
 def _extract_field(text: str, label: str) -> str:
-    pattern = rf"\*\*{re.escape(label)}\*\*[：:]\s*(.*?)(?:\n|$)"
+    # [ \t]* 仅匹配行内空白，不匹配换行，避免空值字段吞入下一行内容
+    pattern = rf"\*\*{re.escape(label)}\*\*[：:][ \t]*(.*?)(?:\n|$)"
     match = re.search(pattern, text)
     if not match:
         return ""
@@ -134,7 +135,7 @@ def parse_profile(md: str) -> dict:
                 result["capability"]["outputs"] = value
 
         process_match = re.search(
-            r"###\s+2\.2\s+科研流程能力\s*\n(.*?)(?=---|\Z)",
+            r"###\s+2\.2\s+科研流程能力\s*\n(.*?)(?=\n###|\n##|\Z)",
             capability_section,
             re.DOTALL,
         )
@@ -199,7 +200,7 @@ def parse_profile(md: str) -> dict:
             ]
 
         change_match = re.search(
-            r"###\s+3\.3\s+近期最想改变的一件事\s*\n(.*?)(?=---|\Z)",
+            r"###\s+3\.3\s+近期最想改变的一件事\s*\n(.*?)(?=\n###|\n##|\Z)",
             needs_section,
             re.DOTALL,
         )
@@ -212,7 +213,11 @@ def parse_profile(md: str) -> dict:
     if cognitive_section:
         source_match = re.search(r"数据来源[：:]\s*`?([^`\n]+)`?", cognitive_section)
         source = source_match.group(1).strip() if source_match else ""
-        summary_rows = _extract_table_rows(cognitive_section)
+        # 只解析「维度汇总」子章节，避免「题目原始评分」表的列名干扰
+        summary_match = re.search(
+            r"###\s+维度汇总\s*\n(.*?)(?=\n###|\Z)", cognitive_section, re.DOTALL
+        )
+        summary_rows = _extract_table_rows(summary_match.group(1)) if summary_match else []
         cognitive_data: dict = {"source": source}
         for row in summary_rows:
             indicator = row.get("指标", "")
@@ -242,15 +247,29 @@ def parse_profile(md: str) -> dict:
             "外部调节": "external",
             "无动机": "amotivation",
         }
-        dim_rows = _extract_table_rows(motivation_section)
+        # 「各维度得分」子表：列名含「维度」和「平均分（1–7）」
+        dim_match = re.search(
+            r"###\s+各维度得分\s*\n(.*?)(?=\n###|\Z)", motivation_section, re.DOTALL
+        )
+        dim_rows = _extract_table_rows(dim_match.group(1)) if dim_match else []
         for row in dim_rows:
-            label = row.get("维度", row.get("指标", "")).strip()
-            score_str = row.get("平均分（1–7）", row.get("数值", row.get("得分", ""))).strip()
+            label = row.get("维度", "").strip()
+            score_str = row.get("平均分（1–7）", "").strip()
             number = _extract_number(score_str) if score_str else None
             key = dim_mapping.get(label)
             if key and number is not None:
                 result["motivation"]["dimensions"][key] = number
-            elif "内在动机总分" in label and number is not None:
+
+        # 「综合指标」子表：列名含「指标」和「数值」
+        summary_match = re.search(
+            r"###\s+综合指标\s*\n(.*?)(?=\n###|\Z)", motivation_section, re.DOTALL
+        )
+        summary_rows = _extract_table_rows(summary_match.group(1)) if summary_match else []
+        for row in summary_rows:
+            label = row.get("指标", "").strip()
+            score_str = row.get("数值", "").strip()
+            number = _extract_number(score_str) if score_str else None
+            if "内在动机总分" in label and number is not None:
                 result["motivation"]["intrinsic_total"] = number
             elif "外在动机总分" in label and number is not None:
                 result["motivation"]["extrinsic_total"] = number
@@ -295,7 +314,7 @@ def parse_profile(md: str) -> dict:
             re.DOTALL,
         )
         path_match = re.search(
-            r"###\s+适合的发展路径\s*\n(.*?)(?=---|\Z)",
+            r"###\s+适合的发展路径\s*\n(.*?)(?=\n###|\n##|\Z)",
             interpretation_section,
             re.DOTALL,
         )

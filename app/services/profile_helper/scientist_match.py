@@ -28,6 +28,75 @@ def _personality_distance(user_p: dict, sci: dict) -> float:
     return math.sqrt(sum((a - b) ** 2 for a, b in zip(user_vals, sci_vals)) / len(dims))
 
 
+def _generate_personalized_reasons(top3: list, parsed: dict) -> list:
+    """对 Top 3 科学家，用 LLM 生成个性化匹配理由（替换模板文字）。"""
+    try:
+        from app.services.profile_helper.llm_client import create_client, get_default_model
+        client = create_client()
+        if not client:
+            return top3
+
+        user_csi = parsed.get("cognitive_style", {}).get("csi", 0)
+        user_rai = parsed.get("motivation", {}).get("rai", 0)
+        user_field = " / ".join(filter(None, [
+            parsed.get("identity", {}).get("primary_field", ""),
+            parsed.get("identity", {}).get("secondary_field", ""),
+        ]))
+        p = parsed.get("personality", {})
+
+        def _score(dim: str) -> str:
+            v = p.get(dim, {})
+            s = v.get("score") if isinstance(v, dict) else None
+            return f"{s:.1f}" if s is not None else "未知"
+
+        sci_lines = "\n".join([
+            f'- {s["name"]}（{s["name_en"]}）：CSI={s["csi"]}, RAI={s["rai"]}, '
+            f'领域={s["field"]}, 标签="{s["signature"]}"'
+            for s in top3
+        ])
+
+        prompt = (
+            "用户画像摘要：\n"
+            f"- 认知风格指数 CSI = {user_csi}（正值=整合型，负值=深度型，范围 -24 到 +24）\n"
+            f"- 自主动机指数 RAI = {user_rai}（越高越自主，范围约 -20 到 +60）\n"
+            f"- 研究领域：{user_field or '未知'}\n"
+            f"- 开放性 {_score('openness')} / 尽责性 {_score('conscientiousness')} / "
+            f"外向性 {_score('extraversion')} / 神经质 {_score('neuroticism')} / "
+            f"宜人性 {_score('agreeableness')}（均为 1-5 分）\n\n"
+            f"数学距离最近的 3 位科学家：\n{sci_lines}\n\n"
+            "请为每位科学家生成 2 句话的个性化匹配理由：\n"
+            "第 1 句：点出用户与该科学家最核心的相似点（结合具体数值）。\n"
+            "第 2 句：指出一个关键差异，帮助用户更客观地认识自己。\n"
+            "语气：第二人称（你），简洁，不说废话。\n"
+            "输出纯 JSON 数组（不要代码块标记）：\n"
+            '[{"name": "科学家中文名", "reason": "两句话理由"}, ...]'
+        )
+
+        resp = client.chat.completions.create(
+            model=get_default_model(),
+            messages=[
+                {"role": "system", "content": "你是一个科学家画像分析助手，输出简洁、有洞察力的个性化文字。"},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.7,
+        )
+        text = (resp.choices[0].message.content or "").strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+        reasons_list = json.loads(text)
+        reason_map = {item["name"]: item["reason"] for item in reasons_list}
+
+        enriched = []
+        for s in top3:
+            enriched.append({**s, "reason": reason_map.get(s["name"], s["reason"])})
+        return enriched
+
+    except Exception:
+        # 降级：返回原始模板理由
+        return top3
+
+
 def match_famous_scientists(parsed: dict) -> dict:
     """
     返回 {
@@ -77,6 +146,9 @@ def match_famous_scientists(parsed: dict) -> dict:
             "csi": s["csi"],
             "rai": s["rai"],
         })
+
+    # 用 LLM 生成个性化理由（失败时自动降级到模板文字）
+    top3 = _generate_personalized_reasons(top3, parsed)
 
     scatter_data = []
     for s in SCIENTISTS:
