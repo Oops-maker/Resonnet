@@ -240,6 +240,51 @@ pasted AI memory content.
 
 ---
 
+## Deployment: Enabling Profile Sync (Phase 3)
+
+The profile sync to `topiclab-backend` is **disabled by default** (`ACCOUNT_SYNC_ENABLED=false`).
+To enable it in production:
+
+### Prerequisites
+- PR #11 merged into `Tashan-TopicLab`: adds `GET /auth/digital-twins/by-user/{user_id}` to topiclab-backend.
+- Both Resonnet and topiclab-backend are deployed and can reach each other.
+
+### Configuration
+
+In Resonnet's `.env`:
+
+```dotenv
+ACCOUNT_SYNC_ENABLED=true
+AUTH_SERVICE_BASE_URL=http://<topiclab-backend-host>:<port>
+```
+
+Replace `<topiclab-backend-host>:<port>` with the actual address (e.g. `topiclab-backend:8000` in Docker Compose, `127.0.0.1:8001` in local dev).
+
+### What happens when enabled
+
+```
+User logs in → JWT token stored in session
+  ↓
+User builds profile via AI → save_profile() called
+  ↓
+_sync_profile_to_digital_twins():
+  POST /auth/digital-twins/upsert  (with user JWT)
+  → digital_twins.role_content = profile markdown
+  ↓
+Server restart / new instance
+  ↓
+get_or_create(user_id=X):
+  IF local profile.md exists → load from filesystem
+  ELSE → GET /auth/digital-twins/by-user/X  (X-Internal-Service header)
+          → restore profile.md from digital_twins
+```
+
+### Anonymous users
+
+Anonymous sessions are not synced. `ACCOUNT_SYNC_ENABLED` has no effect for sessions without a `user_id`. Anonymous profile data lives only in Resonnet's filesystem with a 24-hour TTL.
+
+---
+
 ## Backwards Compatibility
 
 - All existing API endpoints are preserved.
