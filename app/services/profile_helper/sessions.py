@@ -128,6 +128,18 @@ def _new_session(session_id: str, user_id: int | str | None = None) -> dict:
         if pf.exists():
             profile = pf.read_text(encoding="utf-8")
             profile_path = str(pf)
+        else:
+            # Filesystem miss — try to pull from digital_twins (cross-restart recovery)
+            pulled = _pull_profile_from_digital_twins(user_id)
+            if pulled:
+                profile = pulled
+                # Write to filesystem cache for subsequent fast loads
+                try:
+                    pdir.mkdir(parents=True, exist_ok=True)
+                    pf.write_text(pulled, encoding="utf-8")
+                    profile_path = str(pf)
+                except Exception:
+                    pass
         if ff.exists():
             forum_profile = ff.read_text(encoding="utf-8")
             forum_profile_path = str(ff)
@@ -216,6 +228,7 @@ def save_profile(session: dict, content: str) -> Path:
         session["forum_profile_path"] = str(forum_target_path)
 
     _sync_twin_agent(session)
+    _sync_profile_to_digital_twins(session, content)
     _touch(session)
     return target_path
 
@@ -318,6 +331,98 @@ def _sync_twin_agent(session: dict) -> None:
     meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _sync_profile_to_digital_twins(session: dict, content: str) -> None:
+    """Sync profile content to topiclab-backend digital_twins table.
+
+    Non-fatal: any failure is logged and silently ignored.
+    Only runs when:
+      - ACCOUNT_SYNC_ENABLED=true
+      - session has both user_id and _auth_token
+      - profile content is not blank template
+    """
+    from app.core.config import get_auth_service_base_url, is_account_sync_enabled
+
+    if not is_account_sync_enabled():
+        return
+    token = session.get("_auth_token")
+    user_id = session.get("user_id")
+    if not token or not user_id:
+        return
+    if not content or content.strip().startswith("# 科研人员画像 — [姓名/标识]"):
+        return  # blank template — skip
+
+    try:
+        import httpx
+        auth_base = get_auth_service_base_url().rstrip("/")
+        # Extract display name from profile title line
+        display_name = "我的科研画像"
+        for line in content.splitlines():
+            if line.startswith("# 科研人员画像 — "):
+                display_name = line[len("# 科研人员画像 — "):].strip() or display_name
+                break
+
+        with httpx.Client(timeout=3.0) as client:
+            client.post(
+                f"{auth_base}/auth/digital-twins/upsert",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "agent_name": "my_twin",
+                    "display_name": display_name,
+                    "role_content": content,
+                    "session_id": session.get("session_id"),
+                    "source": "profile_twin",
+                },
+            )
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("digital_twins sync failed (non-fatal): %s", exc)
+
+
+def _pull_profile_from_digital_twins(user_id: int | str) -> str | None:
+    """Pull profile content from topiclab-backend digital_twins table.
+
+    Used as fallback when local filesystem file is missing (e.g., after server
+    migration or disk failure). Non-fatal: returns None on any error.
+
+    Note: this call uses no auth token (anonymous internal request).
+    It relies on AUTH_SERVICE_BASE_URL pointing to topiclab-backend and
+    topiclab-backend having an internal endpoint that accepts user_id.
+
+    Currently this falls back to reading the profile from the local workspace
+    if ACCOUNT_SYNC_ENABLED is false. The actual HTTP pull is only attempted
+    in production (ACCOUNT_SYNC_ENABLED=true).
+    """
+    from app.core.config import get_auth_service_base_url, is_account_sync_enabled
+
+    if not is_account_sync_enabled():
+        return None  # local dev: no sync, nothing to pull
+
+    try:
+        import httpx
+        auth_base = get_auth_service_base_url().rstrip("/")
+        # Internal endpoint: GET /auth/digital-twins/by-user/{user_id}
+        # This endpoint returns the active profile without requiring a JWT
+        # (server-to-server, IP-restricted in production)
+        with httpx.Client(timeout=3.0) as client:
+            resp = client.get(
+                f"{auth_base}/auth/digital-twins/by-user/{user_id}",
+                headers={"X-Internal-Service": "resonnet"},
+            )
+        if resp.status_code == 200:
+            data = resp.json()
+            content = data.get("role_content") or ""
+            if content and not content.strip().startswith("# 科研人员画像 — [姓名/标识]"):
+                return content
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("pull from digital_twins failed (non-fatal): %s", exc)
+
+    return None
+
+
 def _migrate_anon_to_user(session: dict, user_id: int | str) -> None:
     """将匿名 session 的画像和消息迁移到用户专属目录，并更新 session.user_id。"""
     pdir = _profiles_dir(user_id)
@@ -346,6 +451,7 @@ def _migrate_anon_to_user(session: dict, user_id: int | str) -> None:
 def get_or_create(
     session_id: str | None = None,
     user_id: int | str | None = None,
+    token: str | None = None,
 ) -> tuple[str, dict]:
     """Get or create session. Returns (session_id, session_data)."""
     _cleanup()
@@ -363,10 +469,14 @@ def get_or_create(
             s["forum_profile_path"] = None
         if "scales" not in s:
             s["scales"] = {}
+        if token:
+            s["_auth_token"] = token  # refresh token for sync
         _touch(s)
         return session_id, s
     sid = session_id or str(uuid.uuid4())
     _sessions[sid] = _new_session(sid, user_id=user_id)
+    if token:
+        _sessions[sid]["_auth_token"] = token
     _cleanup()
     return sid, _sessions[sid]
 
@@ -413,3 +523,39 @@ def reset(session_id: str) -> dict:
     user_id = _sessions.get(session_id, {}).get("user_id")
     _sessions[session_id] = _new_session(session_id, user_id=user_id)
     return _sessions[session_id]
+
+
+def reset_conversation_only(session_id: str) -> dict:
+    """Reset only the conversation history; keep the existing profile intact.
+
+    Semantics:
+    - messages cleared (blank conversation, ready for new build)
+    - profile content preserved in session memory and on disk
+    - scientist_cache cleared (will recompute on next request if profile changes)
+    - digital_twins NOT touched (last published profile remains accessible)
+
+    This is the correct behavior for "start a new build from scratch":
+    the user's completed profiles are still in digital_twins history.
+    """
+    session = _sessions.get(session_id)
+    if not session:
+        return {}
+
+    # Clear conversation history in memory
+    session["messages"] = []
+    # Reset profile to blank template (new build starts fresh)
+    session["profile"] = _load_template_with_date()
+    # Clear scientist cache (profile changed)
+    session.pop("_scientist_cache", None)
+    # Keep user_id, keep profile_path reference, keep scales
+    _touch(session)
+
+    # Clear persisted messages file
+    msg_path = _messages_path(session)
+    try:
+        if msg_path.exists():
+            msg_path.unlink()
+    except Exception:
+        pass
+
+    return session

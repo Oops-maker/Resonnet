@@ -1,4 +1,4 @@
-"""Profile helper API: chat, session, profile, download, scales, publish."""
+"""Profile helper API: chat, session, profile, download, export, scales, publish."""
 
 import json
 import re
@@ -12,6 +12,7 @@ from app.integrations.account_sync import sync_twin_record
 from app.services.profile_helper import agent as profile_agent
 from app.services.profile_helper import block_agent as profile_block_agent
 from app.services.profile_helper import sessions as profile_sessions
+from app.services.profile_helper.export_service import export_to_pdf, export_to_image
 
 router = APIRouter()
 _INVALID_SESSION_IDS = frozenset({"", "undefined", "null", "none", "nan"})
@@ -36,6 +37,11 @@ class PublishRequest(BaseModel):
     visibility: str = "private"
     exposure: str = "brief"
     display_name: str | None = None
+
+
+def _get_token(auth_ctx: dict) -> str | None:
+    """Extract Bearer token from auth context for server-to-server calls."""
+    return auth_ctx.get("token") or None
 
 
 def _get_uid(auth_ctx: dict) -> str | None:
@@ -225,10 +231,12 @@ async def chat_blocks_stream(
 ):
     """Block 协议 SSE：每个 Block 作为一条 SSE 事件发送。"""
     uid = _get_uid(auth_ctx)
+    token = _get_token(auth_ctx)
     normalized_session_id = _normalize_session_id(req.session_id)
     session_id, session = profile_sessions.get_or_create(
         normalized_session_id,
         user_id=uid,
+        token=token,
     )
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="消息不能为空")
@@ -307,13 +315,13 @@ async def get_famous_scientists(
     session_id: str,
     auth_ctx: dict = Depends(get_current_auth_context),
 ):
-    """知名科学家相似度匹配（纯计算，瞬间返回）。"""
+    """知名科学家相似度匹配，带 hash-based 缓存。"""
     uid = _get_uid(auth_ctx)
     session = _get_session_for_user(session_id, uid)
     from app.services.profile_helper.profile_parser import parse_profile
-    from app.services.profile_helper.scientist_match import match_famous_scientists
+    from app.services.profile_helper.scientist_match import get_cached_match
     parsed = parse_profile(session["profile"])
-    return match_famous_scientists(parsed)
+    return get_cached_match(session, parsed)
 
 
 @router.get("/profile/{session_id}/scientists/field")
@@ -321,13 +329,13 @@ async def get_field_scientist_recommendations(
     session_id: str,
     auth_ctx: dict = Depends(get_current_auth_context),
 ):
-    """领域相关科学家推荐（LLM 调用，可能较慢）。"""
+    """领域相关科学家推荐，带 hash-based 缓存（首次调 LLM，后续直接返回缓存）。"""
     uid = _get_uid(auth_ctx)
     session = _get_session_for_user(session_id, uid)
     from app.services.profile_helper.profile_parser import parse_profile
-    from app.services.profile_helper.scientist_match import recommend_field_scientists
+    from app.services.profile_helper.scientist_match import get_cached_field_recommendations
     parsed = parse_profile(session["profile"])
-    return {"recommendations": recommend_field_scientists(parsed)}
+    return {"recommendations": get_cached_field_recommendations(session, parsed)}
 
 
 @router.get("/profile/{session_id}/structured")
@@ -354,6 +362,53 @@ async def download_profile(
         content=session["profile"].encode("utf-8"),
         media_type="text/markdown; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="profile.md"'},
+    )
+
+
+@router.get("/export/{session_id}/pdf")
+async def export_profile_pdf(
+    session_id: str,
+    auth_ctx: dict = Depends(get_current_auth_context),
+):
+    """Export profile as PDF (server-side render, direct download).
+
+    Uses session cache for scientist data — no extra LLM calls if page was already viewed.
+    """
+    uid = _get_uid(auth_ctx)
+    session = _get_session_for_user(session_id, uid)
+    md = session.get("profile", "")
+    if not md.strip():
+        raise HTTPException(status_code=404, detail="画像内容为空，请先完成画像构建")
+    try:
+        pdf_bytes = export_to_pdf(md, session=session)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="profile.pdf"'},
+    )
+
+
+@router.get("/export/{session_id}/image")
+async def export_profile_image(
+    session_id: str,
+    auth_ctx: dict = Depends(get_current_auth_context),
+):
+    """Export profile as full-page PNG (long image for sharing)."""
+    uid = _get_uid(auth_ctx)
+    session = _get_session_for_user(session_id, uid)
+    md = session.get("profile", "")
+    if not md.strip():
+        raise HTTPException(status_code=404, detail="画像内容为空，请先完成画像构建")
+    try:
+        png_bytes = export_to_image(md)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={"Content-Disposition": 'attachment; filename="profile.png"'},
     )
 
 
@@ -521,13 +576,10 @@ async def session_reset(
     session_id: str,
     auth_ctx: dict = Depends(get_current_auth_context),
 ):
-    """Reset session: clear messages, restore blank profile."""
+    """Reset session: clear conversation history only; profile preserved in digital_twins."""
     uid = _get_uid(auth_ctx)
     _ = _get_session_for_user(session_id, uid)
-    profile_sessions.reset(session_id)
-    new_session = profile_sessions.get(session_id)
-    if new_session:
-        new_session["user_id"] = uid
+    profile_sessions.reset_conversation_only(session_id)
     return {"ok": True, "session_id": session_id}
 
 
@@ -538,8 +590,10 @@ async def session_get(
 ):
     """Get or create session, return session_id."""
     uid = _get_uid(auth_ctx)
+    token = _get_token(auth_ctx)
     sid, _ = profile_sessions.get_or_create(
         _normalize_session_id(session_id),
         user_id=uid,
+        token=token,
     )
     return {"session_id": sid}

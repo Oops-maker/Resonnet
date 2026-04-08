@@ -3,8 +3,10 @@
 移植自 digital-twin-bootstrap/backend/scientist_match.py，
 适配 TopicLab 模块路径。
 """
+import hashlib
 import json
 import math
+from pathlib import Path
 
 from app.services.profile_helper.scientists_db import SCIENTISTS
 
@@ -148,7 +150,10 @@ def match_famous_scientists(parsed: dict) -> dict:
         })
 
     # 用 LLM 生成个性化理由（失败时自动降级到模板文字）
-    top3 = _generate_personalized_reasons(top3, parsed)
+    # Skip LLM if profile has no actual psychological data (empty profile)
+    has_profile_data = parsed.get("cognitive_style", {}).get("csi") is not None
+    if has_profile_data:
+        top3 = _generate_personalized_reasons(top3, parsed)
 
     scatter_data = []
     for s in SCIENTISTS:
@@ -165,6 +170,109 @@ def match_famous_scientists(parsed: dict) -> dict:
         "scatter_data": scatter_data,
         "user_point": {"csi": user_csi, "rai": user_rai},
     }
+
+
+def get_cached_match(session: dict, parsed: dict) -> dict:
+    """Return scientist match result with two-level cache.
+
+    Level 1 (all users): in-memory session cache — survives repeated requests
+                          within the same session lifetime.
+    Level 2 (logged-in): filesystem cache — survives Resonnet restarts.
+
+    Cache key: SHA256 of raw profile markdown content.
+    """
+    from app.core.config import get_user_profile_dir
+
+    user_id = session.get("user_id")
+    profile_content = session.get("profile", "")
+    profile_hash = hashlib.sha256(profile_content.encode()).hexdigest()
+
+    # Level 1: in-memory session cache (all users)
+    mem_cache = session.get("_scientist_cache")
+    if isinstance(mem_cache, dict) and mem_cache.get("h") == profile_hash:
+        return mem_cache["result"]
+
+    # Level 2: filesystem cache (logged-in users only)
+    cache_path: Path | None = None
+    if user_id:
+        cache_path = get_user_profile_dir(user_id) / "scientist_cache.json"
+        if cache_path.exists():
+            try:
+                cached = json.loads(cache_path.read_text(encoding="utf-8"))
+                if cached.get("h") == profile_hash:
+                    # Warm the memory cache and return
+                    session["_scientist_cache"] = cached
+                    return cached["result"]
+            except Exception:
+                pass
+
+    # Cache miss → compute
+    result = match_famous_scientists(parsed)
+
+    # Write memory cache (all users)
+    session["_scientist_cache"] = {"h": profile_hash, "result": result}
+
+    # Write filesystem cache (logged-in users only)
+    if cache_path and user_id:
+        try:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(
+                json.dumps({"h": profile_hash, "result": result}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
+
+    return result
+
+
+def get_cached_field_recommendations(session: dict, parsed: dict) -> list:
+    """Return field scientist recommendations with two-level cache (same strategy as get_cached_match).
+
+    Cache key: SHA256 of raw profile markdown content.
+    """
+    from app.core.config import get_user_profile_dir
+
+    user_id = session.get("user_id")
+    profile_content = session.get("profile", "")
+    profile_hash = hashlib.sha256(profile_content.encode()).hexdigest()
+
+    # Level 1: in-memory session cache
+    mem_cache = session.get("_field_recs_cache")
+    if isinstance(mem_cache, dict) and mem_cache.get("h") == profile_hash:
+        return mem_cache["result"]
+
+    # Level 2: filesystem cache (logged-in users only)
+    cache_path: Path | None = None
+    if user_id:
+        cache_path = get_user_profile_dir(user_id) / "field_recs_cache.json"
+        if cache_path.exists():
+            try:
+                cached = json.loads(cache_path.read_text(encoding="utf-8"))
+                if cached.get("h") == profile_hash:
+                    session["_field_recs_cache"] = cached
+                    return cached["result"]
+            except Exception:
+                pass
+
+    # Cache miss → LLM call
+    result = recommend_field_scientists(parsed)
+
+    # Write memory cache
+    session["_field_recs_cache"] = {"h": profile_hash, "result": result}
+
+    # Write filesystem cache
+    if cache_path and user_id:
+        try:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(
+                json.dumps({"h": profile_hash, "result": result}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
+
+    return result
 
 
 def recommend_field_scientists(parsed: dict) -> list:
