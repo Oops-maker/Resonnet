@@ -772,18 +772,36 @@ def run_block_agent(
     response_blocks: list[dict] = []
     max_iterations = max(10, int(os.getenv("PROFILE_HELPER_BLOCK_MAX_ITERATIONS", "30")))
 
+    import time as _time
+
     for _ in range(max_iterations):
         log_llm_call(session, model, len(messages))
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "system", "content": system_content}] + messages,
-                tools=all_tools,
-                tool_choice="auto",
-            )
-        except Exception as e:
-            log_error(session, f"LLM 调用失败: {e}")
-            response_blocks.append({"type": "text", "content": f"LLM 调用失败: {e}"})
+        # 限速重试：429 最多重试 2 次，每次等 10s
+        _last_exc: Exception | None = None
+        for _attempt in range(3):
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "system", "content": system_content}] + messages,
+                    tools=all_tools,
+                    tool_choice="auto",
+                    timeout=90,  # 明确设置 90s 超时，避免 SSE 连接被代理杀掉
+                )
+                _last_exc = None
+                break
+            except Exception as e:
+                _last_exc = e
+                err_str = str(e)
+                # 限速（429）：等待后重试
+                if "429" in err_str or "rate" in err_str.lower():
+                    log_error(session, f"LLM 限速，等待重试 ({_attempt+1}/3): {e}")
+                    if _attempt < 2:
+                        _time.sleep(10)
+                        continue
+                break
+        if _last_exc is not None:
+            log_error(session, f"LLM 调用失败: {_last_exc}")
+            response_blocks.append({"type": "text", "content": f"LLM 调用失败: {_last_exc}"})
             break
 
         msg = response.choices[0].message
