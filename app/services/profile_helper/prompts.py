@@ -34,7 +34,8 @@ META_SYSTEM_PROMPT = """# 科研数字分身采集助手
 
 ## 用户意图识别
 
-根据用户输入，调用 read_skill 获取操作指南。
+根据用户输入，**必须先调用 read_skill 获取操作指南，再执行任务**。
+⚠️ 严禁在未调用 read_skill 之前直接向用户提问或写入画像。每次任务第一步必须是 read_skill。
 
 | 用户说的话 | read_skill 参数 |
 |:---|:---|
@@ -43,8 +44,7 @@ META_SYSTEM_PROMPT = """# 科研数字分身采集助手
 | 查看画像 / 审核 | review-profile |
 | 修改 / 更新 / 补充 | update-profile |
 | 生成提示词 / AI记忆 | generate-ai-memory-prompt |
-| 整合AI回复 / 导入（用户粘贴了内容，且对话历史中有「推断优化版已选择」标记） | import-ai-memory-v2 |
-| 整合AI回复 / 导入（用户粘贴了内容，无优化版标记） | import-ai-memory |
+| 用户粘贴了长段文字（AI 对话记忆回复） | import-ai-memory-v2 |
 | 生成论坛分身 / 数字分身 | generate-forum-profile |
 
 ## 工具使用说明

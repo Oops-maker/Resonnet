@@ -12,6 +12,7 @@ import json
 import os
 import re
 from datetime import date
+from pathlib import Path
 
 from app.services.profile_helper.llm_client import create_client, get_default_model
 from app.services.profile_helper.prompts import META_SYSTEM_PROMPT
@@ -22,6 +23,29 @@ from app.services.profile_helper.tools import (
     read_doc,
     read_skill,
 )
+from app.services.profile_helper.conversation_logger import (
+    log_user_message,
+    log_assistant_text,
+    log_ui_block,
+    log_tool_call,
+    log_tool_result,
+    log_fast_path,
+    log_llm_call,
+    log_llm_response,
+    log_error,
+)
+
+
+def _load_ai_memory_prompt() -> str:
+    """Load ai-memory-v2.md prompt; fall back to legacy inline template if missing."""
+    candidates = [
+        Path(__file__).resolve().parents[3] / "libs" / "profile_helper" / "prompts" / "ai-memory-v2.md",
+        Path("/app/libs_builtin/profile_helper/prompts/ai-memory-v2.md"),
+    ]
+    for p in candidates:
+        if p.exists():
+            return p.read_text(encoding="utf-8")
+    return _AI_MEMORY_PROMPT_TEMPLATE_LEGACY
 
 # ── 后端工具（执行后结果喂回 LLM）─────────────────────────────────
 
@@ -37,7 +61,7 @@ def _build_backend_tools() -> list[dict]:
                     "properties": {
                         "skill_name": {
                             "type": "string",
-                            "enum": list_skill_names(),
+                            "enum": [s for s in list_skill_names() if s != "import-ai-memory"],
                             "description": "Skill 名称",
                         }
                     },
@@ -284,6 +308,18 @@ def _execute_backend_tool(name: str, args: dict, session: dict) -> str:
         return session["profile"]
     if name == "write_profile":
         content = args.get("content", "")
+        # ── 格式校验：确保使用正确的模板格式 ────────────────────────────────
+        # profile_parser.py 依赖以下标记解析数据，格式不符则拒绝写入并给 LLM 纠错提示
+        _REQUIRED_HEADERS = ["## 一、基础身份", "## 二、能力", "## 三、当前需求"]
+        missing = [h for h in _REQUIRED_HEADERS if h not in content]
+        if missing or not re.search(r"^#\s+科研人员画像", content, re.MULTILINE):
+            return (
+                "【格式错误，写入被拒绝】画像内容必须使用标准模板格式：\n"
+                "- 第一行：# 科研人员画像 — [姓名]\n"
+                "- 包含章节：## 一、基础身份 / ## 二、能力 / ## 三、当前需求 / "
+                "## 四、认知风格（RCSS）/ ## 五、学术动机（AMS-GSR 28）/ ## 六、人格（Mini-IPIP）\n"
+                "请先调用 read_profile() 获取当前模板，再按模板格式更新内容后重新调用 write_profile。"
+            )
         path = save_profile(session, content)
         return f"已写入科研数字分身并保存：{path.name}，共 {len(content)} 字符。"
     if name == "write_forum_profile":
@@ -470,8 +506,8 @@ _WELCOME_BLOCKS: list[dict] = [
     },
 ]
 
-# AI 记忆提示词：全量模板（5 个模块，适用于新用户）
-_AI_MEMORY_PROMPT_TEMPLATE = """\
+# AI 记忆提示词：旧版内联模板（仅作 fallback，正式使用 ai-memory-v2.md）
+_AI_MEMORY_PROMPT_TEMPLATE_LEGACY = """\
 【科研数字分身信息提取请求】
 
 你好！我正在使用一个科研数字分身系统（他山数字分身系统）来记录和分析我的科研状态。
@@ -569,15 +605,17 @@ _AI_MEMORY_USAGE_NOTE = """\
 ⚠️ 安全提示：这份提示词不会让 AI 泄露你的具体对话内容，只是请它根据已有记忆做定向总结。\
 """
 
-_AI_MEMORY_BLOCKS: list[dict] = [
-    {"type": "text", "content": "好的！以下是为你生成的 AI 记忆提取提示词："},
-    {
-        "type": "copyable",
-        "title": "📋 AI 记忆提取提示词（点击一键复制）",
-        "content": _AI_MEMORY_PROMPT_TEMPLATE,
-    },
-    {"type": "text", "content": _AI_MEMORY_USAGE_NOTE},
-]
+def _build_ai_memory_blocks() -> list[dict]:
+    """Build AI memory prompt blocks, loading the latest prompt from ai-memory-v2.md."""
+    return [
+        {"type": "text", "content": "好的！以下是为你生成的 AI 记忆提取提示词："},
+        {
+            "type": "copyable",
+            "title": "📋 AI 记忆提取提示词（点击一键复制）",
+            "content": _load_ai_memory_prompt(),
+        },
+        {"type": "text", "content": _AI_MEMORY_USAGE_NOTE},
+    ]
 
 # 触发欢迎流程的关键词
 _WELCOME_TRIGGERS = frozenset([
@@ -626,8 +664,16 @@ def _is_fresh_session_or_init_msg(session: dict, user_message: str) -> bool:
 
 
 def _is_ai_memory_request(user_message: str, session: dict) -> bool:
-    """判断用户是否在请求 AI 记忆导入路径（标准版 A）"""
-    msg_lower = user_message.strip().lower()
+    """判断用户是否在请求 AI 记忆导入路径（标准版 A）。
+
+    快速路径只对短指令消息（< 300字符）生效，防止用户粘贴的长文 AI 回复
+    因含有"ai记忆"等词而误触发此路径（Bug fix 2026-04-08）。
+    """
+    msg_stripped = user_message.strip()
+    # 长消息（> 300 字符）不可能是路径选择指令，直接跳过
+    if len(msg_stripped) > 300:
+        return False
+    msg_lower = msg_stripped.lower()
     # 先检查是否是优化版（C），避免误判
     if _is_ai_memory_enhanced_request(user_message, session):
         return False
@@ -637,7 +683,7 @@ def _is_ai_memory_request(user_message: str, session: dict) -> bool:
     # 前缀匹配（如 "a." 开头）
     if re.match(r"^a[.、：:]\s*", msg_lower):
         return True
-    # 关键词包含匹配
+    # 关键词包含匹配（仅对短消息有效）
     for kw in ("ai记忆", "ai 记忆", "从ai", "从 ai", "chatgpt记忆", "claude记忆"):
         if kw in msg_lower:
             return True
@@ -669,33 +715,48 @@ def run_block_agent(
     """
     # ── 快速路径 1：首次消息 → 欢迎模板（不调用 LLM）──────────────
     if _is_fresh_session_or_init_msg(session, user_message):
-        # 将用户消息和欢迎回复加入会话历史，保持上下文完整
+        log_user_message(session, user_message)
+        log_fast_path(session, "welcome")
         session["messages"].append({"role": "user", "content": user_message})
         session["messages"].append({"role": "assistant", "content": _PRIVACY_NOTICE})
+        for block in _WELCOME_BLOCKS:
+            log_ui_block(session, block)
         return _WELCOME_BLOCKS
 
-    # ── 快速路径 2：AI 记忆路径 → 直接返回静态提示词（不调用 LLM）──
+    # ── 快速路径 2：AI 记忆路径 → 直接返回提示词（不调用 LLM）──
     if _is_ai_memory_request(user_message, session):
+        log_user_message(session, user_message)
+        log_fast_path(session, "ai_memory_prompt")
         session["messages"].append({"role": "user", "content": user_message})
-        session["messages"].append({
-            "role": "assistant",
-            "content": "已生成 AI 记忆提取提示词，请复制后发送给你使用的 AI。",
-        })
-        return _AI_MEMORY_BLOCKS
+        assistant_note = "已生成 AI 记忆提取提示词，请复制后发送给你使用的 AI。"
+        session["messages"].append({"role": "assistant", "content": assistant_note})
+        blocks = _build_ai_memory_blocks()
+        log_assistant_text(session, assistant_note)
+        for block in blocks:
+            log_ui_block(session, block)
+        return blocks
 
     # ── 快速路径 3：AI 记忆推断优化版（C）→ 同一份提示词，但标记优化版模式 ──
     if _is_ai_memory_enhanced_request(user_message, session):
+        log_user_message(session, user_message)
+        log_fast_path(session, "ai_memory_enhanced")
         session["messages"].append({"role": "user", "content": user_message})
-        session["messages"].append({
-            "role": "assistant",
-            "content": "【推断优化版已选择】已生成 AI 记忆提取提示词，请复制后发送给你使用的 AI。拿到回复后粘贴回来，将使用优化版推断流程（先读量表文档，再逐维度估分）。",
-        })
-        return _AI_MEMORY_BLOCKS
+        assistant_note = "【推断优化版已选择】已生成 AI 记忆提取提示词，请复制后发送给你使用的 AI。拿到回复后粘贴回来，将使用优化版推断流程（先读量表文档，再逐维度估分）。"
+        session["messages"].append({"role": "assistant", "content": assistant_note})
+        blocks = _build_ai_memory_blocks()
+        log_assistant_text(session, assistant_note)
+        for block in blocks:
+            log_ui_block(session, block)
+        return blocks
 
     # ── 正常 LLM 路径 ──────────────────────────────────────────────
+    log_user_message(session, user_message)
+
     client = create_client()
     if not client:
-        return [{"type": "text", "content": "错误：未配置 AI 生成 API。"}]
+        err_msg = "错误：未配置 AI 生成 API。"
+        log_error(session, err_msg)
+        return [{"type": "text", "content": err_msg}]
 
     model = model or get_default_model()
     today_str = date.today().strftime("%Y-%m-%d")
@@ -712,6 +773,7 @@ def run_block_agent(
     max_iterations = max(10, int(os.getenv("PROFILE_HELPER_BLOCK_MAX_ITERATIONS", "30")))
 
     for _ in range(max_iterations):
+        log_llm_call(session, model, len(messages))
         try:
             response = client.chat.completions.create(
                 model=model,
@@ -720,19 +782,27 @@ def run_block_agent(
                 tool_choice="auto",
             )
         except Exception as e:
+            log_error(session, f"LLM 调用失败: {e}")
             response_blocks.append({"type": "text", "content": f"LLM 调用失败: {e}"})
             break
 
         msg = response.choices[0].message
         tool_calls = getattr(msg, "tool_calls", None) or []
+        log_llm_response(session,
+                         has_tool_calls=bool(tool_calls),
+                         text_length=len(msg.content or ""))
 
         if not tool_calls:
             if msg.content and msg.content.strip():
-                response_blocks.append({"type": "text", "content": msg.content.strip()})
+                text = msg.content.strip()
+                response_blocks.append({"type": "text", "content": text})
+                log_assistant_text(session, text)
             break
 
         if msg.content and msg.content.strip():
-            response_blocks.append({"type": "text", "content": msg.content.strip()})
+            text = msg.content.strip()
+            response_blocks.append({"type": "text", "content": text})
+            log_assistant_text(session, text)
 
         messages.append(
             {
@@ -750,35 +820,45 @@ def run_block_agent(
             except json.JSONDecodeError:
                 args = {}
 
+            log_tool_call(session, tc.function.name, args)
+
             if tc.function.name in _INTERACTIVE_UI_TOOLS:
                 # 每轮只允许一个交互型 Block，多余的拦截并告知 LLM 下轮再问
                 if interactive_block_count >= 1:
+                    throttle_msg = (
+                        "【系统限制】每轮对话只能向用户展示一个问题。"
+                        "此问题已被忽略，请等用户回答当前问题后，在下一轮中再提问。"
+                    )
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tc.id,
-                        "content": (
-                            "【系统限制】每轮对话只能向用户展示一个问题。"
-                            "此问题已被忽略，请等用户回答当前问题后，在下一轮中再提问。"
-                        ),
+                        "content": throttle_msg,
                     })
+                    log_tool_result(session, tc.function.name, throttle_msg)
                     continue
                 block = _ui_tool_to_block(tc.function.name, args)
                 response_blocks.append(block)
+                log_ui_block(session, block)
+                shown_msg = "已展示给用户，请等待用户回复后再继续。不要在本轮继续提问。"
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tc.id,
-                    "content": "已展示给用户，请等待用户回复后再继续。不要在本轮继续提问。",
+                    "content": shown_msg,
                 })
+                log_tool_result(session, tc.function.name, shown_msg)
                 has_interactive_ui = True
                 interactive_block_count += 1
             elif tc.function.name in _DISPLAY_UI_TOOLS:
                 block = _ui_tool_to_block(tc.function.name, args)
                 response_blocks.append(block)
+                log_ui_block(session, block)
+                shown_msg = "已展示给用户。"
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tc.id,
-                    "content": "已展示给用户。",
+                    "content": shown_msg,
                 })
+                log_tool_result(session, tc.function.name, shown_msg)
             else:
                 # 后端工具：执行后喂回 LLM
                 result = _execute_backend_tool(tc.function.name, args, session)
@@ -787,6 +867,7 @@ def run_block_agent(
                     "tool_call_id": tc.id,
                     "content": result,
                 })
+                log_tool_result(session, tc.function.name, result)
 
         if has_interactive_ui:
             break
