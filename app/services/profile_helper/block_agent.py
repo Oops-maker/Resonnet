@@ -14,7 +14,13 @@ import re
 from datetime import date
 from pathlib import Path
 
-from app.services.profile_helper.llm_client import create_client, get_default_model
+from app.services.profile_helper.llm_client import (
+    create_client,
+    get_client_with_rotation,
+    mark_key_rate_limited,
+    get_default_model,
+    get_pool_status,
+)
 from app.services.profile_helper.prompts import META_SYSTEM_PROMPT
 from app.services.profile_helper.sessions import save_forum_profile, save_profile
 from app.services.profile_helper.tools import (
@@ -752,11 +758,15 @@ def run_block_agent(
     # ── 正常 LLM 路径 ──────────────────────────────────────────────
     log_user_message(session, user_message)
 
-    client = create_client()
+    client, _current_key = get_client_with_rotation()
     if not client:
         err_msg = "错误：未配置 AI 生成 API。"
         log_error(session, err_msg)
         return [{"type": "text", "content": err_msg}]
+
+    pool_status = get_pool_status()
+    if pool_status["total_keys"] > 1:
+        logger.debug("LLM pool: %d keys, %d available", pool_status["total_keys"], pool_status["available_keys"])
 
     model = model or get_default_model()
     today_str = date.today().strftime("%Y-%m-%d")
@@ -772,11 +782,9 @@ def run_block_agent(
     response_blocks: list[dict] = []
     max_iterations = max(10, int(os.getenv("PROFILE_HELPER_BLOCK_MAX_ITERATIONS", "30")))
 
-    import time as _time
-
     for _ in range(max_iterations):
         log_llm_call(session, model, len(messages))
-        # 限速重试：429 最多重试 2 次，每次等 10s
+        # 限速自动轮换：429 时 mark 当前 key，立即换下一个 key 重试（最多 3 次）
         _last_exc: Exception | None = None
         for _attempt in range(3):
             try:
@@ -785,20 +793,23 @@ def run_block_agent(
                     messages=[{"role": "system", "content": system_content}] + messages,
                     tools=all_tools,
                     tool_choice="auto",
-                    timeout=90,  # 明确设置 90s 超时，避免 SSE 连接被代理杀掉
+                    timeout=90,  # 90s 超时，避免 SSE 连接被代理杀掉
                 )
                 _last_exc = None
                 break
             except Exception as e:
                 _last_exc = e
                 err_str = str(e)
-                # 限速（429）：等待后重试
-                if "429" in err_str or "rate" in err_str.lower():
-                    log_error(session, f"LLM 限速，等待重试 ({_attempt+1}/3): {e}")
-                    if _attempt < 2:
-                        _time.sleep(10)
-                        continue
-                break
+                if "429" in err_str or "rate" in err_str.lower() or "RateLimit" in err_str:
+                    # 标记当前 key 限速，立即换下一个 key
+                    if _current_key:
+                        mark_key_rate_limited(_current_key)
+                    log_error(session, f"LLM 限速，切换 key 重试 ({_attempt+1}/3): {e}")
+                    new_client, new_key = get_client_with_rotation()
+                    if new_client:
+                        client, _current_key = new_client, new_key
+                    continue
+                break  # 非限速错误不重试
         if _last_exc is not None:
             log_error(session, f"LLM 调用失败: {_last_exc}")
             response_blocks.append({"type": "text", "content": f"LLM 调用失败: {_last_exc}"})
