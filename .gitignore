@@ -36,6 +36,9 @@ libs/moderator_modes/topiclab_shared/*.md
 # Temporary PR reports (keep docs/reports/ for formal documentation)
 PR_REPORT_*.md
 
+# Technical reports (not tracked in git)
+docs/reports/*_REPORT.md
+
 # Database files
 *.db
 *.sqlite
