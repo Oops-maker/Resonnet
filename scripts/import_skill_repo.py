@@ -23,18 +23,36 @@ from pathlib import Path
 SKIP_DIRS = frozenset({".git", "template", "spec", "node_modules", "__pycache__"})
 
 
-def extract_skill_meta(skill_md_path: Path) -> tuple[str, str]:
-    """Extract name and description from SKILL.md.
+def _first_paragraph(markdown_text: str) -> str:
+    lines = markdown_text.splitlines()
+    buf: list[str] = []
+    for line in lines:
+        s = line.strip()
+        if s.startswith("#"):
+            if buf:
+                break
+            continue
+        if s:
+            buf.append(s)
+        elif buf:
+            break
+    return " ".join(buf).strip()
+
+
+def extract_skill_meta(skill_md_path: Path) -> tuple[str, str, str]:
+    """Extract name, description, and introduction for one skill.
 
     Tries: (1) YAML frontmatter name/description, (2) first # line + first paragraph.
+    Introduction comes from sibling README.md when present, otherwise falls back to description.
     """
     try:
         text = skill_md_path.read_text(encoding="utf-8")
     except OSError:
-        return ("", "")
+        return ("", "", "")
 
     name = ""
     desc = ""
+    intro = ""
 
     # Try YAML frontmatter
     if text.strip().startswith("---"):
@@ -42,7 +60,7 @@ def extract_skill_meta(skill_md_path: Path) -> tuple[str, str]:
         if len(parts) >= 3:
             fm = parts[1]
             n = re.search(r"^name:\s*(.+)$", fm, re.MULTILINE | re.IGNORECASE)
-            d = re.search(r"^description:\s*(.+)$", fm, re.MULTILINE | re.DOTALL | re.IGNORECASE)
+            d = re.search(r"^description:\s*(.+)$", fm, re.MULTILINE | re.IGNORECASE)
             if n:
                 name = n.group(1).strip()
             if d:
@@ -57,22 +75,20 @@ def extract_skill_meta(skill_md_path: Path) -> tuple[str, str]:
                     name = s[2:].strip()
                 break
         if not desc:
-            buf = []
-            for line in lines:
-                s = line.strip()
-                if s.startswith("#"):
-                    if buf:
-                        break
-                    continue
-                if s:
-                    buf.append(s)
-                elif buf:
-                    break
-            desc = " ".join(buf)[:200].strip() if buf else ""
+            desc = _first_paragraph(text)[:200].strip()
 
     if not name:
         name = skill_md_path.parent.name.replace("-", " ").title()
-    return (name, desc)
+
+    readme_path = skill_md_path.parent / "README.md"
+    if readme_path.exists():
+        try:
+            intro = _first_paragraph(readme_path.read_text(encoding="utf-8"))[:400].strip()
+        except OSError:
+            intro = ""
+    if not intro:
+        intro = desc
+    return (name, desc, intro)
 
 
 def discover_skills(submodule_path: Path, skills_dir: str = ".") -> list[tuple[str, str, Path]]:
@@ -171,7 +187,7 @@ def scan_and_import(
     skills = {}
     for cat_id, slug, skill_md in skills_found:
         skill_id = f"{source_name}:{slug}"
-        name, desc = extract_skill_meta(skill_md)
+        name, desc, intro = extract_skill_meta(skill_md)
         if not name:
             name = slug.replace("-", " ").title()
         skills[skill_id] = {
@@ -179,6 +195,7 @@ def scan_and_import(
             "source": source_name,
             "name": name,
             "description": desc,
+            "introduction": intro,
             "category": cat_id,
         }
 

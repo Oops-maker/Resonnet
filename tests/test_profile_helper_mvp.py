@@ -10,11 +10,10 @@ from app.api.auth_bridge import (
     get_current_user_from_auth_service,
 )
 from app.services.profile_helper import sessions as profile_sessions
-from main import app
 
 
 @pytest.fixture
-def auth_override():
+def auth_override(client):
     async def _fake_user():
         return {"id": 1, "phone": "13800138000", "username": "tester"}
 
@@ -24,6 +23,7 @@ def auth_override():
             "token": "test-token",
         }
 
+    app = client.app
     app.dependency_overrides[get_current_user_from_auth_service] = _fake_user
     app.dependency_overrides[get_current_auth_context] = _fake_auth_context
     yield
@@ -95,6 +95,68 @@ def test_profile_helper_session_ignores_undefined_session_id(client, auth_overri
     sid = resp.json()["session_id"]
     assert sid
     assert sid != "undefined"
+
+
+def test_profile_helper_anonymous_session_stays_unbound(client):
+    async def _fake_auth_context():
+        return {
+            "auth_context": type(
+                "Ctx", (), {"subject": "anonymous", "is_anonymous": True}
+            )(),
+            "user": {"id": "anonymous"},
+            "token": None,
+        }
+
+    app = client.app
+    app.dependency_overrides[get_current_auth_context] = _fake_auth_context
+    try:
+        session_resp = client.get("/profile-helper/session")
+        assert session_resp.status_code == 200
+        session_id = session_resp.json()["session_id"]
+        session = profile_sessions.get(session_id)
+        assert session is not None
+        assert session["user_id"] is None
+    finally:
+        app.dependency_overrides.pop(get_current_auth_context, None)
+
+
+def test_profile_helper_publish_requires_login_for_anonymous_session(
+    client, isolated_workspace: Path
+):
+    async def _fake_auth_context():
+        return {
+            "auth_context": type(
+                "Ctx", (), {"subject": "anonymous", "is_anonymous": True}
+            )(),
+            "user": {"id": "anonymous"},
+            "token": None,
+        }
+
+    app = client.app
+    app.dependency_overrides[get_current_auth_context] = _fake_auth_context
+    try:
+        session_resp = client.get("/profile-helper/session")
+        assert session_resp.status_code == 200
+        session_id = session_resp.json()["session_id"]
+
+        session = profile_sessions.get(session_id)
+        assert session is not None
+        session["forum_profile"] = "# 匿名分身\n\n## Identity\n\n测试"
+
+        publish_resp = client.post(
+            "/profile-helper/publish-to-library",
+            json={
+                "session_id": session_id,
+                "visibility": "private",
+                "exposure": "brief",
+                "display_name": "匿名分身",
+            },
+        )
+        assert publish_resp.status_code == 401
+        assert publish_resp.json()["detail"] == "请先登录后再发布数字分身"
+        assert not (isolated_workspace / "users" / "anonymous").exists()
+    finally:
+        app.dependency_overrides.pop(get_current_auth_context, None)
 
 
 def test_profile_helper_publish_to_library_writes_twin_agent(

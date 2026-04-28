@@ -1,4 +1,4 @@
-"""Skills API: list assignable skills from global skill library."""
+"""Skills API: list and inspect assignable skills from the global skill library."""
 
 from __future__ import annotations
 
@@ -65,6 +65,32 @@ def list_assignable_skills(
     except Exception as e:
         logger.error(f"Failed to load assignable skills: {e}")
         raise HTTPException(status_code=500, detail="Failed to load assignable skills")
+
+
+@router.get("/assignable/{skill_id}")
+def get_skill_detail(skill_id: str):
+    """Return stable metadata for one assignable skill."""
+    base_dir = get_assignable_skills_dir()
+    _, skills_meta = get_cached_skills_meta(base_dir)
+
+    raw = skill_id.removesuffix(".md") if skill_id.endswith(".md") else skill_id
+    skill_info = skills_meta.get(raw, {}) if isinstance(skills_meta.get(raw), dict) else {}
+    if not skill_info:
+        raise HTTPException(status_code=404, detail="Skill not found")
+
+    src = _resolve_skill_path(base_dir, raw, skill_info)
+    if not src or not src.exists():
+        raise HTTPException(status_code=404, detail="Skill file not found")
+
+    return {
+        "id": skill_info.get("id", raw),
+        "name": skill_info.get("name", raw),
+        "description": skill_info.get("description", ""),
+        "introduction": skill_info.get("introduction", ""),
+        "source": skill_info.get("source", "default"),
+        "category": skill_info.get("category", ""),
+        "content_path": f"/skills/assignable/{raw}/content",
+    }
 
 
 @router.get("/assignable/{skill_id}/content")

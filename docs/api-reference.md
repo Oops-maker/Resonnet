@@ -228,6 +228,8 @@ Response fields: `name`, `label`, `description`, `skill_file`, `skill_content`, 
 |--------|------|-------------|
 | GET | `/profile-helper/session` | Get or create session (query: `session_id?`); returns `session_id` |
 | POST | `/profile-helper/chat` | Streaming chat via SSE (body: `message`, `session_id?`, `model?`) |
+| POST | `/profile-helper/chat/blocks` | Streaming chat via SSE where each event is a structured Block payload |
+| GET | `/profile-helper/chat-history/{session_id}` | Return user-visible history rebuilt from persisted session messages |
 | GET | `/profile-helper/profile/{session_id}` | Get profile and forum_profile content |
 | GET | `/profile-helper/profile/{session_id}/structured` | Parse profile markdown into structured JSON |
 | GET | `/profile-helper/profile/{session_id}/scientists/famous` | Famous-scientist match + scatter payload (`top3`, `scatter_data`, `user_point`; placeholder empty lists until matcher enabled) |
@@ -239,4 +241,7 @@ Response fields: `name`, `label`, `description`, `skill_file`, `skill_content`, 
 | POST | `/profile-helper/publish-to-library` | Publish profile/forum profile to expert library and create `my_twin` agent |
 | POST | `/profile-helper/session/reset/{session_id}` | Reset session: clear messages, restore blank profile |
 
-All `/profile-helper/*` endpoints require `Authorization: Bearer <token>`. Token is validated by forwarding to `topiclab-backend /auth/me`.
+Profile Helper auth depends on `AUTH_MODE`:
+- `none`: anonymous access is allowed; bearer token is optional
+- `jwt`: `Authorization: Bearer <token>` is required when `AUTH_REQUIRED=true` and validated via `topiclab-backend /auth/me`
+- `proxy`: identity comes from trusted upstream headers such as `X-User-Id`

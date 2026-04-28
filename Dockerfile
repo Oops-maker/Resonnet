@@ -43,7 +43,7 @@ USER appuser
 ENV PATH="/home/appuser/.local/bin:$PATH"
 
 # 安装依赖（使用阿里云镜像源）
-RUN pip install --no-cache-dir -e .
+RUN for i in 1 2 3; do pip install --no-cache-dir -e . && break || { echo "pip attempt $i failed, retrying in 20s..."; sleep 20; }; done
 
 EXPOSE 8000
 

@@ -1,4 +1,4 @@
-"""Profile helper API: chat, session, profile, download, scales, publish."""
+"""Profile helper API: chat, session, profile, download, export, scales, publish."""
 
 import json
 import re
@@ -10,7 +10,9 @@ from pydantic import BaseModel
 from app.api.auth_bridge import get_current_auth_context
 from app.integrations.account_sync import sync_twin_record
 from app.services.profile_helper import agent as profile_agent
+from app.services.profile_helper import block_agent as profile_block_agent
 from app.services.profile_helper import sessions as profile_sessions
+from app.services.profile_helper.export_service import export_to_pdf, export_to_image
 
 router = APIRouter()
 _INVALID_SESSION_IDS = frozenset({"", "undefined", "null", "none", "nan"})
@@ -37,12 +39,23 @@ class PublishRequest(BaseModel):
     display_name: str | None = None
 
 
-def _get_uid(auth_ctx: dict) -> str:
+def _get_token(auth_ctx: dict) -> str | None:
+    """Extract Bearer token from auth context for server-to-server calls."""
+    return auth_ctx.get("token") or None
+
+
+def _get_uid(auth_ctx: dict) -> str | None:
     auth_context = auth_ctx.get("auth_context")
     if auth_context is not None:
-        return str(auth_context.subject)
+        if getattr(auth_context, "is_anonymous", False):
+            return None
+        subject = str(auth_context.subject).strip()
+        return subject or None
     user = auth_ctx.get("user") or {}
-    return str(user.get("id", "anonymous"))
+    uid = str(user.get("id", "")).strip()
+    if not uid or uid.lower() == "anonymous":
+        return None
+    return uid
 
 
 def _normalize_session_id(session_id: str | None) -> str | None:
@@ -54,15 +67,17 @@ def _normalize_session_id(session_id: str | None) -> str | None:
     return sid
 
 
-def _get_session_for_user(session_id: str, uid: str) -> dict:
+def _get_session_for_user(session_id: str, uid: str | None) -> dict:
     session = profile_sessions.get(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="会话不存在或已过期")
+        # 会话不在内存中（常见于 uvicorn --reload 后热重载导致内存清空）
+        # 尝试用 get_or_create 从磁盘恢复画像文件
+        _, session = profile_sessions.get_or_create(session_id, user_id=uid)
 
     existing_uid = session.get("user_id")
     if existing_uid and str(existing_uid) != str(uid):
         raise HTTPException(status_code=404, detail="会话不存在或已过期")
-    if not existing_uid:
+    if not existing_uid and uid:
         session["user_id"] = uid
     return session
 
@@ -209,6 +224,48 @@ async def chat_stream(
     )
 
 
+@router.post("/chat/blocks", response_class=StreamingResponse)
+async def chat_blocks_stream(
+    req: ChatRequest,
+    auth_ctx: dict = Depends(get_current_auth_context),
+):
+    """Block 协议 SSE：每个 Block 作为一条 SSE 事件发送。"""
+    uid = _get_uid(auth_ctx)
+    token = _get_token(auth_ctx)
+    normalized_session_id = _normalize_session_id(req.session_id)
+    session_id, session = profile_sessions.get_or_create(
+        normalized_session_id,
+        user_id=uid,
+        token=token,
+    )
+    if not req.message.strip():
+        raise HTTPException(status_code=400, detail="消息不能为空")
+
+    def generate():
+        try:
+            blocks = profile_block_agent.run_block_agent(
+                req.message, session, model=req.model
+            )
+            # 每轮对话结束后立即将消息历史持久化到磁盘
+            # 确保 session 过期后仍可从磁盘恢复 AI 上下文
+            profile_sessions.save_messages(session)
+            for block in blocks:
+                yield f"data: {json.dumps(block, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'text', 'content': f'服务器错误: {e}'}, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Session-Id": session_id,
+        },
+    )
+
+
 @router.get("/profile/{session_id}")
 async def get_profile(
     session_id: str,
@@ -223,6 +280,64 @@ async def get_profile(
     }
 
 
+@router.get("/chat-history/{session_id}")
+async def get_chat_history(
+    session_id: str,
+    auth_ctx: dict = Depends(get_current_auth_context),
+):
+    """返回 session 的用户可见对话历史（过滤 tool 角色，保留 user/assistant 可读消息）。"""
+    uid = _get_uid(auth_ctx)
+    normalized = _normalize_session_id(session_id)
+    session = _get_session_for_user(normalized, uid)
+
+    # 优先从内存 session 读取；内存中没有则从磁盘恢复
+    raw_messages = session.get("messages") or profile_sessions.load_messages(normalized, uid)
+
+    # 只保留用户可读的消息（user 角色 + 有文字内容的 assistant 角色）
+    visible: list[dict] = []
+    for m in raw_messages:
+        role = m.get("role")
+        if role == "user":
+            content = m.get("content", "")
+            if content:
+                visible.append({"role": "user", "content": content})
+        elif role == "assistant":
+            content = m.get("content", "")
+            # 跳过纯工具调用中转消息（content 为空或仅是系统桥接短文本）
+            if content and len(content) > 5 and not content.startswith("（"):
+                visible.append({"role": "assistant", "content": content})
+
+    return {"messages": visible, "count": len(visible)}
+
+
+@router.get("/profile/{session_id}/scientists/famous")
+async def get_famous_scientists(
+    session_id: str,
+    auth_ctx: dict = Depends(get_current_auth_context),
+):
+    """知名科学家相似度匹配，带 hash-based 缓存。"""
+    uid = _get_uid(auth_ctx)
+    session = _get_session_for_user(session_id, uid)
+    from app.services.profile_helper.profile_parser import parse_profile
+    from app.services.profile_helper.scientist_match import get_cached_match
+    parsed = parse_profile(session["profile"])
+    return get_cached_match(session, parsed)
+
+
+@router.get("/profile/{session_id}/scientists/field")
+async def get_field_scientist_recommendations(
+    session_id: str,
+    auth_ctx: dict = Depends(get_current_auth_context),
+):
+    """领域相关科学家推荐，带 hash-based 缓存（首次调 LLM，后续直接返回缓存）。"""
+    uid = _get_uid(auth_ctx)
+    session = _get_session_for_user(session_id, uid)
+    from app.services.profile_helper.profile_parser import parse_profile
+    from app.services.profile_helper.scientist_match import get_cached_field_recommendations
+    parsed = parse_profile(session["profile"])
+    return {"recommendations": get_cached_field_recommendations(session, parsed)}
+
+
 @router.get("/profile/{session_id}/structured")
 async def get_structured_profile(
     session_id: str,
@@ -233,32 +348,6 @@ async def get_structured_profile(
     from app.services.profile_helper.profile_parser import parse_profile
 
     return parse_profile(session["profile"])
-
-
-@router.get("/profile/{session_id}/scientists/famous")
-async def get_famous_scientist_matches(
-    session_id: str,
-    auth_ctx: dict = Depends(get_current_auth_context),
-):
-    """Top famous-scientist matches + scatter plot data (placeholder until matcher is wired)."""
-    uid = _get_uid(auth_ctx)
-    _ = _get_session_for_user(session_id, uid)
-    return {
-        "top3": [],
-        "scatter_data": [],
-        "user_point": {"csi": 0.5, "rai": 0.5},
-    }
-
-
-@router.get("/profile/{session_id}/scientists/field")
-async def get_field_scientist_recommendations(
-    session_id: str,
-    auth_ctx: dict = Depends(get_current_auth_context),
-):
-    """Same-field scholar recommendations (placeholder until recommender is wired)."""
-    uid = _get_uid(auth_ctx)
-    _ = _get_session_for_user(session_id, uid)
-    return {"recommendations": []}
 
 
 @router.get("/download/{session_id}")
@@ -273,6 +362,53 @@ async def download_profile(
         content=session["profile"].encode("utf-8"),
         media_type="text/markdown; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="profile.md"'},
+    )
+
+
+@router.get("/export/{session_id}/pdf")
+async def export_profile_pdf(
+    session_id: str,
+    auth_ctx: dict = Depends(get_current_auth_context),
+):
+    """Export profile as PDF (server-side render, direct download).
+
+    Uses session cache for scientist data — no extra LLM calls if page was already viewed.
+    """
+    uid = _get_uid(auth_ctx)
+    session = _get_session_for_user(session_id, uid)
+    md = session.get("profile", "")
+    if not md.strip():
+        raise HTTPException(status_code=404, detail="画像内容为空，请先完成画像构建")
+    try:
+        pdf_bytes = export_to_pdf(md, session=session)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="profile.pdf"'},
+    )
+
+
+@router.get("/export/{session_id}/image")
+async def export_profile_image(
+    session_id: str,
+    auth_ctx: dict = Depends(get_current_auth_context),
+):
+    """Export profile as full-page PNG (long image for sharing)."""
+    uid = _get_uid(auth_ctx)
+    session = _get_session_for_user(session_id, uid)
+    md = session.get("profile", "")
+    if not md.strip():
+        raise HTTPException(status_code=404, detail="画像内容为空，请先完成画像构建")
+    try:
+        png_bytes = export_to_image(md)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={"Content-Disposition": 'attachment; filename="profile.png"'},
     )
 
 
@@ -335,6 +471,8 @@ async def publish_to_library(
 
     token = auth_ctx.get("token")
     uid = _get_uid(auth_ctx)
+    if uid is None:
+        raise HTTPException(status_code=401, detail="请先登录后再发布数字分身")
     session = _get_session_for_user(req.session_id, uid)
     full_profile = session.get("profile", "")
     forum_profile = session.get("forum_profile", "")
@@ -428,6 +566,8 @@ async def publish_to_library(
         "visibility": req.visibility,
         "exposure": req.exposure,
         "sync_status": sync_result.get("status", "unknown"),
+        "twin_id": sync_result.get("twin_id"),
+        "twin_version": sync_result.get("twin_version"),
     }
 
 
@@ -436,13 +576,10 @@ async def session_reset(
     session_id: str,
     auth_ctx: dict = Depends(get_current_auth_context),
 ):
-    """Reset session: clear messages, restore blank profile."""
+    """Reset session: clear conversation history only; profile preserved in digital_twins."""
     uid = _get_uid(auth_ctx)
     _ = _get_session_for_user(session_id, uid)
-    profile_sessions.reset(session_id)
-    new_session = profile_sessions.get(session_id)
-    if new_session:
-        new_session["user_id"] = uid
+    profile_sessions.reset_conversation_only(session_id)
     return {"ok": True, "session_id": session_id}
 
 
@@ -453,8 +590,10 @@ async def session_get(
 ):
     """Get or create session, return session_id."""
     uid = _get_uid(auth_ctx)
+    token = _get_token(auth_ctx)
     sid, _ = profile_sessions.get_or_create(
         _normalize_session_id(session_id),
         user_id=uid,
+        token=token,
     )
     return {"session_id": sid}

@@ -196,6 +196,13 @@ def test_skills_assignable_list(client: TestClient):
             assert "source" in item
 
 
+def test_skills_assignable_list_contains_research_dream(client: TestClient):
+    response = client.get("/skills/assignable", params={"q": "research-dream"})
+    assert response.status_code == 200
+    data = response.json()
+    assert any(item["id"] == "research-dream:research-dream" for item in data)
+
+
 def test_skills_assignable_content(client: TestClient):
     """GET /skills/assignable/{id}/content returns skill markdown content."""
     response = client.get("/skills/assignable/research_methodology/content")
@@ -203,6 +210,27 @@ def test_skills_assignable_content(client: TestClient):
     data = response.json()
     assert "content" in data
     assert "Research Methodology" in data["content"]
+
+
+def test_skills_assignable_detail(client: TestClient):
+    """GET /skills/assignable/{id} returns stable skill metadata."""
+    response = client.get("/skills/assignable/research_methodology")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == "research_methodology"
+    assert data["name"] == "Research Methodology"
+    assert data["source"] == "default"
+    assert data["category"] == "methodology"
+    assert "introduction" in data
+    assert data["content_path"] == "/skills/assignable/research_methodology/content"
+
+
+def test_research_dream_detail_includes_introduction(client: TestClient):
+    response = client.get("/skills/assignable/research-dream:research-dream")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == "research-dream:research-dream"
+    assert "记忆巩固" in data["introduction"]
 
 
 def test_skills_assignable_list_category_filter(client: TestClient):

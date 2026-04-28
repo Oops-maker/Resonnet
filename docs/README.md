@@ -14,9 +14,11 @@ This directory contains technical implementation details and design docs for Res
 | [api-reference.md](api-reference.md) | API endpoint list and brief descriptions |
 | [runtime-modes.md](runtime-modes.md) | How to use Resonnet in `executor` mode vs `standalone` MVP mode |
 | [agent-links-runtime.md](agent-links-runtime.md) | Agent link runtime lifecycle: per-session workspace, SSE chat, import limits |
+| [sandbox-isolation.md](sandbox-isolation.md) | Topic-level sandbox design, OS isolation model, and `srt` integration details |
 | [skills-generalization.md](skills-generalization.md) | Library design; experts in `libs/experts/`; discussion modes in `libs/moderator_modes/` |
 | [skills-submodule-guide.md](skills-submodule-guide.md) | Add/update skill libraries via submodule; points to Cursor skill |
 | [import-skill-repo.md](import-skill-repo.md) | One-click import script for external skill repos |
+| [troubleshooting.md](troubleshooting.md) | Operational troubleshooting for install, runtime, and environment issues |
 | [../app/prompts/README.md](../app/prompts/README.md) | AI prompt management (expert/moderator generation, round discussion, expert reply) |
 | [../libs/README.md](../libs/README.md) | Libs directory structure; experts, moderator_modes, mcps, prompts |
 
